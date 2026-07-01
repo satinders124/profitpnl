@@ -3,7 +3,7 @@
 import { AccountForm } from "@/components/accounts/AccountForm";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
-import { Modal } from "@/components/ui/Modal";
+import  Modal  from "@/components/ui/Modal";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
   deleteAccount,

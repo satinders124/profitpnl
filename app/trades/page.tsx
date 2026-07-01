@@ -1,7 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { Modal } from "@/components/ui/Modal";
+import  Modal  from "@/components/ui/Modal";
 import { Card } from "@/components/ui/Card";
 import { TradeForm } from "@/components/trades/TradeForm";
 import { useAuth } from "@/components/providers/AuthProvider";

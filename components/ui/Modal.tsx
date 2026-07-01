@@ -1,37 +1,54 @@
 "use client";
 
+import { ReactNode } from "react";
 import { X } from "lucide-react";
 
 type ModalProps = {
-  title: string;
-  children: React.ReactNode;
+  children: ReactNode;
+  title?: string;
+  open?: boolean;
+  isOpen?: boolean;
   onClose: () => void;
 };
 
-export function Modal({ title, children, onClose }: ModalProps) {
+export default function Modal({
+  children,
+  title,
+  open,
+  isOpen,
+  onClose,
+}: ModalProps) {
+  const visible = open ?? isOpen ?? false;
+
+  if (!visible) return null;
+
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 backdrop-blur-sm lg:items-center"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border border-[#2A2A50] bg-[#161628] p-5 shadow-2xl lg:max-w-2xl lg:rounded-3xl">
-        <div className="mb-5 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+      <button
+        type="button"
+        aria-label="Close modal backdrop"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+      />
+
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950 shadow-2xl shadow-black/60">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#2A2A50] lg:hidden" />
-            <h2 className="text-xl font-black tracking-[-0.04em]">{title}</h2>
+            {title && (
+              <h2 className="text-lg font-semibold text-white">{title}</h2>
+            )}
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#1E1E38] text-[#A0A0C0]"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-zinc-400 transition hover:bg-white/5 hover:text-white"
           >
             <X size={18} />
           </button>
         </div>
 
-        {children}
+        <div className="overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );
