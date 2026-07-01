@@ -1,65 +1,84 @@
-import Image from "next/image";
+import Link from "next/link";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-[#080810] text-[#F0F0FF]">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[#1E1E38] bg-[#080810]/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="gold-gradient flex h-9 w-9 items-center justify-center rounded-xl text-[#080810] font-black">
+              P
+            </div>
+            <div className="text-lg font-black tracking-[-0.03em]">
+              ProfitPnL
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="rounded-xl border border-[#1E1E38] px-4 py-2 text-sm font-bold text-[#A0A0C0]"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Login
+            </Link>
+            <Link
+              href="/register"
+              className="gold-gradient rounded-xl px-4 py-2 text-sm font-black text-[#080810]"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              Start Free
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </nav>
+
+      <section className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-5 pt-24 text-center">
+        <div className="mb-5 rounded-full border border-[#F0B429]/20 bg-[#F0B429]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#F0B429]">
+          AI-Powered Trading Journal
         </div>
-      </main>
-    </div>
+
+        <h1 className="max-w-3xl text-5xl font-black leading-[1.05] tracking-[-0.06em] md:text-7xl">
+          Stop guessing.
+          <br />
+          <span className="text-[#F0B429]">Find your edge.</span>
+        </h1>
+
+        <p className="mt-6 max-w-2xl text-base leading-8 text-[#A0A0C0] md:text-lg">
+          ProfitPnL helps serious traders track every trade, decode patterns,
+          protect prop firm accounts, and get Claude-powered coaching on what
+          to fix next.
+        </p>
+
+        <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/register"
+            className="gold-gradient rounded-2xl px-7 py-4 text-sm font-black text-[#080810]"
+          >
+            Start Free — No Card Needed
+          </Link>
+          <Link
+            href="/login"
+            className="rounded-2xl border border-[#1E1E38] px-7 py-4 text-sm font-black text-[#F0F0FF]"
+          >
+            Login to Account
+          </Link>
+        </div>
+
+        <div className="mt-14 grid w-full max-w-3xl grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            ["50+", "Metrics"],
+            ["AI", "Coach"],
+            ["∞", "Accounts"],
+            ["100%", "Cloud Sync"],
+          ].map(([value, label]) => (
+            <div key={label} className="profit-card p-5">
+              <div className="text-2xl font-black text-[#F0B429]">{value}</div>
+              <div className="mt-1 text-xs font-bold uppercase tracking-widest text-[#5A5A80]">
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </main>
   );
 }
