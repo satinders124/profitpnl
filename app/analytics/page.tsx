@@ -30,6 +30,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -617,21 +618,29 @@ function StatCard({
       : "text-white";
 
   return (
-    <div className="relative min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-[#12101c] p-5 shadow-lg shadow-black/20">
+    <div className="relative min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-[#12101c] p-5 shadow-lg shadow-black/20 transition-colors hover:border-white/20">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/50 to-transparent" />
 
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-[0.12em] text-zinc-500">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p
+            className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500"
+            title={label}
+          >
             {label}
           </p>
-          <p className={`mt-2 truncate text-2xl font-semibold ${toneClass}`}>
+          <p
+            className={`mt-2 truncate text-xl font-semibold tabular-nums md:text-2xl ${toneClass}`}
+            title={value}
+          >
             {value}
           </p>
-          <p className="mt-2 truncate text-xs text-zinc-500">{sub}</p>
+          <p className="mt-2 truncate text-xs text-zinc-500" title={sub}>
+            {sub}
+          </p>
         </div>
 
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/30 text-amber-300">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-amber-300">
           {icon}
         </div>
       </div>
@@ -670,58 +679,98 @@ function BreakdownTable({
   rows: BreakdownRow[];
   empty: string;
 }) {
+  const maxAbsR = Math.max(...rows.map((row) => Math.abs(row.totalR)), 1);
+
   return (
-    <Card className="min-w-0">
+    <Card className="min-w-0 overflow-hidden p-5">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
-          <p className="mt-1 text-sm text-zinc-400">{empty}</p>
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-semibold text-white md:text-lg">
+            {title}
+          </h3>
+          <p className="mt-1 truncate text-xs text-zinc-500 md:text-sm">
+            {empty}
+          </p>
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {rows.slice(0, 8).map((row) => (
           <div
             key={row.name}
-            className="rounded-2xl border border-white/10 bg-black/20 p-4"
+            className="min-w-0 rounded-2xl border border-white/10 bg-black/20 p-4 transition-colors hover:border-white/20"
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-white">{row.name}</p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  {row.trades} trades · {row.wins}W / {row.losses}L
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p
+                  className="truncate text-sm font-semibold text-white"
+                  title={row.name}
+                >
+                  {row.name}
+                </p>
+                <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                  {row.trades} {row.trades === 1 ? "trade" : "trades"} ·{" "}
+                  {row.wins}W / {row.losses}L
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 text-right">
-                <div>
-                  <p className="text-xs text-zinc-500">Total R</p>
-                  <p
-                    className={`font-semibold ${
-                      row.totalR >= 0 ? "text-emerald-300" : "text-red-300"
-                    }`}
-                  >
-                    {formatR(row.totalR)}
-                  </p>
-                </div>
+              <span
+                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${
+                  row.totalR >= 0
+                    ? "bg-emerald-400/10 text-emerald-300"
+                    : "bg-red-400/10 text-red-300"
+                }`}
+              >
+                {formatR(row.totalR)}
+              </span>
+            </div>
 
-                <div>
-                  <p className="text-xs text-zinc-500">Win</p>
-                  <p className="font-semibold text-white">
-                    {formatPct(row.winRate)}
-                  </p>
-                </div>
+            <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className={`h-full rounded-full ${
+                  row.totalR >= 0 ? "bg-emerald-400/70" : "bg-red-400/70"
+                }`}
+                style={{
+                  width: `${Math.max(
+                    (Math.abs(row.totalR) / maxAbsR) * 100,
+                    4
+                  )}%`,
+                }}
+              />
+            </div>
 
-                <div>
-                  <p className="text-xs text-zinc-500">Exp.</p>
-                  <p
-                    className={`font-semibold ${
-                      row.expectancy >= 0 ? "text-emerald-300" : "text-red-300"
-                    }`}
-                  >
-                    {formatR(row.expectancy)}
-                  </p>
-                </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-[10px] uppercase tracking-wide text-zinc-500">
+                  Win Rate
+                </p>
+                <p className="truncate text-xs font-semibold tabular-nums text-white">
+                  {formatPct(row.winRate)}
+                </p>
+              </div>
+
+              <div className="min-w-0 text-center">
+                <p className="truncate text-[10px] uppercase tracking-wide text-zinc-500">
+                  Expectancy
+                </p>
+                <p
+                  className={`truncate text-xs font-semibold tabular-nums ${
+                    row.expectancy >= 0 ? "text-emerald-300" : "text-red-300"
+                  }`}
+                >
+                  {formatR(row.expectancy)}
+                </p>
+              </div>
+
+              <div className="min-w-0 text-right">
+                <p className="truncate text-[10px] uppercase tracking-wide text-zinc-500">
+                  P. Factor
+                </p>
+                <p className="truncate text-xs font-semibold tabular-nums text-white">
+                  {row.profitFactor >= 999
+                    ? "∞"
+                    : row.profitFactor.toFixed(2)}
+                </p>
               </div>
             </div>
           </div>
@@ -906,21 +955,41 @@ export default function AnalyticsPage() {
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-black/25 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                  Current sample
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {filteredTrades.length}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">filtered trades</p>
+              <div className="flex shrink-0 gap-3">
+                <div className="min-w-[8.5rem] rounded-3xl border border-white/10 bg-black/25 p-4">
+                  <p className="whitespace-nowrap text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                    Sample
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold tabular-nums text-white">
+                    {filteredTrades.length}
+                  </p>
+                  <p className="mt-1 whitespace-nowrap text-xs text-zinc-500">
+                    filtered trades
+                  </p>
+                </div>
+
+                <div className="min-w-[8.5rem] rounded-3xl border border-white/10 bg-black/25 p-4">
+                  <p className="whitespace-nowrap text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                    Net Result
+                  </p>
+                  <p
+                    className={`mt-2 text-2xl font-semibold tabular-nums ${
+                      stats.totalR >= 0 ? "text-emerald-300" : "text-red-300"
+                    }`}
+                  >
+                    {formatR(stats.totalR)}
+                  </p>
+                  <p className="mt-1 whitespace-nowrap text-xs text-zinc-500">
+                    across sample
+                  </p>
+                </div>
               </div>
             </div>
           </section>
 
-          <Card className="border-white/10 bg-white/[0.03]">
-            <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_160px]">
-              <div className="relative">
+          <Card className="border-white/10 bg-white/[0.03] p-4">
+            <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_200px_200px_170px]">
+              <div className="relative min-w-0">
                 <Search
                   size={16}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
@@ -933,7 +1002,7 @@ export default function AnalyticsPage() {
                 />
               </div>
 
-              <div className="relative">
+              <div className="relative min-w-0">
                 <Filter
                   size={16}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
@@ -941,7 +1010,7 @@ export default function AnalyticsPage() {
                 <select
                   value={accountFilter}
                   onChange={(e) => setAccountFilter(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-amber-400/50"
+                  className="w-full cursor-pointer appearance-none truncate rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-8 text-sm text-white outline-none transition focus:border-amber-400/50"
                 >
                   <option value="all" className="bg-zinc-950">
                     All Accounts
@@ -954,7 +1023,7 @@ export default function AnalyticsPage() {
                 </select>
               </div>
 
-              <div className="relative">
+              <div className="relative min-w-0">
                 <Layers3
                   size={16}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
@@ -962,7 +1031,7 @@ export default function AnalyticsPage() {
                 <select
                   value={strategyFilter}
                   onChange={(e) => setStrategyFilter(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-amber-400/50"
+                  className="w-full cursor-pointer appearance-none truncate rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-8 text-sm text-white outline-none transition focus:border-amber-400/50"
                 >
                   <option value="all" className="bg-zinc-950">
                     All Strategies
@@ -979,7 +1048,7 @@ export default function AnalyticsPage() {
                 </select>
               </div>
 
-              <div className="relative">
+              <div className="relative min-w-0">
                 <CalendarDays
                   size={16}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
@@ -987,7 +1056,7 @@ export default function AnalyticsPage() {
                 <select
                   value={rangeFilter}
                   onChange={(e) => setRangeFilter(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-amber-400/50"
+                  className="w-full cursor-pointer appearance-none truncate rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-8 text-sm text-white outline-none transition focus:border-amber-400/50"
                 >
                   <option value="all" className="bg-zinc-950">
                     All Time
@@ -1022,7 +1091,7 @@ export default function AnalyticsPage() {
             <EmptyState />
           ) : (
             <>
-              <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                   label="Net R"
                   value={formatR(stats.totalR)}
@@ -1056,7 +1125,7 @@ export default function AnalyticsPage() {
                 />
               </section>
 
-              <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                   label="Average Win"
                   value={formatR(stats.avgWin)}
@@ -1090,8 +1159,8 @@ export default function AnalyticsPage() {
                 />
               </section>
 
-              <section className="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
-                <Card className="min-w-0">
+              <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,0.6fr)]">
+                <Card className="min-w-0 overflow-hidden p-5">
                   <div className="mb-5 flex items-center justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
@@ -1129,14 +1198,26 @@ export default function AnalyticsPage() {
                           fontSize={12}
                           tickLine={false}
                           axisLine={false}
+                          width={48}
+                          tickFormatter={(value: number) => `${value}R`}
                         />
                         <Tooltip
+                          formatter={(value) => [
+                            `${Number(value ?? 0).toFixed(2)}R`,
+                            "Equity",
+                          ]}
                           contentStyle={{
                             background: "#09090b",
                             border: "1px solid rgba(255,255,255,0.12)",
                             borderRadius: "16px",
                             color: "#fff",
+                            fontSize: "12px",
                           }}
+                        />
+                        <ReferenceLine
+                          y={0}
+                          stroke="rgba(255,255,255,0.15)"
+                          strokeDasharray="4 4"
                         />
                         <Area
                           type="monotone"
@@ -1150,7 +1231,7 @@ export default function AnalyticsPage() {
                   </div>
                 </Card>
 
-                <Card className="min-w-0">
+                <Card className="min-w-0 overflow-hidden p-5">
                   <div className="mb-5">
                     <h3 className="text-lg font-semibold text-white">
                       Distribution
@@ -1179,14 +1260,20 @@ export default function AnalyticsPage() {
                           allowDecimals={false}
                         />
                         <Tooltip
+                          cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                          formatter={(value) => [
+                            `${Number(value ?? 0)} trades`,
+                            "Count",
+                          ]}
                           contentStyle={{
                             background: "#09090b",
                             border: "1px solid rgba(255,255,255,0.12)",
                             borderRadius: "16px",
                             color: "#fff",
+                            fontSize: "12px",
                           }}
                         />
-                        <Bar dataKey="value" radius={[12, 12, 0, 0]}>
+                        <Bar dataKey="value" radius={[12, 12, 0, 0]} maxBarSize={56}>
                           {distributionData.map((entry) => (
                             <Cell key={entry.name} fill={entry.color} />
                           ))}
@@ -1197,7 +1284,7 @@ export default function AnalyticsPage() {
                 </Card>
               </section>
 
-              <section className="grid gap-4 xl:grid-cols-3">
+              <section className="grid min-w-0 gap-4 lg:grid-cols-2 xl:grid-cols-3">
                 <BreakdownTable
                   title="Strategy Performance"
                   rows={strategyRows}
@@ -1217,7 +1304,7 @@ export default function AnalyticsPage() {
                 />
               </section>
 
-              <Card className="border-amber-400/15 bg-amber-400/[0.035]">
+              <Card className="border-amber-400/15 bg-amber-400/[0.035] p-5 md:p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
@@ -1232,7 +1319,7 @@ export default function AnalyticsPage() {
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-zinc-300">
+                  <div className="shrink-0 self-start whitespace-nowrap rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm tabular-nums text-zinc-300">
                     Sample: {stats.trades} trades
                   </div>
                 </div>

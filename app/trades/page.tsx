@@ -235,6 +235,49 @@ export default function TradesPage() {
             />
           </div>
 
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MiniStat
+              label="Profit Factor"
+              value={stats.count ? stats.profitFactor.toFixed(2) : "—"}
+              sub="gross win / gross loss"
+              tone={stats.profitFactor >= 1 ? "green" : "red"}
+              icon={Target}
+            />
+            <MiniStat
+              label="Max Drawdown"
+              value={stats.count ? `${stats.maxDD.toFixed(2)}R` : "—"}
+              sub="peak-to-trough"
+              tone="red"
+              icon={Target}
+            />
+            <MiniStat
+              label="Current Streak"
+              value={stats.count ? formatStreak(stats.streak) : "—"}
+              sub={
+                stats.streak > 0
+                  ? "winning streak"
+                  : stats.streak < 0
+                    ? "losing streak"
+                    : "no streak yet"
+              }
+              tone={
+                stats.streak > 0
+                  ? "green"
+                  : stats.streak < 0
+                    ? "red"
+                    : "purple"
+              }
+              icon={Sparkles}
+            />
+            <MiniStat
+              label="Best Setup"
+              value={stats.bestSetup}
+              sub="highest total R"
+              tone="purple"
+              icon={Star}
+            />
+          </div>
+
           <Card className="p-4">
             <div className="relative">
               <Search
@@ -435,11 +478,13 @@ function MiniStat({
   value,
   sub,
   tone,
+  icon: Icon = TrendingUp,
 }: {
   label: string;
   value: string;
   sub: string;
-  tone: "green" | "red" | "gold" | "blue";
+  tone: "green" | "red" | "gold" | "blue" | "purple";
+  icon?: typeof TrendingUp;
 }) {
   const color =
     tone === "green"
@@ -448,7 +493,9 @@ function MiniStat({
         ? "#FF4565"
         : tone === "blue"
           ? "#4C82FB"
-          : "#F0B429";
+          : tone === "purple"
+            ? "#A855F7"
+            : "#F0B429";
 
   return (
     <Card className="p-5">
@@ -456,16 +503,26 @@ function MiniStat({
         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">
           {label}
         </div>
-        <TrendingUp size={17} style={{ color }} />
+        <Icon size={17} style={{ color }} />
       </div>
 
-      <div className="mt-3 text-3xl font-black tracking-[-0.06em]" style={{ color }}>
+      <div
+        className="mt-3 truncate text-3xl font-black tracking-[-0.06em]"
+        style={{ color }}
+        title={value}
+      >
         {value}
       </div>
 
       <div className="mt-1 text-xs font-semibold text-[#5A5A80]">{sub}</div>
     </Card>
   );
+}
+
+function formatStreak(streak: number) {
+  if (!streak) return "—";
+  const count = Math.abs(streak);
+  return `${count}${streak > 0 ? "W" : "L"}`;
 }
 
 function HeroFact({

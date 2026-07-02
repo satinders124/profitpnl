@@ -1,5 +1,4 @@
 @import "tailwindcss";
-
 :root {
   --bg: #080810;
   --bg2: #0d0d1a;
@@ -15,11 +14,27 @@
   --blue: #4c82fb;
   --purple: #a855f7;
 }
-
+/* ---------- TAILWIND v4 THEME TOKENS (these become Tailwind classes) ---------- */
+@theme {
+  --color-gold: #f0b429;
+  --color-gold2: #c8961e;
+  --color-bull: #00d084;
+  --color-bear: #ff4565;
+  --color-blue2: #4c82fb;
+  --color-purple2: #a855f7;
+  --color-ink: #080810;
+  --color-ink2: #0d0d1a;
+  --color-panel: #161628;
+  --color-line: #1e1e38;
+  --color-txt: #f0f0ff;
+  --color-muted2: #a0a0c0;
+  --color-dim: #5a5a80;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-mono2: ui-monospace, monospace;
+}
 * {
   box-sizing: border-box;
 }
-
 html,
 body {
   min-height: 100%;
@@ -29,25 +44,98 @@ body {
     "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-
 a {
   color: inherit;
   text-decoration: none;
 }
-
 button,
 input,
 select,
 textarea {
   font-family: inherit;
 }
-
 .profit-card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 18px;
 }
-
 .gold-gradient {
   background: linear-gradient(135deg, var(--gold), var(--gold2));
 }
+/* ---------- ANIMATIONS ---------- */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 34s linear infinite; }
+.marquee-paused:hover .animate-marquee { animation-play-state: paused; }
+@keyframes gridPan {
+  from { background-position: 0 0; }
+  to { background-position: 48px 48px; }
+}
+.trading-grid {
+  background-image:
+    linear-gradient(rgba(240, 180, 41, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(240, 180, 41, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: gridPan 7s linear infinite;
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.08); }
+}
+.animate-pulse-glow { animation: pulseGlow 4.5s ease-in-out infinite; }
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+.animate-float { animation: floatY 5s ease-in-out infinite; }
+.animate-float-slow { animation: floatY 7.5s ease-in-out infinite; }
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.text-shimmer {
+  background: linear-gradient(110deg, #f0b429 20%, #ffe9b3 40%, #ffd977 50%, #ffe9b3 60%, #f0b429 80%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 5s linear infinite;
+}
+@keyframes blinkUp {
+  0% { color: #f0f0ff; }
+  30% { color: #00d084; text-shadow: 0 0 18px rgba(0, 208, 132, 0.7); }
+  100% { color: #f0f0ff; }
+}
+.blink-up { animation: blinkUp 1s ease-out; }
+@property --border-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes borderSpin {
+  to { --border-angle: 360deg; }
+}
+.border-spin {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#161628, #161628) padding-box,
+    conic-gradient(from var(--border-angle), rgba(240, 180, 41, 0.06), #f0b429 12%, rgba(255, 217, 119, 0.9) 22%, rgba(240, 180, 41, 0.06) 35%) border-box;
+  animation: borderSpin 4s linear infinite;
+}
+@keyframes scan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.animate-scan { animation: scan 5s ease-in-out infinite; }
+@keyframes ping-slow {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.animate-ping-slow { animation: ping-slow 2.4s cubic-bezier(0, 0, 0.2, 1) infinite; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-track { background: #080810; }
+::-webkit-scrollbar-thumb { background: #1e1e38; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #f0b42955; }
+::selection { background: rgba(240, 180, 41, 0.3); color: #fff; }
