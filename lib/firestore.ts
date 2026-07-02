@@ -144,3 +144,25 @@ export async function getJournals(uid: string): Promise<JournalEntry[]> {
     ...(d.data() as Omit<JournalEntry, "id">),
   }));
 }
+
+export async function saveJournal(uid: string, journal: Partial<JournalEntry>) {
+  const ref = userCollection(uid, "journals");
+
+  if (journal.id) {
+    const { id, ...data } = journal;
+    await setDoc(doc(db, "users", uid, "journals", id), data, { merge: true });
+    return id;
+  }
+
+  const { id, ...data } = journal;
+  const created = await addDoc(ref, {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+
+  return created.id;
+}
+
+export async function deleteJournal(uid: string, journalId: string) {
+  await deleteDoc(doc(db, "users", uid, "journals", journalId));
+}

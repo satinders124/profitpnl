@@ -18,37 +18,48 @@ export default function Modal({
   isOpen,
   onClose,
 }: ModalProps) {
-  const visible = open ?? isOpen ?? false;
+  // FIX: If no 'open' prop is provided, we assume the parent is controlling 
+  // the mounting (e.g. {formOpen && <Modal />}), so we default to true.
+  const visible = open ?? isOpen ?? true;
 
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4 py-6 animate-in fade-in duration-200">
+      {/* Backdrop: Now with a deeper blur and better color */}
       <button
         type="button"
         aria-label="Close modal backdrop"
         onClick={onClose}
-        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity"
       />
 
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950 shadow-2xl shadow-black/60">
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+      {/* Modal Container */}
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] border border-[#1E1E38] bg-[#0D0D1A] shadow-2xl shadow-black/80 animate-in zoom-in-95 duration-200">
+        
+        {/* Premium Header */}
+        <div className="flex items-center justify-between border-b border-[#1E1E38] px-6 py-5 bg-gradient-to-r from-[#0D0D1A] to-[#111120]">
           <div>
             {title && (
-              <h2 className="text-lg font-semibold text-white">{title}</h2>
+              <h2 className="text-xl font-black text-white tracking-tight">
+                {title}
+              </h2>
             )}
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-zinc-400 transition hover:bg-white/5 hover:text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#1E1E38] text-[#5A5A80] transition-all hover:bg-[#1E1E38] hover:text-white active:scale-90"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="overflow-y-auto p-5">{children}</div>
+        {/* Scrollable Content Area */}
+        <div className="overflow-y-auto p-6 custom-scrollbar">
+          {children}
+        </div>
       </div>
     </div>
   );
