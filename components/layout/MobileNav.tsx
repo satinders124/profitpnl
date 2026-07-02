@@ -12,22 +12,22 @@ import {
 
 const items = [
   {
-    label: "Home",
+    label: "Overview",
     href: "/dashboard",
     icon: Home,
   },
   {
-    label: "Trades",
+    label: "Blotter",
     href: "/trades",
     icon: ListChecks,
   },
   {
-    label: "Stats",
+    label: "Analytics",
     href: "/analytics",
     icon: BarChart3,
   },
   {
-    label: "AI",
+    label: "AI Desk",
     href: "/ai-coach",
     icon: Sparkles,
   },
@@ -42,7 +42,7 @@ export function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-[64px] border-t border-[#1E1E38] bg-[#111120] pb-[env(safe-area-inset-bottom)] lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-[64px] border-t border-[#1F1F2C] bg-[#0E0E14]/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] lg:hidden font-sans select-none">
       {items.map((item) => {
         const active =
           pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -53,12 +53,16 @@ export function MobileNav() {
             key={item.href}
             href={item.href}
             className={[
-              "flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-black uppercase tracking-[0.08em]",
-              active ? "text-[#F0B429]" : "text-[#5A5A80]",
+              "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium tracking-tight transition-colors",
+              active ? "text-[#F0B429] font-semibold" : "text-zinc-500 hover:text-zinc-300",
             ].join(" ")}
           >
-            <Icon size={22} strokeWidth={1.8} />
-            {item.label}
+            <Icon
+              size={20}
+              strokeWidth={active ? 2.2 : 1.8}
+              className="transition-transform duration-150"
+            />
+            <span>{item.label}</span>
           </Link>
         );
       })}

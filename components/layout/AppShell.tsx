@@ -22,7 +22,7 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <ProtectedRoute>
-      <div className="flex h-screen overflow-hidden bg-[#080810] text-[#F0F0FF]">
+      <div className="flex h-screen overflow-hidden bg-[#08080C] text-[#F2F2F8] font-sans antialiased selection:bg-[#F0B429]/20 selection:text-[#F0B429]">
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -33,7 +33,7 @@ export function AppShell({
             onAction={onAction}
           />
 
-          <main className="flex-1 overflow-y-auto px-4 py-4 pb-24 lg:px-7 lg:py-6 lg:pb-8">
+          <main className="flex-1 overflow-y-auto px-4 py-6 pb-24 lg:px-8 lg:py-8 lg:pb-12 scroll-smooth">
             {children}
           </main>
         </div>

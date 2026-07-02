@@ -29,7 +29,7 @@ const navGroups = [
     ],
   },
   {
-    label: "Journal",
+    label: "Journal & Analytics",
     items: [
       {
         label: "Trade Log",
@@ -37,7 +37,7 @@ const navGroups = [
         icon: ListChecks,
       },
       {
-        label: "Analytics",
+        label: "Performance",
         href: "/analytics",
         icon: BarChart3,
       },
@@ -45,7 +45,7 @@ const navGroups = [
         label: "AI Coach",
         href: "/ai-coach",
         icon: Sparkles,
-        badge: "AI",
+        badge: "Pro",
       },
       {
         label: "Psychology",
@@ -60,7 +60,7 @@ const navGroups = [
     ],
   },
   {
-    label: "Manage",
+    label: "Management",
     items: [
       {
         label: "Accounts",
@@ -68,7 +68,7 @@ const navGroups = [
         icon: CreditCard,
       },
       {
-        label: "Upgrade",
+        label: "Membership",
         href: "/upgrade",
         icon: Trophy,
       },
@@ -93,31 +93,31 @@ function initials(email?: string | null, name?: string | null) {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, plan } = useAuth();
 
   return (
-    <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-[#1E1E38] bg-[#111120] lg:flex">
+    <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-[#1F1F2C] bg-[#0E0E14] lg:flex font-sans select-none">
       <Link
         href="/dashboard"
-        className="flex items-center gap-3 border-b border-[#1E1E38] px-5 py-5"
+        className="flex items-center gap-3 border-b border-[#1F1F2C] px-5 py-4 hover:bg-[#12121A] transition-colors"
       >
-        <div className="gold-gradient flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-[#080810] shadow-lg shadow-[#F0B429]/20">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#181824] border border-[#282838] text-sm font-bold text-[#F0B429] shadow-sm">
           P
         </div>
         <div>
-          <div className="text-lg font-black tracking-[-0.04em]">
+          <div className="text-base font-semibold tracking-tight text-white">
             ProfitPnL
           </div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#5A5A80]">
+          <div className="text-[11px] text-zinc-400 font-normal">
             Trading Journal
           </div>
         </div>
       </Link>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6 no-scrollbar">
         {navGroups.map((group) => (
-          <div key={group.label} className="mb-6">
-            <div className="mb-2 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#2E2E52]">
+          <div key={group.label}>
+            <div className="mb-2 px-3 text-xs font-semibold text-zinc-500">
               {group.label}
             </div>
 
@@ -134,19 +134,20 @@ export function Sidebar() {
                     key={item.href}
                     href={item.href}
                     className={[
-                      "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition",
+                      "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition-all",
                       active
-                        ? "border border-[#F0B429]/15 bg-[#F0B429]/10 text-[#F0B429]"
-                        : "text-[#5A5A80] hover:bg-[#161628] hover:text-[#F0F0FF]",
+                        ? "bg-[#181824] text-white font-semibold border border-[#282838] shadow-sm"
+                        : "text-zinc-400 hover:bg-[#12121A] hover:text-zinc-200 border border-transparent",
                     ].join(" ")}
                   >
                     <Icon
-                      size={18}
-                      className={active ? "text-[#F0B429]" : "text-current"}
+                      size={17}
+                      strokeWidth={1.8}
+                      className={active ? "text-[#F0B429]" : "text-zinc-500 group-hover:text-zinc-300 transition-colors"}
                     />
-                    <span className="flex-1">{item.label}</span>
+                    <span className="flex-1 truncate">{item.label}</span>
                     {item.badge && (
-                      <span className="rounded-full bg-[#F0B429] px-2 py-0.5 text-[10px] font-black text-[#080810]">
+                      <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-[#F0B429]/10 text-[#F0B429] border border-[#F0B429]/20">
                         {item.badge}
                       </span>
                     )}
@@ -158,23 +159,25 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <Link
-        href="/settings"
-        className="m-3 flex items-center gap-3 rounded-2xl border border-[#1E1E38] bg-[#161628] p-3 transition hover:border-[#2A2A50]"
-      >
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#F0B429] to-[#A855F7] text-sm font-black text-white">
-          {initials(user?.email, user?.displayName)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-bold">
-            {user?.displayName || "Trader"}
+      <div className="p-3 border-t border-[#1F1F2C] bg-[#0A0A0E]">
+        <Link
+          href="/settings"
+          className="flex items-center gap-3 rounded-xl border border-[#1F1F2C] bg-[#0E0E14] p-3 transition-all hover:border-[#2C2C3E] hover:bg-[#12121A]"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#181824] border border-[#282838] text-xs font-semibold text-zinc-200 shrink-0">
+            {initials(user?.email, user?.displayName)}
           </div>
-          <div className="truncate text-xs font-semibold text-[#F0B429]">
-            Free Plan
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-xs font-semibold text-white">
+              {user?.displayName || "Trader"}
+            </div>
+            <div className="truncate text-[11px] text-[#F0B429] font-medium mt-0.5">
+              {plan || "Free Plan"}
+            </div>
           </div>
-        </div>
-        <MoreHorizontal size={16} className="text-[#5A5A80]" />
-      </Link>
+          <MoreHorizontal size={15} className="text-zinc-500 shrink-0" />
+        </Link>
+      </div>
     </aside>
   );
 }
