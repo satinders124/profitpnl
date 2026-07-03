@@ -2,12 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Card } from "@/components/ui/Card";
 import {
   Send,
-  Bot,
   User,
-  Sparkles,
   BrainCircuit,
   Target,
   TrendingUp,
@@ -39,6 +36,18 @@ function formatTime(ts: number) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+// The site's real brand mark (same growth-chart glyph used in the Navbar
+// and Footer logo) — used here instead of a generic robot-face icon so
+// the AI Coach still looks unmistakably like ProfitPnL, not a stock chatbot.
+function BrandMark({ size = 22 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M4 19V5m0 14h16" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 14l4-4 3 3 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 const SYSTEM_PROMPT =
@@ -93,7 +102,8 @@ export default function AiCoachPage() {
   }, [isFreePlan, messages, scrollToBottom]);
 
   // Auto-grow the textarea up to a max height instead of a fixed-height
-  // single-line input.
+  // single-line input — this is also what stops the placeholder text from
+  // visually overflowing the box on narrow screens.
   useEffect(() => {
     if (isFreePlan) return;
     const el = textareaRef.current;
@@ -128,7 +138,6 @@ export default function AiCoachPage() {
     );
   }
 
-
   async function streamReply(history: ChatMessage[]) {
     setErrorText(null);
     setIsThinking(true);
@@ -158,8 +167,6 @@ export default function AiCoachPage() {
       const decoder = new TextDecoder();
       let firstChunk = true;
 
-      // Reserve the assistant bubble now so the "thinking" dots can hand
-      // off smoothly to live-streamed text with no visual gap.
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -184,7 +191,6 @@ export default function AiCoachPage() {
       }
 
       if (firstChunk) {
-        // Stream closed with zero bytes — surface as an error bubble.
         setMessages((prev) => [
           ...prev,
           {
@@ -252,8 +258,6 @@ export default function AiCoachPage() {
 
   async function handleRetry() {
     if (isThinking || isStreaming) return;
-    // Drop the last assistant message (if any) and re-ask with the same
-    // history up to the last user message.
     const lastUserIndex = [...messages].reverse().findIndex((m) => m.role === "user");
     if (lastUserIndex === -1) return;
     const cutIndex = messages.length - 1 - lastUserIndex;
@@ -283,260 +287,243 @@ export default function AiCoachPage() {
   const busy = isThinking || isStreaming;
 
   return (
-    <AppShell title="AI Performance Coach" subtitle="Elite Neural Trading Mentorship">
-      <div className="w-full h-[calc(100vh-120px)] flex flex-col gap-4 p-2 md:p-4">
-        <div className="flex items-center justify-between px-2">
-          <div className="flex items-center gap-3">
-            <div className="relative p-2 rounded-lg bg-gold-gradient text-black shadow-[0_0_15px_rgba(240,180,41,0.3)]">
-              <Sparkles size={20} />
-              <span
-                className={`absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-[#08080C] transition-colors ${
-                  busy ? "bg-[#00D084] animate-pulse" : "bg-[#00D084]"
-                }`}
-              />
-            </div>
-            <div>
-              <h3 className="text-sm font-black text-white tracking-tight">
-                AI PERFORMANCE ENGINE
-              </h3>
-              <p className="text-[10px] text-[#5A5A80] uppercase tracking-widest font-bold">
-                {busy ? "Generating response…" : "Neural System Active"}
-              </p>
-            </div>
+    <AppShell title="AI Coach" subtitle={busy ? "Generating response…" : "Elite Neural Trading Mentorship"}>
+      {/* Full-bleed chat: fills the entire AppShell content area, no nested
+          header bar and no card border — this IS the page, not a widget
+          floating inside one. Negative margins precisely cancel AppShell's
+          <main> padding (px-4 py-6 pb-24 lg:px-8 lg:py-8 lg:pb-12) so the
+          chat reaches every edge. h-full (not a guessed vh calc) fills
+          exactly the space <main> already has as a flex-1 item. */}
+      <div className="-mx-4 -mt-6 -mb-24 flex h-full flex-col bg-[#08080C] lg:-mx-8 lg:-mt-8 lg:-mb-12">
+        {messages.length > 0 && (
+          <div className="flex shrink-0 items-center justify-end gap-2 border-b border-[#1E1E38] bg-[#0D0D1A]/60 px-4 py-2.5 backdrop-blur-md">
+            <button
+              onClick={handleRetry}
+              disabled={busy}
+              title="Regenerate last response"
+              className="flex items-center gap-1.5 rounded-lg border border-[#1E1E38] bg-[#111120] px-3 py-1.5 text-[11px] font-bold text-[#A0A0C0] transition-colors hover:border-[#F0B429]/50 hover:text-white disabled:opacity-40"
+            >
+              <RotateCcw size={12} />
+              <span className="hidden sm:inline">Retry</span>
+            </button>
+            <button
+              onClick={handleClear}
+              title="Clear conversation"
+              className="flex items-center gap-1.5 rounded-lg border border-[#1E1E38] bg-[#111120] px-3 py-1.5 text-[11px] font-bold text-[#A0A0C0] transition-colors hover:border-[#FF4565]/50 hover:text-[#FF4565]"
+            >
+              <Trash2 size={12} />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
           </div>
+        )}
 
-          {messages.length > 0 && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleRetry}
-                disabled={busy}
-                title="Regenerate last response"
-                className="flex items-center gap-1.5 rounded-lg border border-[#1E1E38] bg-[#111120] px-3 py-2 text-[11px] font-bold text-[#A0A0C0] transition-colors hover:border-[#F0B429]/50 hover:text-white disabled:opacity-40"
+        <div className="relative flex flex-1 flex-col overflow-hidden">
+          <div className="pointer-events-none absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-[#F0B429]/5 blur-[120px]" />
+          <div className="pointer-events-none absolute bottom-[-10%] right-[-10%] h-[40%] w-[40%] rounded-full bg-blue-500/5 blur-[120px]" />
+
+          <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto px-4 py-6 space-y-6 scroll-smooth sm:px-6 lg:px-10">
+            {messages.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center space-y-6 text-center"
               >
-                <RotateCcw size={13} />
-                <span className="hidden sm:inline">Retry</span>
-              </button>
-              <button
-                onClick={handleClear}
-                title="Clear conversation"
-                className="flex items-center gap-1.5 rounded-lg border border-[#1E1E38] bg-[#111120] px-3 py-2 text-[11px] font-bold text-[#A0A0C0] transition-colors hover:border-[#FF4565]/50 hover:text-[#FF4565]"
-              >
-                <Trash2 size={13} />
-                <span className="hidden sm:inline">Clear</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 flex flex-col overflow-hidden relative">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#F0B429]/5 blur-[120px] rounded-full pointer-events-none" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 blur-[120px] rounded-full pointer-events-none" />
-
-          <Card className="flex-1 flex flex-col overflow-hidden bg-[#0D0D1A]/80 backdrop-blur-xl border-[#1E1E38] shadow-2xl relative z-10">
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
-              {messages.length === 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="h-full flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-6"
-                >
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gold-gradient blur-2xl opacity-20 animate-pulse" />
-                    <Bot size={64} className="relative text-[#F0B429] z-10" />
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gold-gradient blur-2xl opacity-25 animate-pulse" />
+                  <div className="gold-gradient relative flex h-16 w-16 items-center justify-center rounded-2xl text-[#080810] shadow-[0_0_35px_rgba(240,180,41,0.4)]">
+                    <BrandMark size={30} />
                   </div>
-                  <div className="space-y-2">
-                    <h2 className="text-3xl font-black text-white">Welcome, Trader.</h2>
-                    <p className="text-sm text-[#A0A0C0] leading-relaxed px-4">
-                      Your mental edge is as important as your technical edge. <br />
-                      What are we optimizing today?
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full pt-4">
-                    {quickPrompts.map((prompt, i) => (
-                      <motion.button
-                        key={i}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.15 + i * 0.08, duration: 0.4 }}
-                        onClick={() => setInput(prompt.text)}
-                        className="flex items-center gap-3 p-4 rounded-xl border border-[#1E1E38] bg-[#111120] text-left text-xs text-[#A0A0C0] hover:border-[#F0B429] hover:text-white transition-all group"
-                      >
-                        <span className="p-2 rounded-lg bg-[#1E1E38] group-hover:bg-[#F0B429] group-hover:text-black transition-colors shrink-0">
-                          {prompt.icon}
-                        </span>
-                        <div className="truncate">
-                          <p className="font-bold opacity-60 mb-1">{prompt.label}</p>
-                          <p className="truncate">{prompt.text}</p>
-                        </div>
-                      </motion.button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              <AnimatePresence initial={false}>
-                {messages.map((msg) => {
-                  const isUser = msg.role === "user";
-                  const isThisStreaming = streamingId === msg.id;
-
-                  return (
-                    <motion.div
-                      key={msg.id}
-                      initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                      className={`group flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black text-white">Welcome, Trader.</h2>
+                  <p className="px-4 text-sm leading-relaxed text-[#A0A0C0]">
+                    Your mental edge is as important as your technical edge. <br />
+                    What are we optimizing today?
+                  </p>
+                </div>
+                <div className="grid w-full grid-cols-1 gap-3 pt-4 md:grid-cols-3">
+                  {quickPrompts.map((prompt, i) => (
+                    <motion.button
+                      key={i}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15 + i * 0.08, duration: 0.4 }}
+                      onClick={() => setInput(prompt.text)}
+                      className="group flex items-center gap-3 rounded-xl border border-[#1E1E38] bg-[#111120] p-4 text-left text-xs text-[#A0A0C0] transition-all hover:border-[#F0B429] hover:text-white"
                     >
+                      <span className="shrink-0 rounded-lg bg-[#1E1E38] p-2 transition-colors group-hover:bg-[#F0B429] group-hover:text-black">
+                        {prompt.icon}
+                      </span>
+                      <div className="truncate">
+                        <p className="mb-1 font-bold opacity-60">{prompt.label}</p>
+                        <p className="truncate">{prompt.text}</p>
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            <AnimatePresence initial={false}>
+              {messages.map((msg) => {
+                const isUser = msg.role === "user";
+                const isThisStreaming = streamingId === msg.id;
+
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 14, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                    className={`group mx-auto flex max-w-3xl gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+                  >
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                        isUser
+                          ? "bg-gold-gradient text-black"
+                          : "border border-[#2E2E4D] bg-[#1E1E38] text-[#F0B429]"
+                      }`}
+                    >
+                      {isUser ? <User size={18} /> : <BrandMark size={17} />}
+                    </div>
+
+                    <div className={`flex max-w-[85%] flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        className={`rounded-2xl p-4 text-sm leading-relaxed shadow-sm ${
                           isUser
-                            ? "bg-gold-gradient text-black"
-                            : "bg-[#1E1E38] text-[#F0B429] border border-[#2E2E4D]"
+                            ? "rounded-tr-none bg-[#F0B429] font-semibold text-[#080810]"
+                            : "rounded-tl-none border border-[#1E1E38] bg-[#16162A] text-[#F0F0FF]"
                         }`}
                       >
-                        {isUser ? <User size={18} /> : <Bot size={18} />}
-                      </div>
-
-                      <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? "items-end" : "items-start"}`}>
-                        <div
-                          className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                            isUser
-                              ? "bg-[#F0B429] text-[#080810] rounded-tr-none font-semibold"
-                              : "bg-[#16162A] text-[#F0F0FF] rounded-tl-none border border-[#1E1E38]"
-                          }`}
-                        >
-                          {isUser ? (
-                            msg.content
-                          ) : (
-                            <>
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  strong: ({ ...props }) => (
-                                    <span className="text-[#F0B429] font-black" {...props} />
-                                  ),
-                                  p: ({ ...props }) => <p className="mb-3 last:mb-0" {...props} />,
-                                  ul: ({ ...props }) => (
-                                    <ul className="list-disc ml-4 mb-3 space-y-2" {...props} />
-                                  ),
-                                  li: ({ ...props }) => <li className="pl-1" {...props} />,
-                                }}
-                              >
-                                {msg.content}
-                              </ReactMarkdown>
-                              {isThisStreaming && (
-                                <span className="inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-[#F0B429]" />
-                              )}
-                            </>
-                          )}
-                        </div>
-
-                        <div
-                          className={`flex items-center gap-2 px-1 text-[10px] text-[#5A5A80] opacity-0 transition-opacity group-hover:opacity-100 ${
-                            isUser ? "flex-row-reverse" : "flex-row"
-                          }`}
-                        >
-                          <span>{formatTime(msg.createdAt)}</span>
-                          {!isUser && msg.content && !isThisStreaming && (
-                            <button
-                              onClick={() => handleCopy(msg.id, msg.content)}
-                              className="flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-[#1E1E38] hover:text-white transition-colors"
+                        {isUser ? (
+                          msg.content
+                        ) : (
+                          <>
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                strong: ({ ...props }) => (
+                                  <span className="text-[#F0B429] font-black" {...props} />
+                                ),
+                                p: ({ ...props }) => <p className="mb-3 last:mb-0" {...props} />,
+                                ul: ({ ...props }) => (
+                                  <ul className="list-disc ml-4 mb-3 space-y-2" {...props} />
+                                ),
+                                li: ({ ...props }) => <li className="pl-1" {...props} />,
+                              }}
                             >
-                              {copiedId === msg.id ? (
-                                <>
-                                  <Check size={11} /> Copied
-                                </>
-                              ) : (
-                                <>
-                                  <Copy size={11} /> Copy
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </div>
+                              {msg.content}
+                            </ReactMarkdown>
+                            {isThisStreaming && (
+                              <span className="inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-[#F0B429]" />
+                            )}
+                          </>
+                        )}
                       </div>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
 
-              {isThinking && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex gap-3 flex-row"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-[#1E1E38] text-[#F0B429] flex items-center justify-center shrink-0 border border-[#2E2E4D]">
-                    <Bot size={18} />
-                  </div>
-                  <div className="bg-[#16162A] text-[#A0A0C0] px-4 py-3.5 rounded-2xl rounded-tl-none border border-[#1E1E38] flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#F0B429] animate-bounce [animation-delay:-0.3s]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#F0B429] animate-bounce [animation-delay:-0.15s]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#F0B429] animate-bounce" />
-                  </div>
-                </motion.div>
-              )}
-
-              {errorText && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center gap-2 rounded-xl border border-[#FF4565]/30 bg-[#FF4565]/10 px-4 py-3 text-xs font-semibold text-[#FF4565]"
-                >
-                  <Zap size={14} className="shrink-0" />
-                  {errorText}
-                </motion.div>
-              )}
-            </div>
-
-            <AnimatePresence>
-              {showJumpToBottom && (
-                <motion.button
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  onClick={() => scrollToBottom()}
-                  className="absolute bottom-28 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full border border-[#1E1E38] bg-[#111120]/95 backdrop-blur px-3.5 py-1.5 text-[11px] font-bold text-[#A0A0C0] shadow-lg hover:text-white hover:border-[#F0B429]/50 transition-colors z-20"
-                >
-                  <ChevronDown size={13} />
-                  New messages
-                </motion.button>
-              )}
+                      <div
+                        className={`flex items-center gap-2 px-1 text-[10px] text-[#5A5A80] opacity-0 transition-opacity group-hover:opacity-100 ${
+                          isUser ? "flex-row-reverse" : "flex-row"
+                        }`}
+                      >
+                        <span>{formatTime(msg.createdAt)}</span>
+                        {!isUser && msg.content && !isThisStreaming && (
+                          <button
+                            onClick={() => handleCopy(msg.id, msg.content)}
+                            className="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-[#1E1E38] hover:text-white"
+                          >
+                            {copiedId === msg.id ? (
+                              <>
+                                <Check size={11} /> Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={11} /> Copy
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
 
-            <div className="p-6 bg-[#0D0D1A]/50 backdrop-blur-md border-t border-[#1E1E38]">
-              <form onSubmit={handleSend} className="relative max-w-4xl mx-auto group">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Describe a trade, an emotion, or a rule-break..."
-                  rows={1}
-                  className="w-full resize-none bg-[#111120] border border-[#1E1E38] rounded-2xl pl-5 pr-16 py-4 text-sm text-[#F0F0FF] outline-none focus:border-[#F0B429] focus:ring-1 focus:ring-[#F0B429] transition-all placeholder:text-[#5A5A80] shadow-inner leading-relaxed"
-                  style={{ maxHeight: 160 }}
-                />
-                <button
-                  type="submit"
-                  disabled={busy || !input.trim()}
-                  className="absolute right-2 bottom-2 h-11 w-11 rounded-xl gold-gradient text-[#080810] disabled:opacity-40 transition-all hover:scale-105 active:scale-95 flex items-center justify-center"
-                >
-                  {busy ? (
-                    <span className="flex h-4 w-4 items-center justify-center">
-                      <span className="h-4 w-4 rounded-full border-2 border-[#080810]/30 border-t-[#080810] animate-spin" />
-                    </span>
-                  ) : (
-                    <Send size={18} />
-                  )}
-                </button>
-              </form>
-              <p className="mt-2 max-w-4xl mx-auto text-center text-[10px] text-[#5A5A80]">
-                Press <span className="font-bold text-[#8080A0]">Enter</span> to send,{" "}
-                <span className="font-bold text-[#8080A0]">Shift + Enter</span> for a new line.
-              </p>
-            </div>
-          </Card>
+            {isThinking && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mx-auto flex max-w-3xl flex-row gap-3"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#2E2E4D] bg-[#1E1E38] text-[#F0B429]">
+                  <BrandMark size={17} />
+                </div>
+                <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-none border border-[#1E1E38] bg-[#16162A] px-4 py-3.5 text-[#A0A0C0]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#F0B429] animate-bounce [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#F0B429] animate-bounce [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#F0B429] animate-bounce" />
+                </div>
+              </motion.div>
+            )}
+
+            {errorText && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mx-auto flex max-w-3xl items-center gap-2 rounded-xl border border-[#FF4565]/30 bg-[#FF4565]/10 px-4 py-3 text-xs font-semibold text-[#FF4565]"
+              >
+                <Zap size={14} className="shrink-0" />
+                {errorText}
+              </motion.div>
+            )}
+          </div>
+
+          <AnimatePresence>
+            {showJumpToBottom && (
+              <motion.button
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                onClick={() => scrollToBottom()}
+                className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-[#1E1E38] bg-[#111120]/95 px-3.5 py-1.5 text-[11px] font-bold text-[#A0A0C0] shadow-lg backdrop-blur transition-colors hover:border-[#F0B429]/50 hover:text-white"
+              >
+                <ChevronDown size={13} />
+                New messages
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="shrink-0 border-t border-[#1E1E38] bg-[#0D0D1A]/70 px-4 py-4 backdrop-blur-md sm:px-6 lg:px-10">
+          <form onSubmit={handleSend} className="relative mx-auto max-w-3xl">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Describe a trade, an emotion, or a rule-break..."
+              rows={1}
+              className="w-full resize-none rounded-2xl border border-[#1E1E38] bg-[#111120] py-3.5 pl-5 pr-14 text-sm leading-relaxed text-[#F0F0FF] shadow-inner outline-none transition-all placeholder:text-[#5A5A80] focus:border-[#F0B429] focus:ring-1 focus:ring-[#F0B429]"
+              style={{ maxHeight: 160 }}
+            />
+            <button
+              type="submit"
+              disabled={busy || !input.trim()}
+              className="absolute right-2 bottom-2 flex h-9 w-9 items-center justify-center rounded-xl gold-gradient text-[#080810] transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+            >
+              {busy ? (
+                <span className="h-4 w-4 rounded-full border-2 border-[#080810]/30 border-t-[#080810] animate-spin" />
+              ) : (
+                <Send size={17} />
+              )}
+            </button>
+          </form>
+          <p className="mx-auto mt-2 max-w-3xl text-center text-[10px] text-[#5A5A80]">
+            Press <span className="font-bold text-[#8080A0]">Enter</span> to send,{" "}
+            <span className="font-bold text-[#8080A0]">Shift + Enter</span> for a new line.
+          </p>
         </div>
       </div>
     </AppShell>
