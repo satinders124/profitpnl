@@ -336,7 +336,7 @@ function getTarget(): number {
     localStorage.setItem(KEY, String(t));
     return t;
   } catch {
-    return Date.now() + 32 * 24 * 60 * 60 * 1000;
+    return Date.now() + 2 * 5 * 54 * 60 * 1000;
   }
 }
 
@@ -690,7 +690,7 @@ export default function App() {
         <div className="anim-fade-up mt-10 w-full" style={{ animationDelay: "2.05s" }}>
           <WaitlistForm />
           <p className="mt-3 font-mono text-[11px] text-[#5a5a80]">
-            <span className="text-[#00d084]">●</span> 2,847 traders already on the waitlist — early birds get{" "}
+            <span className="text-[#00d084]">●</span> 2,847 traders already on the waitlist{" "}
           </p>
         </div>
 
