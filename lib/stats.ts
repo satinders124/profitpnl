@@ -67,11 +67,18 @@ export function calcStats(trades: Trade[]) {
   const bestSetup =
     Object.entries(bySetup).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 
-  let streak = 0;
-  let streakSign: 1 | -1 | null = null;
+  const chronological = closed.slice().sort((a, b) =>
+  new Date(a.date || "").getTime() - new Date(b.date || "").getTime()
+);
 
-  for (let i = closed.length - 1; i >= 0; i--) {
-    const sign = n(closed[i].result) > 0 ? 1 : -1;
+let streak = 0;
+let streakSign: 1 | -1 | null = null;
+
+for (let i = chronological.length - 1; i >= 0; i--) {
+  const result = n(chronological[i].result);
+  if (result === 0) continue; // breakeven — skip, doesn't affect streak
+
+  const sign = result > 0 ? 1 : -1;
 
     if (streakSign === null) {
       streakSign = sign;
