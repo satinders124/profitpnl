@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 import { hashOtp, normalizeEmail, otpDocId, OTP_MAX_ATTEMPTS } from "@/lib/otp";
 import { FieldValue } from "firebase-admin/firestore";
+import sgMail from "@sendgrid/mail";
+import { welcomeEmailHtml } from "@/lib/email-templates";
 
 export const runtime = "nodejs";
 
@@ -95,6 +97,14 @@ export async function POST(req: Request) {
     // Issue a custom token so the client can sign the user straight in.
     const customToken = await adminAuth.createCustomToken(userRecord.uid);
 
+    // Best-effort welcome email confirming verification — never block or
+    // fail the signup response if this errors (e.g. SendGrid hiccup).
+    try {
+      await sendWelcomeEmail(data.email, data.name);
+    } catch (emailErr) {
+      console.error("welcome email error:", emailErr);
+    }
+
     return NextResponse.json({ ok: true, token: customToken });
   } catch (err) {
     console.error("verify-otp error:", err);
@@ -103,4 +113,25 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+async function sendWelcomeEmail(email: string, name: string) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+
+  if (!apiKey || !fromEmail) {
+    throw new Error(
+      "SendGrid is not configured. Set SENDGRID_API_KEY and SENDGRID_FROM_EMAIL."
+    );
+  }
+
+  sgMail.setApiKey(apiKey);
+
+  await sgMail.send({
+    to: email,
+    from: { email: fromEmail, name: "ProfitPnL" },
+    subject: "Your email is verified — welcome to ProfitPnL",
+    text: `Hi ${name || "there"},\n\nYour email has been verified and your ProfitPnL account is ready. Log in any time to start journaling your trades.\n\n— The ProfitPnL Team`,
+    html: welcomeEmailHtml(name),
+  });
 }

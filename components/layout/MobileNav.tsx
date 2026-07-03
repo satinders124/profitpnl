@@ -17,7 +17,7 @@ const items = [
     icon: Home,
   },
   {
-    label: "Blotter",
+    label: "Trades",
     href: "/trades",
     icon: ListChecks,
   },

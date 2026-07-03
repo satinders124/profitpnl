@@ -1,18 +1,44 @@
 "use client";
 
 import { auth } from "@/lib/firebase-client";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  setPersistence,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getTrialEligibility } from "@/lib/trial";
+import { TrialOfferModal } from "@/components/trial/TrialOfferModal";
+
+const REMEMBERED_EMAIL_KEY = "ppnl_remembered_email";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [trialOfferUid, setTrialOfferUid] = useState<string | null>(null);
+
+  // Pre-fill the email if the user previously checked "Remember Me".
+  // (Runs after mount, client-only, to avoid a server/client hydration
+  // mismatch since localStorage isn't available during server rendering.)
+  useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY);
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      }
+    } catch {
+      // localStorage unavailable — ignore.
+    }
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -20,13 +46,47 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // Remember Me -> stay signed in across browser restarts (local persistence).
+      // Unchecked -> session ends when the browser/tab is closed.
+      await setPersistence(
+        auth,
+        rememberMe ? browserLocalPersistence : browserSessionPersistence
+      );
+
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+
+      try {
+        if (rememberMe) {
+          localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+        } else {
+          localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+        }
+      } catch {
+        // localStorage unavailable — non-critical, ignore.
+      }
+
+      // If this user is eligible for the 7-day trial, offer it once here,
+      // before they land on the dashboard. Otherwise go straight in.
+      try {
+        const eligibility = await getTrialEligibility(cred.user.uid);
+        if (eligibility.eligible) {
+          setTrialOfferUid(cred.user.uid);
+          return;
+        }
+      } catch {
+        // If the eligibility check fails for any reason, don't block login.
+      }
+
       router.push("/dashboard");
     } catch {
       setError("Incorrect email or password.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function continueToDashboard() {
+    router.push("/dashboard");
   }
 
   return (
@@ -58,6 +118,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              autoComplete="email"
               required
             />
           </div>
@@ -73,6 +134,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                autoComplete="current-password"
                 required
               />
               <button
@@ -84,6 +146,39 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+
+          <label className="flex cursor-pointer items-center gap-2.5 select-none">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="peer sr-only"
+            />
+            <span
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                rememberMe
+                  ? "border-[#F0B429] bg-[#F0B429]"
+                  : "border-[#1E1E38] bg-[#0D0D1A]"
+              }`}
+            >
+              {rememberMe && (
+                <svg
+                  viewBox="0 0 16 16"
+                  className="h-3 w-3 text-[#080810]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 8.5l3 3 7-7" />
+                </svg>
+              )}
+            </span>
+            <span className="text-xs font-bold text-[#A0A0C0]">
+              Remember me
+            </span>
+          </label>
 
           {error && <div className="text-sm text-[#FF4565]">{error}</div>}
 
@@ -102,6 +197,10 @@ export default function LoginPage() {
           </Link>
         </p>
       </form>
+
+      {trialOfferUid && (
+        <TrialOfferModal uid={trialOfferUid} onDone={continueToDashboard} />
+      )}
     </main>
   );
 }

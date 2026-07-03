@@ -9,7 +9,6 @@ import { getAccounts, getPlaybook, getTrades } from "@/lib/firestore";
 import {
   calcStats,
   directionStats,
-  equityCurve,
   formatPct,
   formatR,
   uniqueClean,
@@ -35,10 +34,21 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type TimeRange = "all" | "7d" | "30d" | "90d";
+type PnlViewMode = "r" | "dollar";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -54,6 +64,7 @@ export default function DashboardPage() {
   const [accountFilter, setAccountFilter] = useState("");
   const [strategyFilter, setStrategyFilter] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
+  const [calendarView, setCalendarView] = useState<PnlViewMode>("r");
 
   const loadData = async () => {
     if (!user) return;
@@ -103,34 +114,29 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => calcStats(filteredTrades), [filteredTrades]);
   const dir = useMemo(() => directionStats(filteredTrades), [filteredTrades]);
-  const curve = useMemo(() => equityCurve(filteredTrades), [filteredTrades]);
+  const equityChartData = useMemo(
+    () => buildEquityChartData(filteredTrades),
+    [filteredTrades]
+  );
 
   const openTrades = useMemo(() => {
     return filteredTrades.filter((t) => !hasResult(t));
   }, [filteredTrades]);
 
-  const selectedAccounts = accountFilter
-    ? accounts.filter((a) => a.name === accountFilter)
-    : accounts;
-
-  const totalCapital = selectedAccounts.reduce(
-    (sum, account) => sum + Number(account.size || 0),
-    0
-  );
-
-  const riskPerR = totalCapital > 0 ? totalCapital * 0.01 : 100;
-
+  // Dollar P&L only ever reflects trades where a $ amount was actually
+  // logged (trade.pnl). Trades with no $ entered are excluded from this
+  // total rather than estimated from their R result — so this number
+  // never invents a dollar figure that wasn't actually recorded.
   const tradesWithPnl = filteredTrades.filter(
     (t) => t.pnl !== "" && t.pnl !== null && t.pnl !== undefined
   );
 
-  const actualPnl = tradesWithPnl.reduce(
+  const tradesMissingPnl = filteredTrades.length - tradesWithPnl.length;
+
+  const dollarProfit = tradesWithPnl.reduce(
     (sum, trade) => sum + Number(trade.pnl || 0),
     0
   );
-
-  const dollarProfit =
-    tradesWithPnl.length > 0 ? actualPnl : stats.totalR * riskPerR;
 
   const edgeScore = useMemo(() => {
     return calculateEdgeScore(
@@ -223,15 +229,23 @@ export default function DashboardPage() {
             <MetricCard
               icon={<Trophy size={18} />}
               label="Net Profit"
-              value={`${dollarProfit >= 0 ? "+" : "-"}$${Math.abs(
-                dollarProfit
-              ).toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}`}
-              sub={`${formatR(stats.totalR)} · ${
-                tradesWithPnl.length ? "actual P/L" : "est. from R"
-              }`}
+              value={
+                tradesWithPnl.length
+                  ? `${dollarProfit >= 0 ? "+" : "-"}$${Math.abs(
+                      dollarProfit
+                    ).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`
+                  : "—"
+              }
+              sub={
+                tradesMissingPnl > 0
+                  ? `${formatR(stats.totalR)} · ${tradesMissingPnl} trade${
+                      tradesMissingPnl === 1 ? "" : "s"
+                    } missing $`
+                  : `${formatR(stats.totalR)} · actual P/L`
+              }
               tone={dollarProfit >= 0 ? "green" : "red"}
             />
 
@@ -266,7 +280,11 @@ export default function DashboardPage() {
 
           {/* --- EXACT MONTHLY P&L CALENDAR HEATMAP & EDGE SCORE CARD --- */}
           <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-            <ExactMonthlyCalendarHeatmap trades={filteredTrades} />
+            <ExactMonthlyCalendarHeatmap
+              trades={filteredTrades}
+              viewMode={calendarView}
+              onViewModeChange={setCalendarView}
+            />
 
             <RedesignedEdgeScoreCard
               score={edgeScore}
@@ -279,6 +297,7 @@ export default function DashboardPage() {
                   ? worstSetup.name
                   : "None detected"
               }
+              hasDollarData={tradesWithPnl.length > 0}
               dollarProfit={dollarProfit}
             />
           </section>
@@ -315,8 +334,8 @@ export default function DashboardPage() {
               </div>
 
               <div className="relative h-80 overflow-hidden rounded-xl border border-[#1E1E38] bg-[#070712] p-4">
-                {curve.length ? (
-                  <InstitutionalInteractiveEquityChart data={curve} />
+                {equityChartData.length ? (
+                  <DashboardEquityChart data={equityChartData} />
                 ) : (
                   <EmptyMini message="Log closed trades to generate your equity chart." />
                 )}
@@ -419,10 +438,195 @@ type CalendarCell =
       dateStr: string;
       trades: Trade[];
       count: number;
-      pnl: number;
+      r: number;
+      dollar: number;
+      dollarTradeCount: number; // how many of this day's trades have a logged $ value
+      hasUntrackedDollar: boolean; // true if some trades this day have no $ logged
     };
 
-function ExactMonthlyCalendarHeatmap({ trades }: { trades: Trade[] }) {
+// Returns a trade's dollar P&L only if it was actually logged — never
+// invents a dollar figure from the R result. Returns null when the
+// trade has no $ value entered, so callers can exclude it from totals
+// instead of silently guessing (e.g. via a flat/default risk amount).
+function tradeDollarOrNull(trade: Trade): number | null {
+  if (trade.pnl !== "" && trade.pnl !== null && trade.pnl !== undefined) {
+    const parsed = Number(trade.pnl);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function formatDollarCompact(value: number): string {
+  const sign = value >= 0 ? "+" : "-";
+  const abs = Math.abs(value);
+  if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(1)}k`;
+  return `${sign}$${abs.toFixed(0)}`;
+}
+
+function formatDollarFull(value: number): string {
+  const sign = value >= 0 ? "+" : "-";
+  return `${sign}$${Math.abs(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+type EquityChartPoint = {
+  name: string;
+  trade: number;
+  equity: number;
+  r: number;
+  instrument: string;
+  strategy: string;
+};
+
+// Same approach as the Performance page's equity curve (buildEquityCurve in
+// app/analytics/page.tsx): sort closed trades chronologically, accumulate a
+// running R total, and label each point with a short date + trade metadata
+// for the tooltip — instead of a bare list of numbers.
+function buildEquityChartData(trades: Trade[]): EquityChartPoint[] {
+  let runningR = 0;
+
+  const closed = trades
+    .filter(hasResult)
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.date || "").getTime() - new Date(b.date || "").getTime()
+    );
+
+  return closed.map((trade, index) => {
+    runningR += Number(trade.result || 0);
+
+    const parsedDate = trade.date ? new Date(trade.date) : null;
+
+    return {
+      name:
+        parsedDate && !Number.isNaN(parsedDate.getTime())
+          ? parsedDate.toLocaleDateString("en-AU", {
+              day: "2-digit",
+              month: "short",
+            })
+          : `#${index + 1}`,
+      trade: index + 1,
+      equity: Number(runningR.toFixed(2)),
+      r: Number(trade.result || 0),
+      instrument: trade.instrument || "—",
+      strategy: trade.setup || "—",
+    };
+  });
+}
+
+function EquityCurveTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: EquityChartPoint }>;
+}) {
+  if (!active || !payload || !payload.length) return null;
+  const point = payload[0].payload;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#0D0D1A]/95 px-3.5 py-2.5 shadow-xl backdrop-blur-md">
+      <div className="mb-1 flex items-center justify-between gap-4 border-b border-white/10 pb-1">
+        <span className="whitespace-nowrap text-xs font-semibold text-[#F0B429]">
+          Trade #{point.trade}
+        </span>
+        <span className="whitespace-nowrap text-[10px] text-[#8080A0]">
+          {point.name}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="whitespace-nowrap text-xs text-[#A0A0C0]">
+          {point.instrument} · {point.strategy}
+        </span>
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-4">
+        <span className="whitespace-nowrap text-xs text-[#A0A0C0]">
+          Cumulative:
+        </span>
+        <span
+          className={`whitespace-nowrap text-xs font-bold tabular-nums ${
+            point.equity >= 0 ? "text-[#00D084]" : "text-[#FF4565]"
+          }`}
+        >
+          {formatR(point.equity)}
+        </span>
+      </div>
+      <div className="mt-0.5 flex items-center justify-between gap-4">
+        <span className="whitespace-nowrap text-xs text-[#A0A0C0]">
+          This trade:
+        </span>
+        <span
+          className={`whitespace-nowrap text-xs font-bold tabular-nums ${
+            point.r >= 0 ? "text-[#00D084]" : "text-[#FF4565]"
+          }`}
+        >
+          {formatR(point.r)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Same visual language as the Performance page's Equity Curve chart
+// (app/analytics/page.tsx): Recharts AreaChart, gold gradient fill,
+// dashed zero reference line, subtle grid, axis-formatted in R.
+function DashboardEquityChart({ data }: { data: EquityChartPoint[] }) {
+  const finalEquity = data.length ? data[data.length - 1].equity : 0;
+  const lineColor = finalEquity >= 0 ? "#F0B429" : "#FF4565";
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="dashboardEquityFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={lineColor} stopOpacity={0.35} />
+            <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+
+        <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+        <XAxis
+          dataKey="name"
+          stroke="#71717a"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+          minTickGap={24}
+        />
+        <YAxis
+          stroke="#71717a"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+          width={48}
+          tickFormatter={(value: number) => `${value}R`}
+        />
+        <Tooltip content={<EquityCurveTooltip />} />
+        <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
+        <Area
+          type="monotone"
+          dataKey="equity"
+          stroke={lineColor}
+          strokeWidth={2}
+          fill="url(#dashboardEquityFill)"
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function ExactMonthlyCalendarHeatmap({
+  trades,
+  viewMode,
+  onViewModeChange,
+}: {
+  trades: Trade[];
+  viewMode: PnlViewMode;
+  onViewModeChange: (mode: PnlViewMode) => void;
+}) {
   // State for current displayed month
   const [displayDate, setDisplayDate] = useState(() => new Date());
 
@@ -457,10 +661,14 @@ function ExactMonthlyCalendarHeatmap({ trades }: { trades: Trade[] }) {
 
       // Filter exact trades that occurred on this specific YYYY-MM-DD
       const dayTrades = trades.filter((t) => t.date === dateStr);
-      const dayPnl = dayTrades.reduce(
-        (sum, t) => sum + Number(t.result || 0),
-        0
-      );
+      const dayR = dayTrades.reduce((sum, t) => sum + Number(t.result || 0), 0);
+
+      // Dollar total only counts trades where a $ P&L was actually logged —
+      // trades without one are excluded, never estimated from R.
+      const dayDollarValues = dayTrades
+        .map((t) => tradeDollarOrNull(t))
+        .filter((v): v is number => v !== null);
+      const dayDollar = dayDollarValues.reduce((sum, v) => sum + v, 0);
 
       cells.push({
         type: "day",
@@ -469,7 +677,10 @@ function ExactMonthlyCalendarHeatmap({ trades }: { trades: Trade[] }) {
         dateStr,
         trades: dayTrades,
         count: dayTrades.length,
-        pnl: dayPnl,
+        r: dayR,
+        dollar: dayDollar,
+        dollarTradeCount: dayDollarValues.length,
+        hasUntrackedDollar: dayDollarValues.length < dayTrades.length,
       });
     }
 
@@ -488,19 +699,32 @@ function ExactMonthlyCalendarHeatmap({ trades }: { trades: Trade[] }) {
     let winDays = 0;
     let lossDays = 0;
     let totalMonthR = 0;
+    let totalMonthDollar = 0;
     let totalMonthTrades = 0;
+    let tradesMissingDollar = 0;
 
     for (const cell of calendarCells) {
       if (cell.type === "day" && cell.count > 0) {
         totalMonthTrades += cell.count;
-        totalMonthR += cell.pnl;
-        if (cell.pnl > 0) winDays++;
-        if (cell.pnl < 0) lossDays++;
+        totalMonthR += cell.r;
+        totalMonthDollar += cell.dollar;
+        tradesMissingDollar += cell.count - cell.dollarTradeCount;
+
+        const dayResult = viewMode === "dollar" ? cell.dollar : cell.r;
+        if (dayResult > 0) winDays++;
+        if (dayResult < 0) lossDays++;
       }
     }
 
-    return { winDays, lossDays, totalMonthR, totalMonthTrades };
-  }, [calendarCells]);
+    return {
+      winDays,
+      lossDays,
+      totalMonthR,
+      totalMonthDollar,
+      totalMonthTrades,
+      tradesMissingDollar,
+    };
+  }, [calendarCells, viewMode]);
 
   const handlePrevMonth = () => {
     setDisplayDate(new Date(year, month - 1, 1));
@@ -530,29 +754,59 @@ function ExactMonthlyCalendarHeatmap({ trades }: { trades: Trade[] }) {
             </p>
           </div>
 
-          {/* Month Switcher Controls */}
-          <div className="flex shrink-0 items-center gap-1.5 self-start rounded-xl border border-[#1E1E38] bg-[#0D0D1A] p-1 sm:self-auto">
-            <button
-              onClick={handlePrevMonth}
-              aria-label="Previous Month"
-              className="rounded-lg p-1.5 text-[#A0A0C0] transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={handleToday}
-              title="Jump to current month"
-              className="whitespace-nowrap px-3 py-1 text-xs font-bold text-white transition-colors hover:text-[#F0B429]"
-            >
-              {monthName}
-            </button>
-            <button
-              onClick={handleNextMonth}
-              aria-label="Next Month"
-              className="rounded-lg p-1.5 text-[#A0A0C0] transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <ChevronRight size={16} />
-            </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
+            {/* R / $ View Toggle */}
+            <div className="flex items-center gap-0.5 rounded-xl border border-[#1E1E38] bg-[#0D0D1A] p-1">
+              <button
+                onClick={() => onViewModeChange("r")}
+                aria-pressed={viewMode === "r"}
+                className={[
+                  "rounded-lg px-2.5 py-1 text-xs font-bold transition-colors",
+                  viewMode === "r"
+                    ? "bg-[#F0B429] text-[#080810]"
+                    : "text-[#A0A0C0] hover:text-white",
+                ].join(" ")}
+              >
+                R
+              </button>
+              <button
+                onClick={() => onViewModeChange("dollar")}
+                aria-pressed={viewMode === "dollar"}
+                className={[
+                  "rounded-lg px-2.5 py-1 text-xs font-bold transition-colors",
+                  viewMode === "dollar"
+                    ? "bg-[#F0B429] text-[#080810]"
+                    : "text-[#A0A0C0] hover:text-white",
+                ].join(" ")}
+              >
+                $
+              </button>
+            </div>
+
+            {/* Month Switcher Controls */}
+            <div className="flex items-center gap-1.5 rounded-xl border border-[#1E1E38] bg-[#0D0D1A] p-1">
+              <button
+                onClick={handlePrevMonth}
+                aria-label="Previous Month"
+                className="rounded-lg p-1.5 text-[#A0A0C0] transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={handleToday}
+                title="Jump to current month"
+                className="whitespace-nowrap px-3 py-1 text-xs font-bold text-white transition-colors hover:text-[#F0B429]"
+              >
+                {monthName}
+              </button>
+              <button
+                onClick={handleNextMonth}
+                aria-label="Next Month"
+                className="rounded-lg p-1.5 text-[#A0A0C0] transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -579,8 +833,25 @@ function ExactMonthlyCalendarHeatmap({ trades }: { trades: Trade[] }) {
               );
             }
 
-            const isWin = cell.pnl > 0;
-            const isLoss = cell.pnl < 0;
+            // In $ view, a day where none of its trades have a logged
+            // dollar amount has no data to show — distinguish that from
+            // an actual $0 result, so it never looks like a breakeven day.
+            const dollarUntracked =
+              viewMode === "dollar" && cell.count > 0 && cell.dollarTradeCount === 0;
+
+            const cellValue = viewMode === "dollar" ? cell.dollar : cell.r;
+            const isWin = !dollarUntracked && cellValue > 0;
+            const isLoss = !dollarUntracked && cellValue < 0;
+            const cellLabel = dollarUntracked
+              ? "No $"
+              : viewMode === "dollar"
+                ? formatDollarCompact(cellValue)
+                : formatR(cellValue);
+            const titleLabel = dollarUntracked
+              ? "No $ logged for this trade"
+              : viewMode === "dollar"
+                ? formatDollarFull(cellValue)
+                : formatR(cellValue);
 
             return (
               <div
@@ -595,9 +866,13 @@ function ExactMonthlyCalendarHeatmap({ trades }: { trades: Trade[] }) {
                 ].join(" ")}
                 title={
                   cell.count > 0
-                    ? `${cell.dateStr}: ${formatR(cell.pnl)} across ${
-                        cell.count
-                      } ${cell.count === 1 ? "trade" : "trades"}`
+                    ? dollarUntracked
+                      ? `${cell.dateStr}: no $ logged for ${cell.count} ${
+                          cell.count === 1 ? "trade" : "trades"
+                        }`
+                      : `${cell.dateStr}: ${titleLabel} across ${
+                          cell.count
+                        } ${cell.count === 1 ? "trade" : "trades"}`
                     : `${cell.dateStr}: No trades`
                 }
               >
@@ -607,7 +882,7 @@ function ExactMonthlyCalendarHeatmap({ trades }: { trades: Trade[] }) {
                 {cell.count > 0 ? (
                   <div className="w-full pb-0.5 text-center">
                     <div className="truncate text-[11px] font-bold tabular-nums sm:text-sm">
-                      {formatR(cell.pnl)}
+                      {cellLabel}
                     </div>
                     <div className="hidden truncate text-[9px] font-normal opacity-75 sm:block">
                       {cell.count} {cell.count === 1 ? "trade" : "trades"}
@@ -638,13 +913,25 @@ function ExactMonthlyCalendarHeatmap({ trades }: { trades: Trade[] }) {
           Monthly Total:{" "}
           <span
             className={
-              monthStats.totalMonthR >= 0 ? "text-[#00D084]" : "text-[#FF4565]"
+              (viewMode === "dollar"
+                ? monthStats.totalMonthDollar
+                : monthStats.totalMonthR) >= 0
+                ? "text-[#00D084]"
+                : "text-[#FF4565]"
             }
           >
-            {formatR(monthStats.totalMonthR)}
+            {viewMode === "dollar"
+              ? formatDollarFull(monthStats.totalMonthDollar)
+              : formatR(monthStats.totalMonthR)}
           </span>{" "}
           ({monthStats.totalMonthTrades}{" "}
           {monthStats.totalMonthTrades === 1 ? "trade" : "trades"})
+          {viewMode === "dollar" && monthStats.tradesMissingDollar > 0 && (
+            <span className="ml-2 text-[#8080A0]">
+              · {monthStats.tradesMissingDollar}{" "}
+              {monthStats.tradesMissingDollar === 1 ? "trade" : "trades"} missing $
+            </span>
+          )}
         </div>
       </div>
     </Card>
@@ -662,6 +949,7 @@ function RedesignedEdgeScoreCard({
   bestSetup,
   worstSetup,
   dollarProfit,
+  hasDollarData,
 }: {
   score: number;
   grade: string;
@@ -670,6 +958,7 @@ function RedesignedEdgeScoreCard({
   bestSetup: string;
   worstSetup: string;
   dollarProfit: number;
+  hasDollarData: boolean;
 }) {
   return (
     <Card className="relative flex min-w-0 flex-col justify-between overflow-hidden border-[#1E1E38] bg-[#111124] p-6 shadow-lg">
@@ -760,17 +1049,23 @@ function RedesignedEdgeScoreCard({
 
         <div className="min-w-0 rounded-xl border border-[#1E1E38] bg-[#0D0D1A] p-3.5">
           <div className="text-xs font-semibold text-[#8080A0]">Net P&L</div>
-          <div
-            className={`mt-1 truncate text-sm font-bold tabular-nums ${
-              dollarProfit >= 0 ? "text-[#00D084]" : "text-[#FF4565]"
-            }`}
-          >
-            {dollarProfit >= 0 ? "+" : "-"}$
-            {Math.abs(dollarProfit).toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </div>
+          {hasDollarData ? (
+            <div
+              className={`mt-1 truncate text-sm font-bold tabular-nums ${
+                dollarProfit >= 0 ? "text-[#00D084]" : "text-[#FF4565]"
+              }`}
+            >
+              {dollarProfit >= 0 ? "+" : "-"}$
+              {Math.abs(dollarProfit).toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </div>
+          ) : (
+            <div className="mt-1 truncate text-sm font-bold text-[#5A5A80]">
+              No $ logged
+            </div>
+          )}
         </div>
 
         <div className="min-w-0 rounded-xl border border-[#1E1E38] bg-[#0D0D1A] p-3.5">
@@ -786,173 +1081,6 @@ function RedesignedEdgeScoreCard({
   );
 }
 
-/* ============================================================
-   CLEAN INSTITUTIONAL INTERACTIVE EQUITY CHART
-   ============================================================ */
-function InstitutionalInteractiveEquityChart({ data }: { data: number[] }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [hoverX, setHoverX] = useState<number | null>(null);
-
-  const min = Math.min(0, ...data);
-  const max = Math.max(0, ...data);
-  const range = max - min || 1;
-
-  const pointsList = useMemo(() => {
-    return data.map((val, idx) => {
-      const pctX = data.length === 1 ? 50 : (idx / (data.length - 1)) * 100;
-      const pctY = 100 - ((val - min) / range) * 100;
-      return { pctX, pctY, val, idx };
-    });
-  }, [data, min, range]);
-
-  const polylineStr = pointsList.map((p) => `${p.pctX},${p.pctY}`).join(" ");
-  const areaStr = `0,100 ${polylineStr} 100,100`;
-  const finalVal = data[data.length - 1] || 0;
-  const color = finalVal >= 0 ? "#00D084" : "#FF4565";
-
-  const activePoint = useMemo(() => {
-    if (hoverX === null || pointsList.length === 0) return null;
-    let closest = pointsList[0];
-    let minDiff = Math.abs(hoverX - closest.pctX);
-    for (const p of pointsList) {
-      const diff = Math.abs(hoverX - p.pctX);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = p;
-      }
-    }
-    return closest;
-  }, [hoverX, pointsList]);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const mouseX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    const pct = (mouseX / rect.width) * 100;
-    setHoverX(pct);
-  };
-
-  return (
-    <div
-      ref={containerRef}
-      className="relative h-full w-full cursor-crosshair select-none"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setHoverX(null)}
-    >
-      <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        className="h-full w-full overflow-visible"
-      >
-        <defs>
-          <linearGradient id="instEqFill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
-
-        <line
-          x1="0"
-          y1="25"
-          x2="100"
-          y2="25"
-          stroke="#1E1E38"
-          strokeWidth="0.5"
-          strokeDasharray="2"
-        />
-        <line
-          x1="0"
-          y1="50"
-          x2="100"
-          y2="50"
-          stroke="#1E1E38"
-          strokeWidth="0.5"
-          strokeDasharray="2"
-        />
-        <line
-          x1="0"
-          y1="75"
-          x2="100"
-          y2="75"
-          stroke="#1E1E38"
-          strokeWidth="0.5"
-          strokeDasharray="2"
-        />
-
-        <polygon points={areaStr} fill="url(#instEqFill)" />
-
-        <polyline
-          points={polylineStr}
-          fill="none"
-          stroke={color}
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-
-        {activePoint ? (
-          <>
-            <line
-              x1={activePoint.pctX}
-              y1="0"
-              x2={activePoint.pctX}
-              y2="100"
-              stroke="#F0B429"
-              strokeWidth="1.2"
-              strokeDasharray="2 2"
-              vectorEffect="non-scaling-stroke"
-            />
-            <circle
-              cx={activePoint.pctX}
-              cy={activePoint.pctY}
-              r="3.5"
-              fill="#FFFFFF"
-              stroke="#F0B429"
-              strokeWidth="1.8"
-              vectorEffect="non-scaling-stroke"
-            />
-          </>
-        ) : (
-          <circle
-            cx={pointsList[pointsList.length - 1]?.pctX || 100}
-            cy={pointsList[pointsList.length - 1]?.pctY || 50}
-            r="3"
-            fill={color}
-            vectorEffect="non-scaling-stroke"
-          />
-        )}
-      </svg>
-
-      {activePoint && (
-        <div
-          className="pointer-events-none absolute top-2 z-30 rounded-xl border border-white/20 bg-[#0D0D1A]/95 px-3.5 py-2 shadow-xl backdrop-blur-md transition-all duration-75"
-          style={{
-            left: `${Math.min(72, Math.max(2, activePoint.pctX - 18))}%`,
-          }}
-        >
-          <div className="mb-1 flex items-center justify-between gap-4 border-b border-white/10 pb-1">
-            <span className="whitespace-nowrap text-xs font-semibold text-[#F0B429]">
-              Trade #{activePoint.idx + 1}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="whitespace-nowrap text-xs text-[#A0A0C0]">
-              Net Return:
-            </span>
-            <span
-              className={`whitespace-nowrap text-xs font-bold tabular-nums ${
-                activePoint.val >= 0 ? "text-[#00D084]" : "text-[#FF4565]"
-              }`}
-            >
-              {formatR(activePoint.val)}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function DashboardFilters({
   accountNames,

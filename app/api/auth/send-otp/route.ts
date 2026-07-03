@@ -9,6 +9,7 @@ import {
   OTP_TTL_MS,
 } from "@/lib/otp";
 import sgMail from "@sendgrid/mail";
+import { otpEmailHtml } from "@/lib/email-templates";
 
 export const runtime = "nodejs";
 
@@ -110,33 +111,4 @@ async function sendOtpEmail(email: string, name: string, code: string) {
     text: `Hi ${name || "there"},\n\nYour ProfitPnL verification code is: ${code}\n\nThis code expires in 10 minutes. If you didn't request this, you can ignore this email.`,
     html: otpEmailHtml(name, code),
   });
-}
-
-function otpEmailHtml(name: string, code: string) {
-  return `
-  <div style="background:#080810;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;">
-    <div style="max-width:420px;margin:0 auto;background:#161628;border:1px solid #1E1E38;border-radius:20px;padding:28px;color:#F0F0FF;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-        <div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#F0B429,#C8961E);color:#080810;font-weight:900;display:flex;align-items:center;justify-content:center;">P</div>
-        <span style="font-weight:900;font-size:16px;">ProfitPnL</span>
-      </div>
-      <h1 style="font-size:18px;margin:0 0 6px;">Verify your email</h1>
-      <p style="font-size:13px;color:#A0A0C0;line-height:1.6;margin:0 0 20px;">
-        Hi ${escapeHtml(name) || "there"}, use the code below to finish creating your ProfitPnL account.
-      </p>
-      <div style="background:#0D0D1A;border:1px solid #1E1E38;border-radius:14px;padding:18px;text-align:center;margin-bottom:20px;">
-        <span style="font-size:32px;font-weight:900;letter-spacing:10px;color:#F0B429;">${code}</span>
-      </div>
-      <p style="font-size:12px;color:#5A5A80;line-height:1.6;margin:0;">
-        This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.
-      </p>
-    </div>
-  </div>`;
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
