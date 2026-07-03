@@ -240,6 +240,19 @@ function LoginDropdown({
 
 function Navbar() {
   const [open, setOpen] = useState(false);
+  // The mobile menu panel needs overflow-hidden ONLY while its height is
+  // animating (0 -> auto), so the slide-down looks clean. Once it's fully
+  // open we switch to overflow-visible so the absolutely-positioned Login
+  // dropdown inside it can render outside the panel's bounds instead of
+  // being clipped — that clipping was the "form hides on mobile" bug.
+  const [menuFullyOpen, setMenuFullyOpen] = useState(false);
+
+  function toggleMenu() {
+    // Always re-clip first, whether we're about to open or close, so the
+    // height animation itself (in either direction) is never left visible.
+    setMenuFullyOpen(false);
+    setOpen((v) => !v);
+  }
 
   return (
     <motion.header
@@ -291,7 +304,7 @@ function Navbar() {
         {/* mobile hamburger */}
         <button
           aria-label="Menu"
-          onClick={() => setOpen((v) => !v)}
+          onClick={toggleMenu}
           className="flex h-10 w-10 flex-col items-center justify-center gap-1.5 md:hidden"
         >
           <motion.span animate={open ? { rotate: 45, y: 7 } : { rotate: 0, y: 0 }} className="h-0.5 w-6 bg-txt" />
@@ -307,7 +320,17 @@ function Navbar() {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.35, ease: "easeInOut" }}
-            className="overflow-hidden border-t border-line/60 bg-ink/95 backdrop-blur-xl md:hidden"
+            onAnimationComplete={(definition) => {
+              // Only stop clipping once the OPEN animation (the "animate"
+              // prop, i.e. height: "auto") has actually finished — not on
+              // the initial/exit keyframes, which pass different objects.
+              if (definition && (definition as { height?: string }).height === "auto") {
+                setMenuFullyOpen(true);
+              }
+            }}
+            className={`border-t border-line/60 bg-ink/95 backdrop-blur-xl md:hidden ${
+              menuFullyOpen ? "overflow-visible" : "overflow-hidden"
+            }`}
           >
             <div className="flex flex-col gap-1 px-4 py-4">
               {navLinks.map((l, i) => (
