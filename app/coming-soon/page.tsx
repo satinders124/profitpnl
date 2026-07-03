@@ -332,7 +332,7 @@ function getTarget(): number {
   try {
     const saved = localStorage.getItem(KEY);
     if (saved && Number(saved) > Date.now()) return Number(saved);
-    const t = Date.now() + 32 * 24 * 60 * 60 * 1000; // ~32 days out
+    const t = Date.now() + 2 * 5 * 54 * 60 * 1000; // ~3 days out
     localStorage.setItem(KEY, String(t));
     return t;
   } catch {
@@ -691,7 +691,6 @@ export default function App() {
           <WaitlistForm />
           <p className="mt-3 font-mono text-[11px] text-[#5a5a80]">
             <span className="text-[#00d084]">●</span> 2,847 traders already on the waitlist — early birds get{" "}
-            <span className="text-[#f0b429]">3 months free</span>
           </p>
         </div>
 
