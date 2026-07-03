@@ -38,8 +38,13 @@ export function calcStats(trades: Trade[]) {
     };
   }
 
+  // Breakeven trades (exactly 0R) are neither a win nor a loss — matches
+  // the Trade Log's own "Losses" filter (strictly < 0), the streak
+  // calculation below (which also skips breakeven), and keeps Win Rate /
+  // Avg Loss / Profit Factor from being diluted by trades that didn't
+  // actually lose money.
   const wins = closed.filter((t) => n(t.result) > 0);
-  const losses = closed.filter((t) => n(t.result) <= 0);
+  const losses = closed.filter((t) => n(t.result) < 0);
 
   const totalR = closed.reduce((sum, t) => sum + n(t.result), 0);
   const winRate = wins.length / closed.length;

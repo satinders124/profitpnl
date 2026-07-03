@@ -168,7 +168,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell
-      title="Command Center"
+      title="Overview"
       subtitle={`Welcome back${user?.displayName ? `, ${user.displayName}` : ""}`}
       actionLabel="+ Log New Trade"
       onAction={() => setTradeModalOpen(true)}
@@ -463,6 +463,14 @@ function formatDollarCompact(value: number): string {
   return `${sign}$${abs.toFixed(0)}`;
 }
 
+// Shorter R label for tight spaces (e.g. mobile calendar cells), using 1
+// decimal instead of formatR's 2 — "+2.4R" instead of "+2.40R" — so it
+// actually fits in a narrow 7-column grid cell instead of truncating to
+// "+2....".
+function formatRCompact(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}R`;
+}
+
 function formatDollarFull(value: number): string {
   const sign = value >= 0 ? "+" : "-";
   return `${sign}$${Math.abs(value).toLocaleString("en-US", {
@@ -739,7 +747,7 @@ function ExactMonthlyCalendarHeatmap({
   };
 
   return (
-    <Card className="flex min-w-0 flex-col justify-between border-[#1E1E38] bg-[#111124] p-6 shadow-lg">
+    <Card className="flex min-w-0 flex-col justify-between border-[#1E1E38] bg-[#111124] p-3 shadow-lg sm:p-6">
       <div>
         {/* Calendar Header with Exact Month Switcher */}
         <div className="mb-5 flex flex-col justify-between gap-3 border-b border-[#1E1E38] pb-4 sm:flex-row sm:items-center">
@@ -811,7 +819,7 @@ function ExactMonthlyCalendarHeatmap({
         </div>
 
         {/* Day of Week Headers */}
-        <div className="mb-2 grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[#8080A0] sm:gap-2">
+        <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase tracking-wide text-[#8080A0] sm:gap-2 sm:text-[11px]">
           <span>Mon</span>
           <span>Tue</span>
           <span>Wed</span>
@@ -822,13 +830,13 @@ function ExactMonthlyCalendarHeatmap({
         </div>
 
         {/* Exact Month Grid */}
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2">
           {calendarCells.map((cell) => {
             if (cell.type === "empty") {
               return (
                 <div
                   key={cell.key}
-                  className="h-14 rounded-xl border border-transparent bg-white/[0.01] sm:h-16"
+                  className="h-12 rounded-lg border border-transparent bg-white/[0.01] sm:h-16 sm:rounded-xl"
                 />
               );
             }
@@ -846,7 +854,7 @@ function ExactMonthlyCalendarHeatmap({
               ? "No $"
               : viewMode === "dollar"
                 ? formatDollarCompact(cellValue)
-                : formatR(cellValue);
+                : formatRCompact(cellValue);
             const titleLabel = dollarUntracked
               ? "No $ logged for this trade"
               : viewMode === "dollar"
@@ -857,7 +865,7 @@ function ExactMonthlyCalendarHeatmap({
               <div
                 key={cell.key}
                 className={[
-                  "relative flex h-14 min-w-0 flex-col items-center justify-between overflow-hidden rounded-xl border p-1.5 transition-all hover:border-white/40 sm:h-16",
+                  "relative flex h-12 min-w-0 flex-col items-center justify-between overflow-hidden rounded-lg border p-0.5 transition-all hover:border-white/40 sm:h-16 sm:rounded-xl sm:p-1.5",
                   isWin
                     ? "border-[#00D084]/40 bg-[#00D084]/15 text-[#00D084]"
                     : isLoss
@@ -876,12 +884,12 @@ function ExactMonthlyCalendarHeatmap({
                     : `${cell.dateStr}: No trades`
                 }
               >
-                <span className="self-start text-[11px] font-medium opacity-70">
+                <span className="self-start text-[9px] font-medium opacity-70 sm:text-[11px]">
                   {cell.day}
                 </span>
                 {cell.count > 0 ? (
                   <div className="w-full pb-0.5 text-center">
-                    <div className="truncate text-[11px] font-bold tabular-nums sm:text-sm">
+                    <div className="truncate text-[9px] font-bold tracking-tight tabular-nums sm:text-sm sm:tracking-normal">
                       {cellLabel}
                     </div>
                     <div className="hidden truncate text-[9px] font-normal opacity-75 sm:block">

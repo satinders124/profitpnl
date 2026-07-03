@@ -279,20 +279,7 @@ export default function TradesPage() {
           </div>
 
           <Card className="p-4">
-            <div className="relative">
-              <Search
-                size={17}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5A5A80]"
-              />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search instrument, strategy, notes, mistake, emotion, tags..."
-                className="w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] py-3 pl-12 pr-4 text-sm font-bold outline-none focus:border-[#F0B429]"
-              />
-            </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <FilterSelect
                 label="Account"
                 value={accountFilter}
@@ -340,6 +327,19 @@ export default function TradesPage() {
                   <option value="needs-review">Needs Review</option>
                 </select>
               </div>
+            </div>
+
+            <div className="relative mt-4">
+              <Search
+                size={17}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5A5A80]"
+              />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search instrument, strategy, notes, mistake, emotion, tags..."
+                className="w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] py-3 pl-12 pr-4 text-sm font-bold outline-none focus:border-[#F0B429]"
+              />
             </div>
 
             <div className="mt-3 flex items-center justify-between text-xs text-[#5A5A80]">
