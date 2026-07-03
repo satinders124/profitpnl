@@ -398,16 +398,29 @@ function Countdown() {
 
 function WaitlistForm() {
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "error" | "done">("idle");
+  const [state, setState] = useState<"idle" | "error" | "sending" | "failed" | "done">("idle");
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (state === "sending") return;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setState("error");
       setTimeout(() => setState("idle"), 900);
       return;
     }
-    setState("done");
+    setState("sending");
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      setState("done");
+    } catch {
+      setState("failed");
+      setTimeout(() => setState("idle"), 3000);
+    }
   };
 
   if (state === "done") {
@@ -421,7 +434,7 @@ function WaitlistForm() {
           <span className="relative inline-flex h-3 w-3 rounded-full bg-green" />
         </span>
         <p className="font-medium text-green">
-          You&apos;re on the list! <span className="text-muted">We&apos;ll ping you at launch. 🚀</span>
+          You&apos;re on the list! <span className="text-muted">Check your inbox — confirmation sent. 🚀</span>
         </p>
       </div>
     );
@@ -446,14 +459,35 @@ function WaitlistForm() {
       </div>
       <button
         type="submit"
-        className="btn-gold-glow group relative overflow-hidden rounded-xl bg-gradient-to-b from-gold to-gold2 px-7 py-3.5 text-sm font-bold text-bg transition-transform duration-200 hover:scale-[1.04] active:scale-95"
+        disabled={state === "sending"}
+        className="btn-gold-glow group relative overflow-hidden rounded-xl bg-gradient-to-b from-gold to-gold2 px-7 py-3.5 text-sm font-bold text-bg transition-transform duration-200 hover:scale-[1.04] active:scale-95 disabled:cursor-wait disabled:opacity-80"
       >
         <span className="relative z-10 flex items-center justify-center gap-2">
-          Join Waitlist
-          <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+          {state === "sending" ? (
+            <>
+              <span
+                className="h-4 w-4 rounded-full border-2 border-bg/30 border-t-bg"
+                style={{ animation: "borderSpin 0.7s linear infinite" }}
+              />
+              Joining…
+            </>
+          ) : (
+            <>
+              Join Waitlist
+              <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+            </>
+          )}
         </span>
         <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
       </button>
+      {state === "failed" && (
+        <p
+          className="text-center font-mono text-xs text-red sm:absolute sm:mt-14"
+          style={{ animation: "fadeUp 0.4s ease-out" }}
+        >
+          Something went wrong — please try again.
+        </p>
+      )}
     </form>
   );
 }
