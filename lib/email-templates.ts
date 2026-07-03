@@ -192,3 +192,93 @@ export function welcomeEmailHtml(name: string): string {
     bodyHtml: body,
   });
 }
+
+/**
+ * "Your trial ends tomorrow" reminder — sent ~24 hours before a user's
+ * 7-day Pro trial expires. Sent once per trial (see trialReminderSentAt
+ * guard in app/api/cron/trial-expiry/route.ts).
+ */
+export function trialEndingSoonEmailHtml(name: string): string {
+  const safeName = escapeHtml(name) || "there";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com";
+
+  const body = `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
+      <tr>
+        <td bgcolor="${COLORS.cardSoft}" style="width:40px;height:40px;border-radius:12px;background-color:${COLORS.cardSoft};text-align:center;vertical-align:middle;">
+          <span style="font-family:${FONT_STACK};font-size:18px;color:${COLORS.gold};line-height:40px;">&#9203;</span>
+        </td>
+      </tr>
+    </table>
+
+    <h1 style="margin:0 0 8px;font-family:${FONT_STACK};font-size:20px;font-weight:900;color:${COLORS.navy};letter-spacing:-0.02em;">
+      Your Pro trial ends tomorrow, ${safeName}.
+    </h1>
+    <p style="margin:0 0 22px;font-family:${FONT_STACK};font-size:13px;line-height:1.7;color:${COLORS.muted};">
+      You've had a full week of AI Coaching, unlimited accounts, and advanced analytics. Tomorrow your account automatically reverts to the Free Plan — no card was ever charged. Upgrade now to keep every Pro feature active without interruption.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+      <tr>
+        <td bgcolor="${COLORS.goldBright}" style="border-radius:12px;background-color:${COLORS.goldBright};background-image:linear-gradient(135deg,${COLORS.goldBright},${COLORS.gold});">
+          <a href="${siteUrl}/upgrade" style="display:inline-block;padding:13px 26px;font-family:${FONT_STACK};font-size:13px;font-weight:900;color:${COLORS.navy};text-decoration:none;">
+            Keep Pro Access →
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0;font-family:${FONT_STACK};font-size:12px;line-height:1.7;color:${COLORS.dim};">
+      Doing nothing is fine too — you'll simply move to the Free Plan and keep everything you've already logged.
+    </p>`;
+
+  return renderEmailLayout({
+    preheader: "Your ProfitPnL Pro trial ends tomorrow.",
+    bodyHtml: body,
+  });
+}
+
+/**
+ * "Your trial has ended" notice — sent the day a user's 7-day Pro trial
+ * expires and their plan is reverted to Free Plan. Sent once per trial
+ * (see trialEndedEmailSentAt guard in app/api/cron/trial-expiry/route.ts).
+ */
+export function trialEndedEmailHtml(name: string): string {
+  const safeName = escapeHtml(name) || "there";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com";
+
+  const body = `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
+      <tr>
+        <td bgcolor="${COLORS.cardSoft}" style="width:40px;height:40px;border-radius:12px;background-color:${COLORS.cardSoft};text-align:center;vertical-align:middle;">
+          <span style="font-family:${FONT_STACK};font-size:18px;color:${COLORS.muted};line-height:40px;">&#128274;</span>
+        </td>
+      </tr>
+    </table>
+
+    <h1 style="margin:0 0 8px;font-family:${FONT_STACK};font-size:20px;font-weight:900;color:${COLORS.navy};letter-spacing:-0.02em;">
+      Your 7-day Pro trial has ended, ${safeName}.
+    </h1>
+    <p style="margin:0 0 22px;font-family:${FONT_STACK};font-size:13px;line-height:1.7;color:${COLORS.muted};">
+      Your account is now back on the Free Plan — nothing was charged, and every trade you logged during your trial is still safe in your journal. Upgrade any time to unlock AI Coaching, unlimited accounts, and advanced analytics again.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+      <tr>
+        <td bgcolor="${COLORS.goldBright}" style="border-radius:12px;background-color:${COLORS.goldBright};background-image:linear-gradient(135deg,${COLORS.goldBright},${COLORS.gold});">
+          <a href="${siteUrl}/upgrade" style="display:inline-block;padding:13px 26px;font-family:${FONT_STACK};font-size:13px;font-weight:900;color:${COLORS.navy};text-decoration:none;">
+            Upgrade to Pro →
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0;font-family:${FONT_STACK};font-size:12px;line-height:1.7;color:${COLORS.dim};">
+      Questions about what changed? Just reply to this email.
+    </p>`;
+
+  return renderEmailLayout({
+    preheader: "Your ProfitPnL Pro trial has ended — you're back on the Free Plan.",
+    bodyHtml: body,
+  });
+}

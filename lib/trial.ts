@@ -2,6 +2,51 @@ import { doc, getDoc, serverTimestamp, Timestamp, updateDoc } from "firebase/fir
 import { db } from "@/lib/firebase-client";
 
 export const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const TRIAL_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours before expiry
+
+export type TrialUserRecord = {
+  plan?: string;
+  planSource?: string;
+  trialEndsAtMs?: number; // trialEndsAt.toMillis()
+  trialReminderSentAt?: unknown; // any truthy value means "already sent"
+  trialEndedEmailSentAt?: unknown;
+};
+
+export type TrialCronAction =
+  | { type: "skip" } // not an active trial user, nothing to do
+  | { type: "revert_and_email"; alreadyEmailed: false } // expired, first time -> update plan + send email
+  | { type: "revert_only" } // expired, email already sent previously (repair-only pass)
+  | { type: "remind" } // within reminder window, not yet reminded
+  | { type: "wait" }; // active trial, not yet due for reminder or expiry
+
+/**
+ * Pure decision function for the daily trial-expiry cron job — given a
+ * user's current trial-related fields and "now", decides exactly one
+ * action to take. Kept separate from Firestore/SendGrid I/O so it can be
+ * unit tested directly (see scripts/test-trial-expiry-logic.ts).
+ */
+export function decideTrialCronAction(
+  user: TrialUserRecord,
+  nowMs: number
+): TrialCronAction {
+  if (user.planSource !== "trial" || user.plan !== "Pro Plan" || !user.trialEndsAtMs) {
+    return { type: "skip" };
+  }
+
+  const msRemaining = user.trialEndsAtMs - nowMs;
+
+  if (msRemaining <= 0) {
+    return user.trialEndedEmailSentAt
+      ? { type: "revert_only" }
+      : { type: "revert_and_email", alreadyEmailed: false };
+  }
+
+  if (msRemaining <= TRIAL_REMINDER_WINDOW_MS && !user.trialReminderSentAt) {
+    return { type: "remind" };
+  }
+
+  return { type: "wait" };
+}
 
 export class TrialAlreadyUsedError extends Error {
   constructor() {
@@ -43,6 +88,14 @@ export async function getTrialEligibility(uid: string): Promise<TrialEligibility
 /**
  * Starts a 7-day, no-card-required Pro trial for the given user.
  * Each account may only start a trial once (tracked via hasUsedTrial).
+ *
+ * IMPORTANT: this grants real Pro access for the trial window by setting
+ * plan: "Pro Plan" (previously this only recorded dates and never actually
+ * unlocked anything — a real bug). `planSource: "trial"` is stamped so the
+ * daily expiry job (app/api/cron/trial-expiry/route.ts) knows it's safe to
+ * automatically revert this specific user back to Free Plan once
+ * trialEndsAt passes — it will never touch a user who paid directly
+ * (planSource would be "paid"/unset for those).
  */
 export async function startFreeTrial(uid: string): Promise<number> {
   const ref = doc(db, "users", uid);
@@ -55,8 +108,12 @@ export async function startFreeTrial(uid: string): Promise<number> {
   const trialEndsAtMs = Date.now() + TRIAL_DURATION_MS;
 
   await updateDoc(ref, {
+    plan: "Pro Plan",
+    planSource: "trial",
     trialStartedAt: serverTimestamp(),
     trialEndsAt: Timestamp.fromMillis(trialEndsAtMs),
+    trialReminderSentAt: null,
+    trialEndedEmailSentAt: null,
     hasUsedTrial: true,
   });
 
