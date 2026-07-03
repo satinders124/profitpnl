@@ -5,7 +5,7 @@ function n(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function hasResult(trade: Trade) {
+export function hasResult(trade: Trade) {
   return (
     trade.result !== "" &&
     trade.result !== null &&
@@ -26,6 +26,7 @@ export function calcStats(trades: Trade[]) {
       count: 0,
       wins: 0,
       losses: 0,
+      breakeven: 0,
       winRate: 0,
       totalR: 0,
       expectancy: 0,
@@ -35,6 +36,8 @@ export function calcStats(trades: Trade[]) {
       maxDD: 0,
       streak: 0,
       bestSetup: "—",
+      biggestWin: 0,
+      biggestLoss: 0,
     };
   }
 
@@ -45,6 +48,7 @@ export function calcStats(trades: Trade[]) {
   // actually lose money.
   const wins = closed.filter((t) => n(t.result) > 0);
   const losses = closed.filter((t) => n(t.result) < 0);
+  const breakeven = closed.filter((t) => n(t.result) === 0);
 
   const totalR = closed.reduce((sum, t) => sum + n(t.result), 0);
   const winRate = wins.length / closed.length;
@@ -57,11 +61,23 @@ export function calcStats(trades: Trade[]) {
     ? Math.abs(losses.reduce((sum, t) => sum + n(t.result), 0) / losses.length)
     : 0;
 
-  const expectancy = winRate * avgWin - (1 - winRate) * avgLoss;
+  // Expectancy = average R per closed trade. Using totalR / closed.length
+  // (rather than winRate*avgWin - lossRate*avgLoss) is the only version
+  // that's correct once breakeven trades exist: winRate is defined as
+  // wins / all closed trades (including breakevens), so "1 - winRate"
+  // silently treated every breakeven as a loss in the old formula and
+  // overweighted the loss side. totalR already nets everything correctly
+  // (wins add, losses subtract, breakevens contribute 0), so dividing by
+  // the same closed-trade count gives the true per-trade expectancy.
+  const expectancy = closed.length ? totalR / closed.length : 0;
 
   const grossWin = wins.reduce((sum, t) => sum + n(t.result), 0);
   const grossLoss = Math.abs(losses.reduce((sum, t) => sum + n(t.result), 0));
-  const profitFactor = grossLoss ? grossWin / grossLoss : grossWin ? 99 : 0;
+  // No losses yet: an undefined/infinite ratio, not "grossWin" itself —
+  // 99 is this app's established "effectively infinite" sentinel (see
+  // Dashboard's `stats.profitFactor >= 99 ? "∞" : ...` display logic).
+  const profitFactor = grossLoss > 0 ? grossWin / grossLoss : grossWin > 0 ? 99 : 0;
+
 
   const bySetup: Record<string, number> = {};
   for (const trade of closed) {
@@ -114,10 +130,14 @@ for (let i = chronological.length - 1; i >= 0; i--) {
       if (dd > maxDD) maxDD = dd;
     });
 
+  const biggestWin = closed.reduce((max, t) => Math.max(max, n(t.result)), 0);
+  const biggestLoss = closed.reduce((min, t) => Math.min(min, n(t.result)), 0);
+
   return {
     count: closed.length,
     wins: wins.length,
     losses: losses.length,
+    breakeven: breakeven.length,
     winRate,
     totalR,
     expectancy,
@@ -127,7 +147,58 @@ for (let i = chronological.length - 1; i >= 0; i--) {
     maxDD,
     streak: streak * (streakSign || 0),
     bestSetup,
+    biggestWin,
+    biggestLoss,
   };
+}
+
+export type BreakdownRow = {
+  name: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  totalR: number;
+  winRate: number;
+  expectancy: number;
+  profitFactor: number;
+};
+
+/**
+ * Groups CLOSED trades by an arbitrary key (e.g. setup, direction,
+ * instrument) and runs the same calcStats() engine on each group, so any
+ * breakdown table built on this always agrees with the top-line stats
+ * shown elsewhere in the app for the exact same trades.
+ */
+export function breakdownBy(
+  trades: Trade[],
+  getKey: (trade: Trade) => string,
+  fallback = "Unknown"
+): BreakdownRow[] {
+  const closed = closedTrades(trades);
+  const groups = new Map<string, Trade[]>();
+
+  for (const trade of closed) {
+    const key = (getKey(trade) || "").trim() || fallback;
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(trade);
+    else groups.set(key, [trade]);
+  }
+
+  return Array.from(groups.entries())
+    .map(([name, rows]) => {
+      const stats = calcStats(rows);
+      return {
+        name,
+        trades: stats.count,
+        wins: stats.wins,
+        losses: stats.losses,
+        totalR: stats.totalR,
+        winRate: stats.winRate * 100,
+        expectancy: stats.expectancy,
+        profitFactor: stats.profitFactor,
+      };
+    })
+    .sort((a, b) => b.totalR - a.totalR);
 }
 
 export function equityCurve(trades: Trade[]) {
@@ -143,6 +214,60 @@ export function equityCurve(trades: Trade[]) {
       cumulative += n(trade.result);
       return Number(cumulative.toFixed(2));
     });
+}
+
+export type EquityPoint = {
+  name: string;
+  trade: number;
+  equity: number;
+  r: number;
+  instrument: string;
+  strategy: string;
+};
+
+/**
+ * Same chronological running-R approach as equityCurve(), but returns a
+ * labeled point per trade (short date, sequence number, instrument,
+ * strategy) for charts that need a tooltip — e.g. Dashboard's equity
+ * chart and the Analytics equity chart both use this exact shape.
+ */
+export function buildEquityPoints(trades: Trade[]): EquityPoint[] {
+  let runningR = 0;
+
+  const closed = closedTrades(trades)
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.date || "").getTime() - new Date(b.date || "").getTime()
+    );
+
+  return closed.map((trade, index) => {
+    runningR += n(trade.result);
+    const parsedDate = trade.date ? new Date(trade.date) : null;
+
+    return {
+      name:
+        parsedDate && !Number.isNaN(parsedDate.getTime())
+          ? parsedDate.toLocaleDateString("en-AU", {
+              day: "2-digit",
+              month: "short",
+            })
+          : `#${index + 1}`,
+      trade: index + 1,
+      equity: Number(runningR.toFixed(2)),
+      r: n(trade.result),
+      instrument: trade.instrument || "—",
+      strategy: trade.setup || "—",
+    };
+  });
+}
+
+/**
+ * Trades with no logged result yet — same "open/pending" concept the
+ * Trade Log's "Open" filter and Dashboard's Risk Desk already use.
+ */
+export function openTrades(trades: Trade[]) {
+  return trades.filter((t) => !hasResult(t));
 }
 
 export function directionStats(trades: Trade[]) {
