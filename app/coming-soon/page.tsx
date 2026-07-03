@@ -3,29 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 
 /* ═══════════════════════════════════════════════════════════════
-   ProfitPnL — Coming Soon (single-file build)
-   ALL components, data, and CSS live in this one file.
-   Palette:
-     bg #080810 · bg2 #0d0d1a · card #161628 · border #1e1e38
-     text #f0f0ff · muted #a0a0c0 · dim #5a5a80
-     gold #f0b429 · gold2 #c8961e · green #00d084
-     red #ff4565 · blue #4c82fb · purple #a855f7
+   ProfitPnL — Coming Soon (single-file)
+   All components, data, and animation CSS live in this one file.
    ═══════════════════════════════════════════════════════════════ */
 
-/* ---------------- All custom CSS (injected via <style>) ---------------- */
+/* ---------------- Animation CSS (injected) ---------------- */
 
-const CSS = `
-html, body {
-  background: #080810;
-  color: #f0f0ff;
-  overflow-x: hidden;
-}
-
-::selection {
-  background: rgba(240,180,41,0.35);
-  color: #f0f0ff;
-}
-
+const ANIMATION_CSS = `
 @keyframes gridPan { from { background-position: 0 0; } to { background-position: 48px 48px; } }
 
 @keyframes orbDrift1 {
@@ -275,7 +259,7 @@ function Background() {
           </div>
         ))}
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#080810] via-[#080810]/60 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-bg via-bg/60 to-transparent" />
 
       <div
         className="absolute inset-0"
@@ -290,13 +274,13 @@ function Background() {
 function TradeChip({ t }: { t: Trade }) {
   return (
     <span className="mx-6 inline-flex items-center gap-2 font-mono text-xs tracking-wide whitespace-nowrap">
-      <span className="text-[#5a5a80]">JOURNALED ›</span>
-      <span className={t.side === "LONG" ? "font-bold text-[#00d084]" : "font-bold text-[#ff4565]"}>{t.side}</span>
-      <span className="font-semibold text-[#f0f0ff]">{t.symbol}</span>
-      <span className="text-[#5a5a80]">·</span>
-      <span className="text-[#a0a0c0]">{t.setup}</span>
-      <span className="text-[#5a5a80]">·</span>
-      <span className={t.win ? "font-bold text-[#00d084]" : "font-bold text-[#ff4565]"}>{t.r}</span>
+      <span className="text-dim">JOURNALED ›</span>
+      <span className={t.side === "LONG" ? "font-bold text-green" : "font-bold text-red"}>{t.side}</span>
+      <span className="font-semibold text-text">{t.symbol}</span>
+      <span className="text-dim">·</span>
+      <span className="text-muted">{t.setup}</span>
+      <span className="text-dim">·</span>
+      <span className={t.win ? "font-bold text-green" : "font-bold text-red"}>{t.r}</span>
     </span>
   );
 }
@@ -305,7 +289,7 @@ function TickerTape({ position }: { position: "top" | "bottom" }) {
   const list = position === "bottom" ? [...TRADES].reverse() : TRADES;
   return (
     <div
-      className={`w-full overflow-hidden border-[#1e1e38] bg-[#0d0d1a]/70 backdrop-blur-sm ${
+      className={`w-full overflow-hidden border-line bg-bg2/70 backdrop-blur-sm ${
         position === "top" ? "border-b" : "border-t"
       }`}
       style={{
@@ -327,16 +311,21 @@ function TickerTape({ position }: { position: "top" | "bottom" }) {
 
 /* ---------------- Countdown ---------------- */
 
+const LAUNCH_OFFSET_MS =
+  3 * 24 * 60 * 60 * 1000 + // 3 days
+  5 * 60 * 60 * 1000 + // 5 hours
+  55 * 60 * 1000; // 55 minutes
+
 function getTarget(): number {
-  const KEY = "profitpnl_launch_target";
+  const KEY = "profitpnl_launch_target_v2";
   try {
     const saved = localStorage.getItem(KEY);
     if (saved && Number(saved) > Date.now()) return Number(saved);
-    const t = Date.now() + 2 * 5 * 54 * 60 * 1000; // ~3 days out
+    const t = Date.now() + LAUNCH_OFFSET_MS;
     localStorage.setItem(KEY, String(t));
     return t;
   } catch {
-    return Date.now() + 2 * 5 * 54 * 60 * 1000;
+    return Date.now() + LAUNCH_OFFSET_MS;
   }
 }
 
@@ -372,12 +361,12 @@ function Unit({ value, label, accent }: { value: number; label: string; accent: 
           }}
         />
       </div>
-      <div className="card-shine relative flex w-[74px] flex-col items-center rounded-2xl border border-[#1e1e38] bg-[#161628]/90 px-2 py-3.5 backdrop-blur-md transition-transform duration-300 group-hover:-translate-y-1 sm:w-[92px] sm:py-4">
-        <div className="overflow-hidden font-mono text-3xl font-bold tracking-tight text-[#f0f0ff] tabular-nums sm:text-4xl">
+      <div className="card-shine relative flex w-[74px] flex-col items-center rounded-2xl border border-line bg-card/90 px-2 py-3.5 backdrop-blur-md transition-transform duration-300 group-hover:-translate-y-1 sm:w-[92px] sm:py-4">
+        <div className="overflow-hidden font-mono text-3xl font-bold tracking-tight text-text tabular-nums sm:text-4xl">
           <Digit value={str[0]} />
           <Digit value={str[1]} />
         </div>
-        <div className="mt-1.5 text-[10px] font-semibold tracking-[0.22em] text-[#5a5a80] uppercase">{label}</div>
+        <div className="mt-1.5 text-[10px] font-semibold tracking-[0.22em] text-dim uppercase">{label}</div>
       </div>
     </div>
   );
@@ -395,11 +384,11 @@ function Countdown() {
   return (
     <div className="flex items-center justify-center gap-2.5 sm:gap-4">
       <Unit value={t.days} label="Days" accent="#f0b429" />
-      <span className="pb-6 font-mono text-2xl text-[#5a5a80]" style={{ animation: "dotBlink 1s ease-in-out infinite" }}>:</span>
+      <span className="pb-6 font-mono text-2xl text-dim" style={{ animation: "dotBlink 1s ease-in-out infinite" }}>:</span>
       <Unit value={t.hours} label="Hours" accent="#00d084" />
-      <span className="pb-6 font-mono text-2xl text-[#5a5a80]" style={{ animation: "dotBlink 1s ease-in-out infinite", animationDelay: "0.25s" }}>:</span>
+      <span className="pb-6 font-mono text-2xl text-dim" style={{ animation: "dotBlink 1s ease-in-out infinite", animationDelay: "0.25s" }}>:</span>
       <Unit value={t.minutes} label="Mins" accent="#4c82fb" />
-      <span className="pb-6 font-mono text-2xl text-[#5a5a80]" style={{ animation: "dotBlink 1s ease-in-out infinite", animationDelay: "0.5s" }}>:</span>
+      <span className="pb-6 font-mono text-2xl text-dim" style={{ animation: "dotBlink 1s ease-in-out infinite", animationDelay: "0.5s" }}>:</span>
       <Unit value={t.seconds} label="Secs" accent="#a855f7" />
     </div>
   );
@@ -424,15 +413,15 @@ function WaitlistForm() {
   if (state === "done") {
     return (
       <div
-        className="mx-auto flex w-full max-w-md items-center justify-center gap-3 rounded-2xl border border-[#00d084]/30 bg-[#00d084]/10 px-6 py-4"
+        className="mx-auto flex w-full max-w-md items-center justify-center gap-3 rounded-2xl border border-green/30 bg-green/10 px-6 py-4"
         style={{ animation: "fadeUp 0.6s cubic-bezier(0.22,1,0.36,1)" }}
       >
         <span className="relative flex h-3 w-3">
-          <span className="absolute inline-flex h-full w-full rounded-full bg-[#00d084]" style={{ animation: "pingSlow 1.6s ease-out infinite" }} />
-          <span className="relative inline-flex h-3 w-3 rounded-full bg-[#00d084]" />
+          <span className="absolute inline-flex h-full w-full rounded-full bg-green" style={{ animation: "pingSlow 1.6s ease-out infinite" }} />
+          <span className="relative inline-flex h-3 w-3 rounded-full bg-green" />
         </span>
-        <p className="font-medium text-[#00d084]">
-          You&apos;re on the list! <span className="text-[#a0a0c0]">We&apos;ll ping you at launch. 🚀</span>
+        <p className="font-medium text-green">
+          You&apos;re on the list! <span className="text-muted">We&apos;ll ping you at launch. 🚀</span>
         </p>
       </div>
     );
@@ -450,14 +439,14 @@ function WaitlistForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="trader@example.com"
-          className={`w-full rounded-xl border bg-[#0d0d1a] px-4 py-3.5 font-mono text-sm text-[#f0f0ff] placeholder-[#5a5a80] transition-all duration-300 outline-none focus:border-[#f0b429]/60 focus:shadow-[0_0_0_3px_rgba(240,180,41,0.12),0_0_24px_rgba(240,180,41,0.15)] ${
-            state === "error" ? "border-[#ff4565]/70 shadow-[0_0_0_3px_rgba(255,69,101,0.15)]" : "border-[#1e1e38]"
+          className={`w-full rounded-xl border bg-bg2 px-4 py-3.5 font-mono text-sm text-text placeholder-dim transition-all duration-300 outline-none focus:border-gold/60 focus:shadow-[0_0_0_3px_rgba(240,180,41,0.12),0_0_24px_rgba(240,180,41,0.15)] ${
+            state === "error" ? "border-red/70 shadow-[0_0_0_3px_rgba(255,69,101,0.15)]" : "border-line"
           }`}
         />
       </div>
       <button
         type="submit"
-        className="btn-gold-glow group relative overflow-hidden rounded-xl bg-gradient-to-b from-[#f0b429] to-[#c8961e] px-7 py-3.5 text-sm font-bold text-[#080810] transition-transform duration-200 hover:scale-[1.04] active:scale-95"
+        className="btn-gold-glow group relative overflow-hidden rounded-xl bg-gradient-to-b from-gold to-gold2 px-7 py-3.5 text-sm font-bold text-bg transition-transform duration-200 hover:scale-[1.04] active:scale-95"
       >
         <span className="relative z-10 flex items-center justify-center gap-2">
           Join Waitlist
@@ -474,12 +463,12 @@ function WaitlistForm() {
 function EquityCard({ className = "", delay = "0s" }: { className?: string; delay?: string }) {
   return (
     <div
-      className={`card-shine w-56 rounded-2xl border border-[#1e1e38] bg-[#161628]/80 p-4 backdrop-blur-md ${className}`}
+      className={`card-shine w-56 rounded-2xl border border-line bg-card/80 p-4 backdrop-blur-md ${className}`}
       style={{ animation: `floatY 6s ease-in-out infinite`, animationDelay: delay }}
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-[10px] font-semibold tracking-[0.18em] text-[#5a5a80] uppercase">Equity Curve</span>
-        <span className="font-mono text-[11px] font-bold text-[#00d084]">+38.3R</span>
+        <span className="text-[10px] font-semibold tracking-[0.18em] text-dim uppercase">Equity Curve</span>
+        <span className="font-mono text-[11px] font-bold text-green">+38.3R</span>
       </div>
       <svg viewBox="0 0 200 70" className="h-16 w-full">
         <defs>
@@ -512,10 +501,10 @@ function EquityCard({ className = "", delay = "0s" }: { className?: string; dela
 function WinRateCard({ className = "", delay = "0s" }: { className?: string; delay?: string }) {
   return (
     <div
-      className={`card-shine w-44 rounded-2xl border border-[#1e1e38] bg-[#161628]/80 p-4 backdrop-blur-md ${className}`}
+      className={`card-shine w-44 rounded-2xl border border-line bg-card/80 p-4 backdrop-blur-md ${className}`}
       style={{ animation: `floatY2 7s ease-in-out infinite`, animationDelay: delay }}
     >
-      <span className="text-[10px] font-semibold tracking-[0.18em] text-[#5a5a80] uppercase">Win Rate</span>
+      <span className="text-[10px] font-semibold tracking-[0.18em] text-dim uppercase">Win Rate</span>
       <div className="mt-2 flex items-center gap-3">
         <svg viewBox="0 0 100 100" className="h-14 w-14 -rotate-90">
           <circle cx="50" cy="50" r="41" fill="none" stroke="#1e1e38" strokeWidth="10" />
@@ -526,8 +515,8 @@ function WinRateCard({ className = "", delay = "0s" }: { className?: string; del
           />
         </svg>
         <div>
-          <div className="font-mono text-xl font-bold text-[#f0b429]">66%</div>
-          <div className="font-mono text-[10px] text-[#5a5a80]">25W / 13L</div>
+          <div className="font-mono text-xl font-bold text-gold">66%</div>
+          <div className="font-mono text-[10px] text-dim">25W / 13L</div>
         </div>
       </div>
     </div>
@@ -550,12 +539,12 @@ function TradeBadge({
   const win = r.startsWith("+");
   return (
     <div
-      className={`flex items-center gap-2 rounded-xl border border-[#1e1e38] bg-[#161628]/80 px-3.5 py-2.5 font-mono text-xs backdrop-blur-md ${className}`}
+      className={`flex items-center gap-2 rounded-xl border border-line bg-card/80 px-3.5 py-2.5 font-mono text-xs backdrop-blur-md ${className}`}
       style={{ animation: `floatY 5.5s ease-in-out infinite`, animationDelay: delay }}
     >
-      <span className={`font-bold ${side === "LONG" ? "text-[#00d084]" : "text-[#ff4565]"}`}>{side}</span>
-      <span className="font-semibold text-[#f0f0ff]">{symbol}</span>
-      <span className={`font-bold ${win ? "text-[#00d084]" : "text-[#ff4565]"}`}>{r}</span>
+      <span className={`font-bold ${side === "LONG" ? "text-green" : "text-red"}`}>{side}</span>
+      <span className="font-semibold text-text">{symbol}</span>
+      <span className={`font-bold ${win ? "text-green" : "text-red"}`}>{r}</span>
     </div>
   );
 }
@@ -563,15 +552,15 @@ function TradeBadge({
 function AiBadge({ className = "", delay = "0s" }: { className?: string; delay?: string }) {
   return (
     <div
-      className={`flex items-center gap-2.5 rounded-xl border border-[#a855f7]/30 bg-[#161628]/80 px-3.5 py-2.5 backdrop-blur-md ${className}`}
+      className={`flex items-center gap-2.5 rounded-xl border border-purple/30 bg-card/80 px-3.5 py-2.5 backdrop-blur-md ${className}`}
       style={{ animation: `floatY2 6.5s ease-in-out infinite`, animationDelay: delay }}
     >
       <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full rounded-full bg-[#a855f7]" style={{ animation: "pingSlow 1.8s ease-out infinite" }} />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#a855f7]" />
+        <span className="absolute inline-flex h-full w-full rounded-full bg-purple" style={{ animation: "pingSlow 1.8s ease-out infinite" }} />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-purple" />
       </span>
-      <span className="text-xs font-medium text-[#a0a0c0]">
-        AI Insight: <span className="text-[#a855f7]">Cut revenge trades</span>
+      <span className="text-xs font-medium text-muted">
+        AI Insight: <span className="text-purple">Cut revenge trades</span>
       </span>
     </div>
   );
@@ -595,17 +584,17 @@ function Logo() {
   return (
     <div className="flex items-center gap-3">
       <div
-        className="btn-gold-glow flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#f0b429] to-[#c8961e]"
+        className="btn-gold-glow flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-gold to-gold2"
         style={{ animation: "logoBeat 3.5s ease-in-out infinite" }}
       >
-        <svg className="h-6 w-6 text-[#080810]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+        <svg className="h-6 w-6 text-bg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 17l5-5 4 4 8-8" />
           <path d="M16 8h4v4" />
         </svg>
       </div>
       <span className="text-2xl font-extrabold tracking-tight">
-        <span className="text-[#f0f0ff]">Profit</span>
-        <span className="text-[#f0b429]">PnL</span>
+        <span className="text-text">Profit</span>
+        <span className="text-gold">PnL</span>
       </span>
     </div>
   );
@@ -615,8 +604,8 @@ function Logo() {
 
 export default function App() {
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#080810] font-sans text-[#f0f0ff]">
-      <style>{CSS}</style>
+    <div className="relative flex min-h-screen flex-col bg-bg font-sans text-text">
+      <style>{ANIMATION_CSS}</style>
       <Background />
 
       {/* top ticker */}
@@ -629,7 +618,7 @@ export default function App() {
         <Logo />
         <a
           href="mailto:hello@profitpnl.com"
-          className="hidden rounded-lg border border-[#1e1e38] bg-[#161628]/60 px-4 py-2 text-sm font-medium text-[#a0a0c0] backdrop-blur-sm transition-all duration-300 hover:border-[#f0b429]/50 hover:text-[#f0b429] sm:block"
+          className="hidden rounded-lg border border-line bg-card/60 px-4 py-2 text-sm font-medium text-muted backdrop-blur-sm transition-all duration-300 hover:border-gold/50 hover:text-gold sm:block"
         >
           hello@profitpnl.com
         </a>
@@ -657,28 +646,28 @@ export default function App() {
         </div>
 
         {/* badge */}
-        <div className="anim-fade-up mb-7 flex items-center gap-2.5 rounded-full border border-[#f0b429]/25 bg-[#161628]/70 px-5 py-2 backdrop-blur-sm" style={{ animationDelay: "0.35s" }}>
+        <div className="anim-fade-up mb-7 flex items-center gap-2.5 rounded-full border border-gold/25 bg-card/70 px-5 py-2 backdrop-blur-sm" style={{ animationDelay: "0.35s" }}>
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-[#f0b429]" style={{ animation: "pingSlow 1.8s ease-out infinite" }} />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f0b429]" />
+            <span className="absolute inline-flex h-full w-full rounded-full bg-gold" style={{ animation: "pingSlow 1.8s ease-out infinite" }} />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
           </span>
-          <span className="text-xs font-semibold tracking-[0.2em] text-[#f0b429] uppercase">Launching Soon</span>
-          <span className="text-[#5a5a80]">·</span>
-          <span className="text-xs text-[#a0a0c0]">AI-Powered Trading Journal</span>
+          <span className="text-xs font-semibold tracking-[0.2em] text-gold uppercase">Launching Soon</span>
+          <span className="text-dim">·</span>
+          <span className="text-xs text-muted">AI-Powered Trading Journal</span>
         </div>
 
         {/* headline */}
         <h1 className="text-[42px] leading-[1.05] font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ perspective: "800px" }}>
-          <Letters text="Your Edge Is" base={0.5} className="text-[#f0f0ff]" />
+          <Letters text="Your Edge Is" base={0.5} className="text-text" />
           <br />
           <Letters text="Almost Here." base={1.05} className="text-shimmer-gold" />
         </h1>
 
         {/* subtitle */}
-        <p className="anim-fade-up mx-auto mt-6 max-w-xl text-base leading-relaxed text-[#a0a0c0] sm:text-lg" style={{ animationDelay: "1.6s" }}>
+        <p className="anim-fade-up mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted sm:text-lg" style={{ animationDelay: "1.6s" }}>
           The professional trading journal built for serious traders. Track every trade,
           decode every pattern, and let AI tell you exactly what&apos;s holding you back.{" "}
-          <span className="font-semibold text-[#f0f0ff]">profitpnl.com</span> is coming.
+          <span className="font-semibold text-text">profitpnl.com</span> is coming.
         </p>
 
         {/* countdown */}
@@ -689,8 +678,9 @@ export default function App() {
         {/* waitlist */}
         <div className="anim-fade-up mt-10 w-full" style={{ animationDelay: "2.05s" }}>
           <WaitlistForm />
-          <p className="mt-3 font-mono text-[11px] text-[#5a5a80]">
-            <span className="text-[#00d084]">●</span> 2,847 traders already on the waitlist{" "}
+          <p className="mt-3 font-mono text-[11px] text-dim">
+            <span className="text-green">●</span> 2,847 traders already on the waitlist — early birds get{" "}
+            <span className="text-gold">3 months free</span>
           </p>
         </div>
 
@@ -710,7 +700,7 @@ export default function App() {
               target="_blank"
               rel="noreferrer"
               aria-label={s.label}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#1e1e38] bg-[#161628]/70 text-[#a0a0c0] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#f0b429]/50 hover:text-[#f0b429] hover:shadow-[0_8px_24px_rgba(240,180,41,0.18)]"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-card/70 text-muted backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-gold/50 hover:text-gold hover:shadow-[0_8px_24px_rgba(240,180,41,0.18)]"
             >
               {s.icon}
             </a>
@@ -720,11 +710,11 @@ export default function App() {
 
       {/* footer + bottom ticker */}
       <footer className="anim-fade-up relative z-20" style={{ animationDelay: "0.3s" }}>
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-6 pb-4 font-mono text-[11px] text-[#5a5a80] sm:flex-row">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-6 pb-4 font-mono text-[11px] text-dim sm:flex-row">
           <span>© 2026 ProfitPnL · profitpnl.com</span>
           <span>
-            Built for prop traders · <span className="text-[#00d084]">LONG</span> discipline ·{" "}
-            <span className="text-[#ff4565]">SHORT</span> excuses
+            Built for prop traders · <span className="text-green">LONG</span> discipline ·{" "}
+            <span className="text-red">SHORT</span> excuses
           </span>
         </div>
         <TickerTape position="bottom" />
