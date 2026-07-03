@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { AppLoader } from "@/components/loader/AppLoader";
 
 export const metadata: Metadata = {
   title: "ProfitPnL — AI Trading Journal",
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AppLoader>
+          <AuthProvider>{children}</AuthProvider>
+        </AppLoader>
       </body>
     </html>
   );
