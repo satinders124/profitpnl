@@ -301,6 +301,44 @@ export function formatPct(value: number) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+/**
+ * Weekday label for a trade's date (e.g. "Monday"), for the Day-of-Week
+ * breakdown. Returns "" for unparseable/missing dates so callers can fall
+ * back to breakdownBy()'s own "Unknown" bucket.
+ */
+export function dayOfWeekLabel(dateStr: string | undefined | null): string {
+  if (!dateStr) return "";
+  const date = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+const WEEKDAY_ORDER = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
+/**
+ * Sorts BreakdownRow[] into calendar weekday order (Mon -> Sun) instead of
+ * breakdownBy()'s default best-to-worst totalR order — only meaningful for
+ * the Day-of-Week breakdown specifically.
+ */
+export function sortByWeekday(rows: BreakdownRow[]): BreakdownRow[] {
+  return rows.slice().sort((a, b) => {
+    const ai = WEEKDAY_ORDER.indexOf(a.name);
+    const bi = WEEKDAY_ORDER.indexOf(b.name);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
+
 export function uniqueClean(values: Array<string | undefined | null>) {
   const seen = new Set<string>();
   const out: string[] = [];

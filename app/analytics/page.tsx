@@ -9,9 +9,11 @@ import {
   breakdownBy,
   buildEquityPoints,
   calcStats,
+  dayOfWeekLabel,
   formatPct,
   formatR,
   openTrades,
+  sortByWeekday,
   uniqueClean,
   type BreakdownRow,
   type EquityPoint,
@@ -21,8 +23,12 @@ import { TradingAccount } from "@/types/account";
 import { PlaybookSetup } from "@/types/playbook";
 import {
   Activity,
+  AlertOctagon,
   AlertTriangle,
   BarChart3,
+  Brain,
+  CalendarClock,
+  Clock,
   Compass,
   Gauge,
   Layers3,
@@ -31,6 +37,7 @@ import {
   Target,
   TrendingUp,
   Trophy,
+  Wallet,
 } from "lucide-react";
 import {
   Area,
@@ -208,6 +215,41 @@ export default function AnalyticsPage() {
 
   const instrumentRows = useMemo(
     () => breakdownBy(filteredTrades, (t) => t.instrument || "", "Unknown"),
+    [filteredTrades]
+  );
+
+  const accountRows = useMemo(
+    () => breakdownBy(filteredTrades, (t) => t.account || "", "No Account"),
+    [filteredTrades]
+  );
+
+  const sessionRows = useMemo(
+    () => breakdownBy(filteredTrades, (t) => t.session || "", "No Session"),
+    [filteredTrades]
+  );
+
+  const dayOfWeekRows = useMemo(
+    () =>
+      sortByWeekday(
+        breakdownBy(filteredTrades, (t) => dayOfWeekLabel(t.date), "Unknown")
+      ),
+    [filteredTrades]
+  );
+
+  // Only trades where a mistake was actually tagged (empty/"None" excluded)
+  // — an untagged trade isn't a "mistake called None", it's just untagged.
+  const mistakeRows = useMemo(() => {
+    const tagged = filteredTrades.filter((t) => {
+      const tag = (t.mistake || "").trim().toLowerCase();
+      return tag && tag !== "none";
+    });
+    return breakdownBy(tagged, (t) => t.mistake || "", "Untagged").sort(
+      (a, b) => a.totalR - b.totalR // worst leak first — that's the point of this table
+    );
+  }, [filteredTrades]);
+
+  const emotionRows = useMemo(
+    () => breakdownBy(filteredTrades, (t) => t.emotion || "", "Untagged"),
     [filteredTrades]
   );
 
@@ -531,6 +573,47 @@ export default function AnalyticsPage() {
                 />
               </section>
 
+              <section className="grid min-w-0 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                <BreakdownTable
+                  title="Account Performance"
+                  icon={<Wallet size={18} className="text-[#00D084]" />}
+                  rows={accountRows}
+                  empty="Which accounts are actually profitable."
+                />
+
+                <BreakdownTable
+                  title="Session Breakdown"
+                  icon={<Clock size={18} className="text-[#F0B429]" />}
+                  rows={sessionRows}
+                  empty="London, New York, Asia — where your edge lives."
+                />
+
+                <BreakdownTable
+                  title="Day of Week"
+                  icon={<CalendarClock size={18} className="text-[#4C82FB]" />}
+                  rows={dayOfWeekRows}
+                  empty="Monday through Sunday, in calendar order."
+                  sortLabel="Mon → Sun"
+                />
+              </section>
+
+              <section className="grid min-w-0 gap-4 lg:grid-cols-2">
+                <BreakdownTable
+                  title="Mistake / Leak Analysis"
+                  icon={<AlertOctagon size={18} className="text-[#FF4565]" />}
+                  rows={mistakeRows}
+                  empty="Tagged mistakes, worst leak first — this is costing you the most."
+                  sortLabel="Worst first"
+                />
+
+                <BreakdownTable
+                  title="Emotion Breakdown"
+                  icon={<Brain size={18} className="text-[#A855F7]" />}
+                  rows={emotionRows}
+                  empty="Performance by emotional state at entry."
+                />
+              </section>
+
               <Card className="border-[#F0B429]/20 bg-[#F0B429]/[0.04] p-5 md:p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0">
@@ -651,11 +734,13 @@ function BreakdownTable({
   icon,
   rows,
   empty,
+  sortLabel,
 }: {
   title: string;
   icon: React.ReactNode;
   rows: BreakdownRow[];
   empty: string;
+  sortLabel?: string;
 }) {
   const maxAbsR = Math.max(...rows.map((row) => Math.abs(row.totalR)), 1);
 
@@ -666,6 +751,11 @@ function BreakdownTable({
           {icon}
           <span className="truncate">{title}</span>
         </div>
+        {sortLabel && (
+          <span className="shrink-0 whitespace-nowrap rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#5A5A80]">
+            {sortLabel}
+          </span>
+        )}
       </div>
       <p className="-mt-3 mb-4 truncate text-xs text-[#8080A0]">{empty}</p>
 
