@@ -679,8 +679,7 @@ export default function App() {
         <div className="anim-fade-up mt-10 w-full" style={{ animationDelay: "2.05s" }}>
           <WaitlistForm />
           <p className="mt-3 font-mono text-[11px] text-dim">
-            <span className="text-green">●</span> 2,847 traders already on the waitlist — early birds get{" "}
-            <span className="text-gold">3 months free</span>
+            <span className="text-green">●</span> 2,847 traders already on the waitlist{" "}
           </p>
         </div>
 
