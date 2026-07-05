@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -16,7 +17,6 @@ import {
   sortByWeekday,
   uniqueClean,
   type BreakdownRow,
-  type EquityPoint,
 } from "@/lib/stats";
 import { Trade } from "@/types/trade";
 import { TradingAccount } from "@/types/account";
@@ -39,21 +39,32 @@ import {
   Trophy,
   Wallet,
 } from "lucide-react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 type TimeRange = "all" | "7d" | "30d" | "90d" | "365d";
+
+const AnalyticsEquityChart = dynamic(
+  () => import("@/components/charts/AnalyticsEquityChart"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center rounded-xl border border-[#1E1E38] bg-[#070712] text-xs text-[#5A5A80]">
+        Loading chart…
+      </div>
+    ),
+  }
+);
+
+const AnalyticsDistributionChart = dynamic(
+  () => import("@/components/charts/AnalyticsDistributionChart"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center rounded-xl border border-[#1E1E38] bg-[#070712] text-xs text-[#5A5A80]">
+        Loading chart…
+      </div>
+    ),
+  }
+);
 
 function inTimeRange(trade: Trade, range: TimeRange) {
   if (range === "all") return true;
@@ -138,6 +149,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -461,43 +473,7 @@ export default function AnalyticsPage() {
                   </div>
 
                   <div className="relative h-80 overflow-hidden rounded-xl border border-[#1E1E38] bg-[#070712] p-4">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={equity} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="analyticsEquityFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#F0B429" stopOpacity={0.35} />
-                            <stop offset="95%" stopColor="#F0B429" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-
-                        <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                        <XAxis
-                          dataKey="name"
-                          stroke="#71717a"
-                          fontSize={12}
-                          tickLine={false}
-                          axisLine={false}
-                          minTickGap={24}
-                        />
-                        <YAxis
-                          stroke="#71717a"
-                          fontSize={12}
-                          tickLine={false}
-                          axisLine={false}
-                          width={48}
-                          tickFormatter={(value: number) => `${value}R`}
-                        />
-                        <Tooltip content={<EquityTooltip />} />
-                        <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
-                        <Area
-                          type="monotone"
-                          dataKey="equity"
-                          stroke="#F0B429"
-                          strokeWidth={2}
-                          fill="url(#analyticsEquityFill)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                    <AnalyticsEquityChart data={equity} />
                   </div>
                 </Card>
 
@@ -511,41 +487,7 @@ export default function AnalyticsPage() {
                   </div>
 
                   <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={distributionData}>
-                        <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                        <XAxis
-                          dataKey="name"
-                          stroke="#71717a"
-                          fontSize={12}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          stroke="#71717a"
-                          fontSize={12}
-                          tickLine={false}
-                          axisLine={false}
-                          allowDecimals={false}
-                        />
-                        <Tooltip
-                          cursor={{ fill: "rgba(255,255,255,0.04)" }}
-                          formatter={(value) => [`${Number(value ?? 0)} trades`, "Count"]}
-                          contentStyle={{
-                            background: "#0D0D1A",
-                            border: "1px solid #1E1E38",
-                            borderRadius: "12px",
-                            color: "#F0F0FF",
-                            fontSize: "12px",
-                          }}
-                        />
-                        <Bar dataKey="value" radius={[10, 10, 0, 0]} maxBarSize={56}>
-                          {distributionData.map((entry) => (
-                            <Cell key={entry.name} fill={entry.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <AnalyticsDistributionChart data={distributionData} />
                   </div>
                 </Card>
               </section>
@@ -679,53 +621,6 @@ function StatCard({
         {sub}
       </div>
     </Card>
-  );
-}
-
-function EquityTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: EquityPoint }>;
-}) {
-  if (!active || !payload || !payload.length) return null;
-  const point = payload[0].payload;
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-[#0D0D1A]/95 px-3.5 py-2.5 shadow-xl backdrop-blur-md">
-      <div className="mb-1 flex items-center justify-between gap-4 border-b border-white/10 pb-1">
-        <span className="whitespace-nowrap text-xs font-semibold text-[#F0B429]">
-          Trade #{point.trade}
-        </span>
-        <span className="whitespace-nowrap text-[10px] text-[#8080A0]">{point.name}</span>
-      </div>
-      <div className="flex items-center justify-between gap-4">
-        <span className="whitespace-nowrap text-xs text-[#A0A0C0]">
-          {point.instrument} · {point.strategy}
-        </span>
-      </div>
-      <div className="mt-1 flex items-center justify-between gap-4">
-        <span className="whitespace-nowrap text-xs text-[#A0A0C0]">Cumulative:</span>
-        <span
-          className={`whitespace-nowrap text-xs font-bold tabular-nums ${
-            point.equity >= 0 ? "text-[#00D084]" : "text-[#FF4565]"
-          }`}
-        >
-          {formatR(point.equity)}
-        </span>
-      </div>
-      <div className="mt-0.5 flex items-center justify-between gap-4">
-        <span className="whitespace-nowrap text-xs text-[#A0A0C0]">This trade:</span>
-        <span
-          className={`whitespace-nowrap text-xs font-bold tabular-nums ${
-            point.r >= 0 ? "text-[#00D084]" : "text-[#FF4565]"
-          }`}
-        >
-          {formatR(point.r)}
-        </span>
-      </div>
-    </div>
   );
 }
 

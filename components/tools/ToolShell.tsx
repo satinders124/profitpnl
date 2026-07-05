@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 
 const RELATED_TOOLS = [
@@ -62,34 +61,23 @@ export function ToolShell({
           <ArrowLeft size={14} /> All calculators
         </Link>
 
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-10 max-w-3xl"
-        >
+        <div className="mb-10 max-w-3xl animate-[fadeUp_0.45s_ease-out]">
           <p className="mb-3 font-mono2 text-xs uppercase tracking-[0.3em] text-gold">{"//"} {eyebrow}</p>
           <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">{title}</h1>
           <p className="mt-4 text-base leading-relaxed text-muted2 sm:text-lg">{description}</p>
           <div className="mt-4 inline-flex flex-wrap items-center gap-1.5 rounded-full border border-line bg-panel/70 px-3 py-1 text-xs text-dim">
             <ShieldCheck size={13} className="text-bull" /> Free forever · No sign-up · Browser-based
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.08 }}>
+        <div className="animate-[fadeUp_0.5s_ease-out]">
           {children}
-        </motion.div>
+        </div>
 
         {content ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="mt-16 max-w-3xl space-y-8"
-          >
+          <div className="mt-16 max-w-3xl space-y-8">
             {content}
-          </motion.div>
+          </div>
         ) : null}
 
         <section className="mt-16 border-t border-line/60 pt-8">
