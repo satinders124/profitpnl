@@ -53,6 +53,44 @@ const snapshotWithoutHash = {
 const certificate_hash = signCertificate(snapshotWithoutHash);
 assert.equal(certificate_hash.length, 64);
 assert.equal(isCertificateSignatureValid({ ...snapshotWithoutHash, certificate_hash }), true);
+
+// Simulate Supabase jsonb returning nested keys in a different order and
+// timestamptz returning "+00:00" instead of "Z". The signature must still pass.
+const dbRoundTripSnapshot = {
+  ...snapshotWithoutHash,
+  created_at: "2026-07-05T00:00:00+00:00",
+  privacy: {
+    showRMetrics: privacy.showRMetrics,
+    showReturnPercent: privacy.showReturnPercent,
+    showAccountName: privacy.showAccountName,
+    showDollarPnl: privacy.showDollarPnl,
+    showDisplayName: privacy.showDisplayName,
+  },
+  metrics: {
+    currency: metrics.currency,
+    startingBalance: metrics.startingBalance,
+    bestSetup: metrics.bestSetup,
+    avgLossR: metrics.avgLossR,
+    avgWinR: metrics.avgWinR,
+    worstTradePnl: metrics.worstTradePnl,
+    bestTradePnl: metrics.bestTradePnl,
+    maxDrawdownPnl: metrics.maxDrawdownPnl,
+    returnPercent: metrics.returnPercent,
+    netPnl: metrics.netPnl,
+    worstTradeR: metrics.worstTradeR,
+    bestTradeR: metrics.bestTradeR,
+    maxDrawdownR: metrics.maxDrawdownR,
+    profitFactor: metrics.profitFactor,
+    averageR: metrics.averageR,
+    totalR: metrics.totalR,
+    winRate: metrics.winRate,
+    breakeven: metrics.breakeven,
+    losses: metrics.losses,
+    wins: metrics.wins,
+    tradeCount: metrics.tradeCount,
+  },
+};
+assert.equal(isCertificateSignatureValid({ ...dbRoundTripSnapshot, certificate_hash }), true);
 assert.equal(isCertificateSignatureValid({ ...snapshotWithoutHash, title: "Tampered", certificate_hash }), false);
 
 console.log("Certificate tests passed.");

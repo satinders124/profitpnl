@@ -217,21 +217,61 @@ function certificateSecret() {
   );
 }
 
+function canonicalTimestamp(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
+function canonicalMetrics(metrics: Partial<CertificateMetrics>): CertificateMetrics {
+  return {
+    tradeCount: metrics.tradeCount ?? 0,
+    wins: metrics.wins ?? 0,
+    losses: metrics.losses ?? 0,
+    breakeven: metrics.breakeven ?? 0,
+    winRate: metrics.winRate ?? 0,
+    totalR: metrics.totalR ?? 0,
+    averageR: metrics.averageR ?? 0,
+    profitFactor: metrics.profitFactor ?? 0,
+    maxDrawdownR: metrics.maxDrawdownR ?? 0,
+    bestTradeR: metrics.bestTradeR ?? 0,
+    worstTradeR: metrics.worstTradeR ?? 0,
+    netPnl: metrics.netPnl ?? null,
+    returnPercent: metrics.returnPercent ?? null,
+    maxDrawdownPnl: metrics.maxDrawdownPnl ?? null,
+    bestTradePnl: metrics.bestTradePnl ?? null,
+    worstTradePnl: metrics.worstTradePnl ?? null,
+    avgWinR: metrics.avgWinR ?? 0,
+    avgLossR: metrics.avgLossR ?? 0,
+    bestSetup: metrics.bestSetup ?? "—",
+    startingBalance: metrics.startingBalance ?? null,
+    currency: metrics.currency ?? "USD",
+  };
+}
+
+/**
+ * Build a deterministic payload for HMAC signing.
+ *
+ * Important: Supabase stores `metrics`/`privacy` as jsonb, and Postgres may
+ * return jsonb keys in a different order than the object we inserted. Since
+ * JSON.stringify is order-sensitive, signing the raw object can make a valid
+ * certificate show "Invalid Signature" after it is read back from the DB.
+ * We therefore rebuild nested objects in a fixed order and normalize timestamps.
+ */
 export function canonicalCertificatePayload(snapshot: Omit<CertificateSnapshot, "certificate_hash">) {
   return JSON.stringify({
     public_id: snapshot.public_id,
     user_id: snapshot.user_id,
-    account_name: snapshot.account_name,
+    account_name: snapshot.account_name ?? null,
     title: snapshot.title,
-    display_name: snapshot.display_name,
-    is_anonymous: snapshot.is_anonymous,
+    display_name: snapshot.display_name ?? null,
+    is_anonymous: !!snapshot.is_anonymous,
     status: snapshot.status,
     data_source: snapshot.data_source,
     period_start: snapshot.period_start,
     period_end: snapshot.period_end,
-    metrics: snapshot.metrics,
-    privacy: snapshot.privacy,
-    created_at: snapshot.created_at,
+    metrics: canonicalMetrics(snapshot.metrics),
+    privacy: normalizePrivacy(snapshot.privacy),
+    created_at: canonicalTimestamp(snapshot.created_at),
   });
 }
 
