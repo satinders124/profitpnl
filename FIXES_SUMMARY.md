@@ -114,6 +114,7 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - Added explicit check for missing or unconfigured `ANTHROPIC_API_KEY`, returning a clear instruction banner instead of failing silently.
 - Added strict message role normalization (merging consecutive roles and ensuring the sequence begins with `'user'`).
 - Wired up dynamic `systemPrompt` support so live trading journal context is passed to Claude.
+- Implemented automatic model fallback (`claude-3-5-sonnet-20241022` -> `claude-3-5-sonnet-latest` -> `claude-3-haiku-20240307`) to resolve 404 model deprecation/restriction errors seamlessly.
 - Streamed explicit error messages (`[AI Coach Error: ...]`) on failure so issues can be diagnosed instantly.
 
 ## Files Changed

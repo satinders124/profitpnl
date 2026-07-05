@@ -88,27 +88,48 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
+        let success = false;
+        let lastErrMessage = "Unknown error";
 
-        try {
-          const anthropicStream = anthropic.messages.stream({
-            model: 'claude-3-5-sonnet-20240620',
-            max_tokens: 1500,
-            system: finalSystem,
-            messages: cleanMessages,
-          });
+        // Try stable Claude 3.5 Sonnet releases with automatic fallback to Haiku if model tier is restricted
+        const modelsToTry = Array.from(new Set([
+          process.env.ANTHROPIC_MODEL,
+          'claude-3-5-sonnet-20241022',
+          'claude-3-5-sonnet-latest',
+          'claude-3-haiku-20240307',
+        ].filter(Boolean))) as string[];
 
-          anthropicStream.on('text', (textDelta) => {
-            controller.enqueue(encoder.encode(textDelta));
-          });
+        for (const model of modelsToTry) {
+          try {
+            const anthropicStream = anthropic.messages.stream({
+              model,
+              max_tokens: 1500,
+              system: finalSystem,
+              messages: cleanMessages,
+            });
 
-          await anthropicStream.finalMessage();
-          controller.close();
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'Unknown error';
-          console.error('Claude streaming error:', err);
-          controller.enqueue(encoder.encode(`\n\n[AI Coach Error: ${message}. Please verify your ANTHROPIC_API_KEY and account credits.]`));
-          controller.close();
+            anthropicStream.on('text', (textDelta) => {
+              controller.enqueue(encoder.encode(textDelta));
+            });
+
+            await anthropicStream.finalMessage();
+            success = true;
+            break;
+          } catch (err: any) {
+            lastErrMessage = err?.message || String(err);
+            console.warn(`Model ${model} failed:`, lastErrMessage);
+            // If model is not found (404), fallback to next model in list
+            if (lastErrMessage.includes("404") || lastErrMessage.includes("not_found")) {
+              continue;
+            }
+            break;
+          }
         }
+
+        if (!success) {
+          controller.enqueue(encoder.encode(`\n\n[AI Coach Error: ${lastErrMessage}. Tried models: ${modelsToTry.join(", ")}. Please verify your ANTHROPIC_API_KEY and credits.]`));
+        }
+        controller.close();
       },
     });
 
