@@ -225,6 +225,21 @@ export async function POST(req: Request) {
           );
       }
 
+      // Some Stripe setups deliver checkout.session.completed before/without the
+      // first invoice.payment_succeeded event reaching us during tests. Create
+      // the first affiliate commission here too when an invoice is attached;
+      // createAffiliateCommission is idempotent on stripe_invoice_id, so the
+      // invoice webhook can safely run later without double-paying.
+      const invoiceId = typeof session.invoice === "string" ? session.invoice : session.invoice?.id;
+      if (invoiceId) {
+        try {
+          const invoice = await stripe.invoices.retrieve(invoiceId);
+          await createAffiliateCommission({ invoice, stripe, supabase, userId: uid });
+        } catch (commissionError) {
+          console.error("Checkout affiliate commission fallback error:", commissionError);
+        }
+      }
+
       console.log(`[webhook] User ${uid} upgraded to Pro Plan (paid)`);
       break;
     }
@@ -267,17 +282,34 @@ export async function POST(req: Request) {
         .eq("stripe_customer_id", customerId)
         .limit(1);
 
-      if (profiles && profiles.length > 0) {
+      let userId = profiles?.[0]?.id || null;
+
+      // The first invoice can arrive before checkout.session.completed updates
+      // profiles.stripe_customer_id. Fall back to subscription metadata so paid
+      // affiliate commissions are not missed in test/live Stripe ordering.
+      if (!userId) {
+        const subscriptionId = subscriptionIdFromInvoice(invoice as InvoiceLike);
+        if (subscriptionId) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            userId = subscription.metadata?.supabase_uid || null;
+          } catch (subscriptionError) {
+            console.error("Invoice subscription metadata lookup error:", subscriptionError);
+          }
+        }
+      }
+
+      if (userId) {
         await supabase
           .from("profiles")
-          .update({ plan: "Pro Plan", plan_source: "paid" })
-          .eq("id", profiles[0].id);
+          .update({ plan: "Pro Plan", plan_source: "paid", stripe_customer_id: customerId })
+          .eq("id", userId);
 
         await createAffiliateCommission({
           invoice,
           stripe,
           supabase,
-          userId: profiles[0].id,
+          userId,
         });
       }
       break;

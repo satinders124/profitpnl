@@ -30,7 +30,6 @@ const moreItems = [
   { label: "Playbook", href: "/playbook", icon: BookOpen },
   { label: "Psychology", href: "/psychology", icon: Brain },
   { label: "Accounts", href: "/accounts", icon: CreditCard },
-  { label: "Affiliate", href: "/affiliate", icon: Award },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

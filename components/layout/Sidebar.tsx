@@ -78,11 +78,6 @@ const navGroups = [
         icon: CreditCard,
       },
       {
-        label: "Affiliate",
-        href: "/affiliate",
-        icon: Award,
-      },
-      {
         label: "Settings",
         href: "/settings",
         icon: Settings,
