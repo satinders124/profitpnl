@@ -48,6 +48,23 @@ export default function RegisterClient() {
     setLoading(true);
     setError("");
 
+    // ── Check if email already exists ──
+    try {
+      const checkRes = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const checkData = await checkRes.json();
+      if (checkData.exists) {
+        setError("This email is already registered. Please sign in instead.");
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // If check fails, allow through — Supabase will handle it
+    }
+
     const { error: authError } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
