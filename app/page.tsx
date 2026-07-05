@@ -82,7 +82,9 @@ function LoginDropdown({
       });
 
       if (authError || !data.user) {
-        setError("Incorrect email or password.");
+        // Show the actual Supabase error message for clarity
+        const msg = authError?.message || "Login failed. Please try again.";
+        setError(msg);
         setLoading(false);
         return;
       }
@@ -99,8 +101,8 @@ function LoginDropdown({
 
       onLoggedIn?.();
       router.push("/dashboard");
-    } catch {
-      setError("Incorrect email or password.");
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
