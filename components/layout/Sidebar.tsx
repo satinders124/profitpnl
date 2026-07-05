@@ -98,7 +98,7 @@ function initials(email?: string | null, name?: string | null) {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName, logout } = useAuth();
+  const { user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName, isAffiliate, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const isPro = plan === "Pro Plan";
@@ -118,6 +118,21 @@ export function Sidebar() {
       setTrialDaysRemaining(0);
     }
   }, [isOnTrial, trialEndsAtMs]);
+
+  const navGroupsForUser = isAffiliate
+    ? navGroups.map((group) =>
+        group.label === "Management"
+          ? {
+              ...group,
+              items: [
+                group.items[0],
+                { label: "Affiliate", href: "/affiliate", icon: Award },
+                ...group.items.slice(1),
+              ],
+            }
+          : group
+      )
+    : navGroups;
 
   // Plan badge text and style
   const planBadge = isOnTrial
@@ -159,7 +174,7 @@ export function Sidebar() {
 
       {/* ─── NAV ─── */}
       <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6 no-scrollbar">
-        {navGroups.map((group) => (
+        {navGroupsForUser.map((group) => (
           <div key={group.label}>
             <div className="mb-2 px-3 text-xs font-semibold text-zinc-500">
               {group.label}

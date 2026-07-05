@@ -12,6 +12,7 @@ type AuthContextValue = {
   hasUsedTrial: boolean;
   displayName: string;
   soundEffects: boolean;
+  isAffiliate: boolean;
   loading: boolean;
   logout: () => Promise<void>;
   refreshPlan: () => Promise<void>;
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextValue>({
   hasUsedTrial: false,
   displayName: "",
   soundEffects: true,
+  isAffiliate: false,
   loading: true,
   logout: async () => {},
   refreshPlan: async () => {},
@@ -39,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [soundEffects, setSoundEffects] = useState(true);
+  const [isAffiliate, setIsAffiliate] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchPlanData = useCallback(async (uid: string) => {
@@ -64,6 +67,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Error fetching plan:", error);
+    }
+  }, [supabase]);
+
+  const fetchAffiliateFlag = useCallback(async (uid: string, email?: string | null) => {
+    try {
+      const { data: byUserId } = await supabase
+        .from("affiliates")
+        .select("id")
+        .eq("user_id", uid)
+        .maybeSingle();
+
+      if (byUserId?.id) {
+        setIsAffiliate(true);
+        return;
+      }
+
+      if (email) {
+        const { data: byEmail } = await supabase
+          .from("affiliates")
+          .select("id")
+          .ilike("email", email)
+          .maybeSingle();
+        setIsAffiliate(!!byEmail?.id);
+      } else {
+        setIsAffiliate(false);
+      }
+    } catch {
+      setIsAffiliate(false);
     }
   }, [supabase]);
 
@@ -135,6 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         setUser(session.user);
         fetchPlanData(session.user.id);
+        fetchAffiliateFlag(session.user.id, session.user.email);
       }
       setLoading(false);
     });
@@ -149,6 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setUser(session.user);
           fetchPlanData(session.user.id);
+          fetchAffiliateFlag(session.user.id, session.user.email);
         } else {
           setUser(null);
           setPlan("Free Plan");
@@ -157,13 +190,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setHasUsedTrial(false);
           setDisplayName("");
           setSoundEffects(true);
+          setIsAffiliate(false);
         }
         setLoading(false);
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [supabase, fetchPlanData]);
+  }, [supabase, fetchPlanData, fetchAffiliateFlag]);
 
   const value = useMemo(
     () => ({
@@ -174,13 +208,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       hasUsedTrial,
       displayName,
       soundEffects,
+      isAffiliate,
       loading,
       logout: async () => {
         await supabase.auth.signOut();
       },
       refreshPlan,
     }),
-    [user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName, soundEffects, loading, refreshPlan, supabase]
+    [user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName, soundEffects, isAffiliate, loading, refreshPlan, supabase]
   );
 
   return (

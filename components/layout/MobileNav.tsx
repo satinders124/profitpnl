@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "@/components/providers/AuthProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3,
@@ -25,7 +26,7 @@ const mainItems = [
   { label: "AI Desk", href: "/ai-coach", icon: Sparkles },
 ];
 
-const moreItems = [
+const baseMoreItems = [
   { label: "Certificates", href: "/certificates", icon: Award },
   { label: "Playbook", href: "/playbook", icon: BookOpen },
   { label: "Psychology", href: "/psychology", icon: Brain },
@@ -35,7 +36,18 @@ const moreItems = [
 
 export function MobileNav() {
   const pathname = usePathname();
+  const { isAffiliate } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreItems = isAffiliate
+    ? [
+        baseMoreItems[0],
+        baseMoreItems[1],
+        baseMoreItems[2],
+        baseMoreItems[3],
+        { label: "Affiliate", href: "/affiliate", icon: Award },
+        ...baseMoreItems.slice(4),
+      ]
+    : baseMoreItems;
 
   const isMoreActive = moreItems.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)

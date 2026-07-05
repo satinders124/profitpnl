@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServerClient } from "@/lib/supabase-server";
 import { getAuthenticatedUser } from "@/lib/auth-utils";
+import { createAffiliateCommission } from "@/lib/affiliate-commissions";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe | null {
@@ -44,6 +45,19 @@ async function handleVerify(req: Request, sessionId?: string | null) {
               trial_reminder_sent_at: null,
             })
             .eq("id", uid);
+
+          // Safety net for affiliate commissions: if Stripe webhooks are delayed
+          // or missed in test mode, the success redirect verification can still
+          // sync the first invoice commission. This is idempotent by invoice id.
+          const invoiceId = typeof session.invoice === "string" ? session.invoice : session.invoice?.id;
+          if (invoiceId) {
+            try {
+              const invoice = await stripe.invoices.retrieve(invoiceId);
+              await createAffiliateCommission({ invoice, stripe, supabase, userId: uid });
+            } catch (commissionError) {
+              console.error("Verify affiliate commission sync error:", commissionError);
+            }
+          }
 
           return NextResponse.json({ success: true, plan: "Pro Plan", planSource: "paid" });
         }
