@@ -75,6 +75,7 @@ export default function SettingsPage() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [comingSoonBroker, setComingSoonBroker] = useState<string | null>(null);
   const [upgradeToast, setUpgradeToast] = useState<string | null>(null);
 
@@ -320,7 +321,11 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   }
 
-  async function handleLogout() {
+  function handleLogout() {
+    setShowLogoutConfirm(true);
+  }
+
+  async function confirmLogout() {
     try {
       await logout();
     } catch (err) {
@@ -1851,6 +1856,38 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+
+        {/* ─── LOGOUT CONFIRMATION MODAL ─── */}
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-[#12121A] border border-[#242436] rounded-2xl p-6 max-w-sm w-full space-y-5 shadow-2xl">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center shrink-0">
+                  <LogOut size={20} className="text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-base">Sign out of ProfitPnL?</h3>
+                  <p className="text-zinc-400 text-xs mt-0.5">Are you sure you want to end your current session?</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-[#181824] border border-[#282838] hover:bg-[#202030] text-zinc-300 text-xs font-semibold transition-colors"
+                >
+                  No, Stay Logged In
+                </button>
+                <button
+                  onClick={confirmLogout}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/20"
+                >
+                  <LogOut size={13} />
+                  Yes, Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ─── UPGRADE TOAST ─── */}
         {upgradeToast && (

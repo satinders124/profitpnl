@@ -19,6 +19,7 @@ import {
   Zap,
   ArrowUpRight,
   Award,
+  LogOut,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 
@@ -98,7 +99,8 @@ function initials(email?: string | null, name?: string | null) {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName } = useAuth();
+  const { user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName, logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const isPro = plan === "Pro Plan";
   const isFree = plan === "Free Plan";
@@ -280,11 +282,11 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* ─── USER PROFILE CARD ─── */}
-      <div className="p-3 border-t border-[#1F1F2C] bg-[#0A0A0E]">
+      {/* ─── USER PROFILE CARD & LOGOUT ─── */}
+      <div className="p-3 border-t border-[#1F1F2C] bg-[#0A0A0E] flex items-center gap-2">
         <Link
           href="/settings"
-          className="flex items-center gap-3 rounded-xl border border-[#1F1F2C] bg-[#0E0E14] p-3 transition-all hover:border-[#2C2C3E] hover:bg-[#12121A]"
+          className="flex flex-1 min-w-0 items-center gap-2.5 rounded-xl border border-[#1F1F2C] bg-[#0E0E14] p-2.5 transition-all hover:border-[#2C2C3E] hover:bg-[#12121A]"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#181824] border border-[#282838] text-xs font-semibold text-zinc-200 shrink-0">
             {initials(user?.email, displayName)}
@@ -293,14 +295,14 @@ export function Sidebar() {
             <div className="truncate text-xs font-semibold text-white">
               {displayName || "Trader"}
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="flex items-center gap-1 mt-0.5">
               {isPro ? (
-                <Crown size={10} className="text-[#F0B429]" />
+                <Crown size={10} className="text-[#F0B429] shrink-0" />
               ) : (
-                <Shield size={10} className="text-zinc-500" />
+                <Shield size={10} className="text-zinc-500 shrink-0" />
               )}
               <span
-                className={`truncate text-[11px] font-medium ${
+                className={`truncate text-[10px] font-medium ${
                   isPro ? "text-[#F0B429]" : "text-zinc-400"
                 }`}
               >
@@ -310,9 +312,50 @@ export function Sidebar() {
               </span>
             </div>
           </div>
-          <MoreHorizontal size={15} className="text-zinc-500 shrink-0" />
         </Link>
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
+          title="Sign out of ProfitPnL"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#1F1F2C] bg-[#0E0E14] text-zinc-400 transition-all hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+        >
+          <LogOut size={16} />
+        </button>
       </div>
+
+      {/* ─── LOGOUT CONFIRMATION MODAL ─── */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[#12121A] border border-[#242436] rounded-2xl p-6 max-w-sm w-full space-y-5 shadow-2xl">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center shrink-0">
+                <LogOut size={20} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-base">Sign out of ProfitPnL?</h3>
+                <p className="text-zinc-400 text-xs mt-0.5">Are you sure you want to end your current session?</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl bg-[#181824] border border-[#282838] hover:bg-[#202030] text-zinc-300 text-xs font-semibold transition-colors"
+              >
+                No, Stay Logged In
+              </button>
+              <button
+                onClick={async () => {
+                  setShowLogoutConfirm(false);
+                  await logout();
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/20"
+              >
+                <LogOut size={13} />
+                Yes, Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

@@ -126,6 +126,12 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - Updated `app/api/auth/forgot-password/route.ts` so `resetPasswordForEmail` sets `redirectTo: ${appUrl}/reset-password`.
 - Added an automated recovery interceptor in `AuthProvider.tsx`: if a user lands on the homepage or any other route with `type=recovery` or triggers a `PASSWORD_RECOVERY` event (e.g., due to restrictive Supabase Dashboard redirect rules), they are automatically routed to `/reset-password`.
 
+### 18. 🟡 FIXED: Instant Sign Out Without Confirmation
+**Files:** `app/settings/page.tsx`, `components/layout/Sidebar.tsx`
+**Problem:** Clicking "Log Out" instantly signed users out without confirmation or accidental click prevention.
+
+**Fix:** Added a dedicated Sign Out icon button next to the user profile card in the Sidebar and added a confirmation modal dialog ("Sign out of ProfitPnL? [No, Stay Logged In] [Yes, Sign Out]") across both the Sidebar and Settings page.
+
 ## Files Changed
 
 | File | Change |
@@ -153,6 +159,8 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `app/api/ai/claude/route.ts` | Fixed message role formatting, dynamic system prompt, and API key error reporting |
 | `app/reset-password/page.tsx` | **New** — dedicated password update screen for recovery email links |
 | `app/api/auth/forgot-password/route.ts` | Updated recovery email redirect to point to `/reset-password` |
+| `components/layout/Sidebar.tsx` | Added quick Sign Out button and logout confirmation dialog |
+| `app/settings/page.tsx` | Added logout confirmation modal dialog before signing out |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result
