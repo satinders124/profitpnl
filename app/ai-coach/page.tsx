@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 type ChatMessage = {
   id: string;
@@ -55,6 +56,7 @@ const SYSTEM_PROMPT =
 
 export default function AiCoachPage() {
   const { user, plan } = useAuth();
+  const { playSend, playReceive, playError } = useSoundEffects();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false); // waiting for first token
@@ -179,6 +181,7 @@ export default function AiCoachPage() {
           setIsThinking(false);
           setIsStreaming(true);
           setStreamingId(assistantId);
+          playReceive();
           setMessages((prev) => [
             ...prev,
             { id: assistantId, role: "assistant", content: chunk, createdAt: Date.now() },
@@ -205,6 +208,7 @@ export default function AiCoachPage() {
       if ((err as Error).name === "AbortError") return;
       const message = err instanceof Error ? err.message : "Something went wrong.";
       setErrorText(message);
+      playError();
     } finally {
       setIsThinking(false);
       setIsStreaming(false);
@@ -229,6 +233,7 @@ export default function AiCoachPage() {
     setMessages(history);
     setInput("");
     autoScrollRef.current = true;
+    playSend();
 
     await streamReply(history);
   }
@@ -496,7 +501,7 @@ export default function AiCoachPage() {
           </AnimatePresence>
         </div>
 
-        <div className="shrink-0 border-t border-[#1E1E38] bg-[#0D0D1A]/70 px-4 pt-3 pb-0 backdrop-blur-md sm:px-6 lg:px-10">
+        <div className="shrink-0 border-t border-[#1E1E38] bg-[#0D0D1A]/70 px-4 pt-3 pb-20 lg:pb-3 backdrop-blur-md sm:px-6 lg:px-10">
           <form onSubmit={handleSend} className="relative mx-auto max-w-3xl">
             <textarea
               ref={textareaRef}

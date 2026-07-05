@@ -6,6 +6,7 @@ import { PlaybookSetup } from "@/types/playbook";
 import { Trade } from "@/types/trade";
 import { CheckCircle2 } from "lucide-react";
 import { useState } from "react";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 const instruments = [
   "XAUUSD",
@@ -113,6 +114,7 @@ export function TradeForm({
   });
 
   const [saving, setSaving] = useState(false);
+  const { playSuccess } = useSoundEffects();
 
   function update<K extends keyof Trade>(key: K, value: Trade[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -138,6 +140,7 @@ export function TradeForm({
         executionRating: cleanNumberOrBlank(form.executionRating),
       });
 
+      playSuccess();
       onSaved();
     } finally {
       setSaving(false);

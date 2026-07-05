@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { createClient } from "@/lib/supabase-client";
 import { getProfile, updateProfile } from "@/lib/db";
 import {
@@ -64,6 +65,7 @@ type SettingsTab = "preferences" | "brokers" | "tags" | "risk" | "account";
 export default function SettingsPage() {
   const { user, plan, planSource, trialEndsAtMs, hasUsedTrial, logout, refreshPlan } =
     useAuth();
+  const { playClick, playSuccess } = useSoundEffects();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -204,6 +206,7 @@ export default function SettingsPage() {
         psychology_tags: settings.psychologyTags,
       });
       setSaved(true);
+      playSuccess();
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       alert("Failed to update settings.");
@@ -792,12 +795,11 @@ export default function SettingsPage() {
                     </p>
                   </div>
                   <button
-                    onClick={() =>
-                      setSettings({
-                        ...settings,
-                        soundEffects: !settings.soundEffects,
-                      })
-                    }
+                    onClick={() => {
+                      const next = !settings.soundEffects;
+                      setSettings({ ...settings, soundEffects: next });
+                      if (next) playClick();
+                    }}
                     className={`w-11 h-6 rounded-full transition-all relative ${settings.soundEffects ? "bg-[#F0B429]" : "bg-[#242436]"}`}
                   >
                     <div
@@ -1814,7 +1816,7 @@ export default function SettingsPage() {
         </div>
 
         {/* ─── GLOBAL STICKY SAVE BAR ─── */}
-        <div className="fixed bottom-0 left-0 right-0 bg-[#080810]/95 backdrop-blur-md border-t border-[#1F1F2C] px-4 py-3 z-40">
+        <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 bg-[#080810]/95 backdrop-blur-md border-t border-[#1F1F2C] px-4 py-3 z-40">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <p className="text-zinc-500 text-xs hidden md:block">
               Settings sync with Supabase. Unsaved changes will be highlighted.

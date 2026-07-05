@@ -11,6 +11,7 @@ type AuthContextValue = {
   trialEndsAtMs: number | null;
   hasUsedTrial: boolean;
   displayName: string;
+  soundEffects: boolean;
   loading: boolean;
   logout: () => Promise<void>;
   refreshPlan: () => Promise<void>;
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextValue>({
   trialEndsAtMs: null,
   hasUsedTrial: false,
   displayName: "",
+  soundEffects: true,
   loading: true,
   logout: async () => {},
   refreshPlan: async () => {},
@@ -36,13 +38,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [trialEndsAtMs, setTrialEndsAtMs] = useState<number | null>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [displayName, setDisplayName] = useState("");
+  const [soundEffects, setSoundEffects] = useState(true);
   const [loading, setLoading] = useState(true);
 
   const fetchPlanData = useCallback(async (uid: string) => {
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("plan, plan_source, trial_ends_at, has_used_trial, display_name")
+        .select("plan, plan_source, trial_ends_at, has_used_trial, display_name, sound_effects")
         .eq("id", uid)
         .single();
 
@@ -51,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setPlanSource(data.plan_source || "");
         setHasUsedTrial(!!data.has_used_trial);
         setDisplayName(data.display_name || "");
+        setSoundEffects(data.sound_effects !== false);
 
         if (data.trial_ends_at) {
           setTrialEndsAtMs(new Date(data.trial_ends_at).getTime());
@@ -92,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTrialEndsAtMs(null);
           setHasUsedTrial(false);
           setDisplayName("");
+          setSoundEffects(true);
         }
         setLoading(false);
       }
@@ -108,13 +113,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       trialEndsAtMs,
       hasUsedTrial,
       displayName,
+      soundEffects,
       loading,
       logout: async () => {
         await supabase.auth.signOut();
       },
       refreshPlan,
     }),
-    [user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName, loading, refreshPlan, supabase]
+    [user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName, soundEffects, loading, refreshPlan, supabase]
   );
 
   return (
