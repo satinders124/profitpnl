@@ -137,7 +137,7 @@ export function Sidebar() {
         <img
           src="/favicon.png"
           alt="ProfitPnL"
-          className="h-9 w-9 rounded-lg shadow-sm"
+          className="h-9 w-9 aspect-square object-contain rounded-lg shadow-sm shrink-0"
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

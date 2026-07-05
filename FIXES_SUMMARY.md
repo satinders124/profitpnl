@@ -143,6 +143,14 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - **Session Breakdown:** Breaks down win rate and total R across NY, London, and Asian sessions.
 - **Expanded Logs:** Feeds the last 10 detailed trade logs and last 5 psychology journals.
 
+### 20. 🎨 FIXED: Favicon Stretched / Distorted Across UI & Loader
+**Files:** `public/favicon.png`, `components/loader/Loader.tsx`, `components/layout/Sidebar.tsx`, `app/login/LoginClient.tsx`, `app/register/RegisterClient.tsx`, `app/forgot-password/page.tsx`, `app/reset-password/page.tsx`, `app/page.tsx`
+**Problem:** The original `favicon.png` file had an aspect ratio of 0.80 (322x401), causing it to appear stretched horizontally whenever forced into square CSS dimensions (`h-14 w-14`, `64x64`, etc.).
+
+**Fix:**
+- Resized and centered the raw `public/favicon.png` image onto a true 1:1 square transparent PNG canvas (`401x401`).
+- Added `aspect-square object-contain shrink-0` styling to all 7 UI occurrences (including the initial Loader animation tile) so it always renders crisp, centered, and unstretched.
+
 ## Files Changed
 
 | File | Change |
@@ -173,6 +181,8 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `components/layout/Sidebar.tsx` | Added quick Sign Out button and logout confirmation dialog |
 | `app/settings/page.tsx` | Added logout confirmation modal dialog before signing out |
 | `lib/ai-context.ts` | Expanded AI context builder with full playbook rules, prop drawdown cushions, and execution discipline breakdowns |
+| `public/favicon.png` | Centered and squared raw image onto a 1:1 transparent PNG canvas |
+| `components/loader/Loader.tsx` | Added `object-contain aspect-square` to logo tile |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result

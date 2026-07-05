@@ -1784,7 +1784,7 @@ function CTA() {
               alt="ProfitPnL"
               animate={{ rotate: [0, 8, -8, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="mx-auto mb-6 h-16 w-16 rounded-2xl shadow-[0_0_45px_rgba(240,180,41,0.5)]"
+              className="mx-auto mb-6 h-16 w-16 aspect-square object-contain rounded-2xl shadow-[0_0_45px_rgba(240,180,41,0.5)] shrink-0"
             />
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Your edge is hiding in your <span className="text-shimmer">trade history</span>

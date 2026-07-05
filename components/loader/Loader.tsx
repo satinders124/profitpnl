@@ -228,8 +228,11 @@ export default function Loader({ onDone }: { onDone?: () => void }) {
             width: 64,
             height: 64,
             borderRadius: 16,
+            objectFit: "contain",
+            aspectRatio: "1 / 1",
             animation: "pnlLogoBeat 2.4s ease-in-out infinite, pnlGlowPulse 2.4s ease-in-out infinite",
           }}
+          className="aspect-square object-contain shrink-0"
         />
       </div>
 

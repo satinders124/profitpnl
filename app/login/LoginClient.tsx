@@ -125,7 +125,7 @@ export default function LoginClient() {
           <img
             src="/favicon.png"
             alt="ProfitPnL"
-            className="h-14 w-14 rounded-2xl shadow-lg shadow-[#F0B429]/20 mb-4 mx-auto"
+            className="h-14 w-14 aspect-square object-contain rounded-2xl shadow-lg shadow-[#F0B429]/20 mb-4 mx-auto shrink-0"
           />
           <h1 className="text-2xl font-black text-white">Welcome Back</h1>
           <p className="text-zinc-500 text-sm mt-1">Sign in to your trading journal</p>
