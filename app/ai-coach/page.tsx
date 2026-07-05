@@ -58,7 +58,7 @@ const BASE_SYSTEM =
   "You are an Elite Trading Performance Coach embedded inside ProfitPnL, a trading journal app. Use Markdown formatting. Use bold for key concepts, risk rules, and psychological triggers. Be direct, concise, and high-impact.";
 
 export default function AiCoachPage() {
-  const { user, plan } = useAuth();
+  const { user, plan, planSource } = useAuth();
   const { playSend, playReceive, playError } = useSoundEffects();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -77,7 +77,7 @@ export default function AiCoachPage() {
   const autoScrollRef = useRef(true);
   const contextRef = useRef<string>("");
 
-  const isFreePlan = plan === "Free Plan";
+  const isFreePlan = plan === "Free Plan" || planSource === "trial";
 
   // ── Load chat history from localStorage ──
   useEffect(() => {

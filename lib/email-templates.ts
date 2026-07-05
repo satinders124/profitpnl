@@ -194,6 +194,55 @@ export function welcomeEmailHtml(name: string): string {
 }
 
 /**
+ * "Your trial has started" — sent immediately when a user begins their
+ * 7-day Pro trial.
+ */
+export function trialStartedEmailHtml(name: string, trialEndsAtMs: number): string {
+  const safeName = escapeHtml(name) || "there";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com";
+  const endDate = new Date(trialEndsAtMs).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  const body = `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
+      <tr>
+        <td bgcolor="${COLORS.cardSoft}" style="width:40px;height:40px;border-radius:12px;background-color:${COLORS.cardSoft};text-align:center;vertical-align:middle;">
+          <span style="font-family:${FONT_STACK};font-size:18px;color:${COLORS.green};line-height:40px;">&#128640;</span>
+        </td>
+      </tr>
+    </table>
+
+    <h1 style="margin:0 0 8px;font-family:${FONT_STACK};font-size:20px;font-weight:900;color:${COLORS.navy};letter-spacing:-0.02em;">
+      Your Pro trial is live, ${safeName}.
+    </h1>
+    <p style="margin:0 0 22px;font-family:${FONT_STACK};font-size:13px;line-height:1.7;color:${COLORS.muted};">
+      You now have <strong>7 days of full Pro access</strong> — AI Coaching, unlimited accounts, advanced analytics, and verified P&L certificates. Your trial ends on <strong>${endDate}</strong>. Upgrade any time to keep Pro without interruption.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+      <tr>
+        <td bgcolor="${COLORS.goldBright}" style="border-radius:12px;background-color:${COLORS.goldBright};background-image:linear-gradient(135deg,${COLORS.goldBright},${COLORS.gold});">
+          <a href="${siteUrl}/upgrade" style="display:inline-block;padding:13px 26px;font-family:${FONT_STACK};font-size:13px;font-weight:900;color:${COLORS.navy};text-decoration:none;">
+            Upgrade to Pro →
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0;font-family:${FONT_STACK};font-size:12px;line-height:1.7;color:${COLORS.dim};">
+      No card required during the trial. You'll get a reminder 24 hours before it ends.
+    </p>`;
+
+  return renderEmailLayout({
+    preheader: "Your 7-day ProfitPnL Pro trial has started.",
+    bodyHtml: body,
+  });
+}
+
+/**
  * "Your trial ends tomorrow" reminder — sent ~24 hours before a user's
  * 7-day Pro trial expires. Sent once per trial (see trialReminderSentAt
  * guard in app/api/cron/trial-expiry/route.ts).

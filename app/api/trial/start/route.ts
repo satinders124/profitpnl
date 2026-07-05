@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import sgMail from "@sendgrid/mail";
+import { trialStartedEmailHtml } from "@/lib/email-templates";
 
 const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
     // Check current state
     const { data: profile, error: fetchError } = await supabase
       .from("profiles")
-      .select("plan, plan_source, has_used_trial")
+      .select("plan, plan_source, has_used_trial, email, display_name")
       .eq("id", uid)
       .single();
 
@@ -67,6 +69,25 @@ export async function POST(req: Request) {
     if (updateError) {
       console.error("Trial start update error:", updateError);
       return NextResponse.json({ error: "Failed to start trial" }, { status: 500 });
+    }
+
+    // Send "trial started" email via SendGrid
+    const apiKey = process.env.SENDGRID_API_KEY;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    if (apiKey && fromEmail && profile.email) {
+      sgMail.setApiKey(apiKey);
+      try {
+        await sgMail.send({
+          to: profile.email,
+          from: { email: fromEmail, name: "ProfitPnL" },
+          subject: "Your 7-day Pro trial has started 🚀",
+          text: `Hi ${profile.display_name || "there"},\n\nYour 7-day ProfitPnL Pro trial is now active. You have full access to AI Coaching, unlimited accounts, and advanced analytics until ${new Date(trialEndsAtMs).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.\n\nUpgrade any time during your trial to keep Pro access without interruption.\n\n— The ProfitPnL Team`,
+          html: trialStartedEmailHtml(profile.display_name || "there", trialEndsAtMs),
+        });
+      } catch (emailErr) {
+        console.error("Trial start email error:", emailErr);
+        // Don't fail the request if email fails
+      }
     }
 
     return NextResponse.json({ ok: true, trialEndsAtMs });

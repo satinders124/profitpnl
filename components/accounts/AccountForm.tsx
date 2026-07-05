@@ -17,7 +17,7 @@ type AccountFormProps = {
 };
 
 export function AccountForm({ uid, existing, onSaved, onCancel }: AccountFormProps) {
-  const { plan } = useAuth();
+  const { plan, planSource } = useAuth();
   
   const [form, setForm] = useState<Partial<TradingAccount>>({
     name: existing?.name || "",
@@ -44,11 +44,12 @@ export function AccountForm({ uid, existing, onSaved, onCancel }: AccountFormPro
     e.preventDefault();
     if (!form.name) return;
 
-    if (plan === "Free Plan" && !existing) {
+    const isFreeOrTrial = plan === "Free Plan" || planSource === "trial";
+    if (isFreeOrTrial && !existing) {
       try {
         const currentAccounts = await getAccounts(uid);
         if (currentAccounts.length >= 1) {
-          alert("Free members are limited to 1 trading account. Please upgrade to Pro to add more accounts.");
+          alert("Free & trial members are limited to 1 trading account. Please upgrade to Pro to add more accounts.");
           return;
         }
       } catch (err) { console.error(err); }

@@ -15,7 +15,7 @@ import {
 import { useAuth } from "@/components/providers/AuthProvider";
 
 export default function UpgradePage() {
-  const { user, plan } = useAuth();
+  const { user, plan, planSource } = useAuth();
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -23,6 +23,9 @@ export default function UpgradePage() {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
+
+  const isProPaid = plan === "Pro Plan" && planSource === "paid";
+  const isOnTrial = plan === "Pro Plan" && planSource === "trial";
 
   const handleUpgrade = async (planType: "monthly" | "annual") => {
     if (!user) {
@@ -56,8 +59,6 @@ export default function UpgradePage() {
       setLoading(false);
     }
   };
-
-  const isPro = plan === "Pro Plan";
 
   return (
     <AppShell title="Upgrade to Pro" subtitle="Unlock the Full Performance Engine">
@@ -133,7 +134,7 @@ export default function UpgradePage() {
               {/* Monthly button */}
               <button
                 onClick={() => handleUpgrade("monthly")}
-                disabled={loading || isPro}
+                disabled={loading || isProPaid}
                 className="w-full py-4 rounded-xl gold-gradient text-[#080810] font-black text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-transform active:scale-[0.98]"
               >
                 {loading ? (
@@ -141,17 +142,17 @@ export default function UpgradePage() {
                 ) : (
                   <Rocket size={18} />
                 )}
-                {isPro ? "Already Pro" : "Upgrade to Pro — $19/mo"}
+                {isProPaid ? "Already Pro" : isOnTrial ? "Upgrade to Keep Pro — $19/mo" : "Upgrade to Pro — $19/mo"}
               </button>
 
               {/* Annual button */}
               <button
                 onClick={() => handleUpgrade("annual")}
-                disabled={loading || isPro}
+                disabled={loading || isProPaid}
                 className="w-full py-3 rounded-xl border border-[#F0B429]/40 text-[#F0B429] font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#F0B429]/10 disabled:opacity-50 transition-all"
               >
                 <Clock size={14} />
-                {isPro ? "Already Pro" : "Annual — $190/yr (Save 17%)"}
+                {isProPaid ? "Already Pro" : isOnTrial ? "Annual — Keep Pro $190/yr" : "Annual — $190/yr (Save 17%)"}
               </button>
             </div>
           </Card>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { Turnstile } from "@/components/Turnstile";
@@ -12,6 +12,9 @@ const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 export default function RegisterClient() {
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const startTrial = searchParams.get("trial") === "true";
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -89,6 +92,19 @@ export default function RegisterClient() {
         .from("profiles")
         .update({ display_name: name.trim() })
         .eq("id", data.user.id);
+
+      // Auto-start trial if user came from "Start Trial" CTA
+      if (startTrial) {
+        try {
+          await fetch("/api/trial/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid: data.user.id }),
+          });
+        } catch {
+          // Silent fail — user can start trial manually from Settings
+        }
+      }
     }
 
     router.push("/dashboard");

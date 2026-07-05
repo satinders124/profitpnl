@@ -1537,7 +1537,7 @@ function Pricing() {
                   ))}
                 </ul>
                 <motion.a
-                  href="#cta"
+                  href={p.highlight ? "/register?trial=true" : "#cta"}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   className={`mt-8 block rounded-xl py-3 text-center font-bold transition-shadow ${
@@ -1696,7 +1696,7 @@ function CTA() {
                 <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               </motion.a>
               <motion.a
-                href="/register"
+                href="/register?trial=true"
                 whileHover={{ scale: 1.06 }}
                 whileTap={{ scale: 0.95 }}
                 className="w-full rounded-xl border border-line px-8 py-4 font-semibold text-txt transition-colors hover:border-gold/50 hover:text-gold sm:w-auto"
