@@ -41,6 +41,13 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
+  // Keep the branded loader on the homepage, but avoid booting Supabase/AuthProvider
+  // for anonymous landing-page visitors. This preserves the requested loader UX
+  // while keeping the public homepage lighter.
+  if (pathname === "/") {
+    return <AppLoader>{children}</AppLoader>;
+  }
+
   return (
     <AppLoader>
       <AuthProvider>{children}</AuthProvider>
