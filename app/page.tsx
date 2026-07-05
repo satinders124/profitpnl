@@ -19,6 +19,9 @@ import {
 } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
+import { Turnstile } from "@/components/Turnstile";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 
 /* =====================================================================
@@ -46,6 +49,7 @@ function LoginDropdown({
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -74,11 +78,18 @@ function LoginDropdown({
     setError("");
     setLoading(true);
 
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError("Please complete the verification below.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: TURNSTILE_SITE_KEY && captchaToken ? { captchaToken } : undefined,
       });
 
       if (authError || !data.user) {
@@ -193,11 +204,23 @@ function LoginDropdown({
                 <span className="text-xs text-dim">Remember me</span>
               </label>
 
+              {TURNSTILE_SITE_KEY && (
+                <div className="flex justify-center py-1">
+                  <Turnstile
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onVerify={(token) => { setCaptchaToken(token); setError(""); }}
+                    onExpire={() => setCaptchaToken(null)}
+                    onError={() => setCaptchaToken(null)}
+                    theme="dark"
+                  />
+                </div>
+              )}
+
               {error && <p className="text-xs text-bear">{error}</p>}
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (TURNSTILE_SITE_KEY ? !captchaToken : false)}
                 className="gold-gradient w-full rounded-lg py-2.5 text-sm font-bold text-ink disabled:opacity-50"
               >
                 {loading ? "Logging in..." : "Login"}
