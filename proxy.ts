@@ -15,8 +15,13 @@ const ALLOWED_PATHS = [
   "/refund-policy",
   "/journaling-guides",
   "/csv-templates",
+  "/prop-firm-rules",
+  "/playbooks",
+  "/trading-metrics",
+  "/google-sheets-trading-journal-template",
+  "/reports/trader-benchmark-report",
 ];
-const ALLOWED_PREFIXES = ["/tools", "/cert"];
+const ALLOWED_PREFIXES = ["/tools", "/cert", "/prop-firm-rules", "/playbooks", "/trading-metrics", "/reports", "/embed"];
 
 export function proxy(req: NextRequest) {
   const comingSoonEnabled = process.env.COMING_SOON_MODE === "true";

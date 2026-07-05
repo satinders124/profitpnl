@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, ArrowRight, BarChart3, Calculator, Layers, Percent, Scale, ShieldAlert, TrendingUp } from "lucide-react";
+import { Activity, ArrowRight, BarChart3, Calculator, Layers, Percent, Scale, ShieldAlert, TrendingUp, Search, ClipboardCheck, FileSearch, Shuffle, AlertTriangle } from "lucide-react";
 
 const TITLE = "Free Trading Calculators — Profit, Lot Size, Pip Value, Expectancy & Prop Firm Tools | ProfitPnL";
 const DESCRIPTION =
-  "Free trading calculators for forex, gold, crypto, indices, futures, and prop firm traders. Calculate profit, lot size, pip value, risk-reward, expectancy, win rate, R-multiple, and drawdown with no sign-up.";
+  "Free trading calculators and audit tools for forex, futures, crypto, indices, and prop firm traders. Calculate risk, analyze journals, find leaks, convert CSVs, and review trades with no sign-up.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -87,6 +87,48 @@ const tools = [
     description: "Track challenge target progress, remaining profit, drawdown buffer, and required daily pace.",
     keywords: "prop firm challenge calculator, prop firm drawdown calculator, funded account calculator",
   },
+  {
+    href: "/tools/trading-journal-audit",
+    icon: Search,
+    title: "Trading Journal Audit",
+    description: "Paste or upload trades and get an instant edge score, leaks, strengths, and action plan.",
+    keywords: "trading journal analyzer, AI trading journal audit, trade performance analyzer",
+  },
+  {
+    href: "/tools/trading-leak-finder",
+    icon: AlertTriangle,
+    title: "Trading Leak Finder",
+    description: "Find your biggest psychology, risk, and execution leaks with a quick trader quiz.",
+    keywords: "trading leak finder, trader psychology quiz, trading mistakes checklist",
+  },
+  {
+    href: "/tools/trade-setup-score-calculator",
+    icon: ClipboardCheck,
+    title: "Setup Score Calculator",
+    description: "Score a trade before entry using trend, R:R, invalidation, news, and psychology checks.",
+    keywords: "trade setup checklist, pre trade checklist, forex entry checklist",
+  },
+  {
+    href: "/tools/prop-firm-survival-simulator",
+    icon: ShieldAlert,
+    title: "Prop Firm Survival Simulator",
+    description: "Estimate funded account breach risk from win rate, average R, risk per trade, and drawdown.",
+    keywords: "prop firm risk calculator, funded account survival calculator, risk of ruin trading",
+  },
+  {
+    href: "/tools/broker-csv-converter",
+    icon: Shuffle,
+    title: "Broker CSV Converter",
+    description: "Convert broker exports into a clean ProfitPnL-ready trading journal CSV.",
+    keywords: "MT5 CSV converter, Tradovate journal CSV, broker trade history converter",
+  },
+  {
+    href: "/tools/what-went-wrong-trading",
+    icon: FileSearch,
+    title: "What Went Wrong Tool",
+    description: "Review a losing trade and get likely mistakes, journal tags, and one action item.",
+    keywords: "why did I lose this trade, trade review tool, AI trade review",
+  },
 ];
 
 const jsonLd = {
@@ -132,7 +174,7 @@ export default function ToolsIndexPage() {
             Trading calculators for every setup, before you risk a cent.
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted2 sm:text-lg">
-            Built for traders who need fast position sizing, P&L, pip value, tick value, risk-reward, expectancy, drawdown, and prop-firm math across forex, gold, crypto, indices, and futures — no login required.
+            Built for traders who need calculators, journal audits, setup scoring, CSV conversion, prop-firm risk planning, and post-trade review across forex, futures, crypto, indices, and gold — no login required.
           </p>
         </section>
 
