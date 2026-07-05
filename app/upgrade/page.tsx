@@ -13,6 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { createClient } from "@/lib/supabase-client";
 
 export default function UpgradePage() {
   const { user, plan, planSource } = useAuth();
@@ -44,9 +45,13 @@ export default function UpgradePage() {
     }
     setLoading(true);
     try {
+      const { data: { session } } = await createClient().auth.getSession();
       const response = await fetch("/api/payments/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           uid: user.id,
           email: user.email,

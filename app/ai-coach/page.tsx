@@ -22,6 +22,7 @@ import remarkGfm from "remark-gfm";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { buildTradingContext, TradingContext } from "@/lib/ai-context";
+import { createClient } from "@/lib/supabase-client";
 
 type ChatMessage = {
   id: string;
@@ -202,9 +203,13 @@ export default function AiCoachPage() {
       : BASE_SYSTEM;
 
     try {
+      const { data: { session } } = await createClient().auth.getSession();
       const response = await fetch("/api/ai/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+        },
         signal: controller.signal,
         body: JSON.stringify({
           messages: history.map((m) => ({ role: m.role, content: m.content })),

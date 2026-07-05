@@ -70,9 +70,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshPlan = useCallback(async () => {
     if (user) {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         const res = await fetch("/api/payments/verify", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+          },
           body: JSON.stringify({ uid: user.id }),
         });
         const data = await res.json();
@@ -85,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       await fetchPlanData(user.id);
     }
-  }, [user, fetchPlanData]);
+  }, [user, fetchPlanData, supabase]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !user) return;
@@ -94,22 +98,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sessionId = params.get("session_id");
 
     if (upgrade === "success" || sessionId) {
-      fetch("/api/payments/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId, uid: user.id }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && (data.success || data.plan === "Pro Plan")) {
-            setPlan("Pro Plan");
-            setPlanSource("paid");
-            fetchPlanData(user.id);
-          }
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        fetch("/api/payments/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({ session_id: sessionId, uid: user.id }),
         })
-        .catch((e) => console.error("Verify payment error:", e));
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && (data.success || data.plan === "Pro Plan")) {
+              setPlan("Pro Plan");
+              setPlanSource("paid");
+              fetchPlanData(user.id);
+            }
+          })
+          .catch((e) => console.error("Verify payment error:", e));
+      });
     }
-  }, [user, fetchPlanData]);
+  }, [user, fetchPlanData, supabase]);
 
   useEffect(() => {
     // Get initial session

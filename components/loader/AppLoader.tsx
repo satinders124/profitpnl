@@ -1,18 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Loader from "@/components/loader/Loader";
 
 const SESSION_KEY = "ppnl_loader_played";
-
-function getInitialVisible() {
-  if (typeof window === "undefined") return null;
-  try {
-    return sessionStorage.getItem(SESSION_KEY) !== "1";
-  } catch {
-    return true;
-  }
-}
 
 /**
  * Wraps the whole app and shows the animated Loader once per browser
@@ -22,7 +13,18 @@ function getInitialVisible() {
  * (new session) will show it again.
  */
 export function AppLoader({ children }: { children: React.ReactNode }) {
-  const [visible, setVisible] = useState<boolean | null>(getInitialVisible);
+  // Always initialize as null during both SSR and initial client hydration
+  // to avoid React #418 SSR/hydration mismatch error.
+  const [visible, setVisible] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    try {
+      const played = sessionStorage.getItem(SESSION_KEY) === "1";
+      setVisible(!played);
+    } catch {
+      setVisible(true);
+    }
+  }, []);
 
   const handleDone = useCallback(() => {
     setVisible(false);
