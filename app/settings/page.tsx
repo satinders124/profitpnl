@@ -362,9 +362,18 @@ export default function SettingsPage() {
 
   // ── Trial helpers ──
   const isOnTrial = planSource === "trial" && plan === "Pro Plan";
-  const trialDaysRemaining = isOnTrial && trialEndsAtMs
-    ? Math.max(0, Math.ceil((trialEndsAtMs - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0;
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState(0);
+  useEffect(() => {
+    if (isOnTrial && trialEndsAtMs) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTrialDaysRemaining(
+        Math.max(0, Math.ceil((trialEndsAtMs - Date.now()) / (1000 * 60 * 60 * 24)))
+      );
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTrialDaysRemaining(0);
+    }
+  }, [isOnTrial, trialEndsAtMs]);
   const trialExpired = isOnTrial && trialDaysRemaining <= 0;
 
   const isPro = plan === "Pro Plan";
@@ -1808,8 +1817,7 @@ export default function SettingsPage() {
         <div className="fixed bottom-0 left-0 right-0 bg-[#080810]/95 backdrop-blur-md border-t border-[#1F1F2C] px-4 py-3 z-40">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <p className="text-zinc-500 text-xs hidden md:block">
-              Settings automatically sync with Firestore Cloud. Unsaved changes
-              will be highlighted.
+              Settings sync with Supabase. Unsaved changes will be highlighted.
             </p>
             <button
               onClick={handleSave}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* ═══════════════════════════════════════════════════════════════
    ProfitPnL — Animated Loader (single-file, self-contained)
@@ -109,41 +109,33 @@ export default function Loader({ onDone }: { onDone?: () => void }) {
   const [progress, setProgress] = useState(0);
   const [msgIndex, setMsgIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
+  const onDoneRef = useRef(onDone);
 
-  /* simulated progress — fast at first, slower near the end */
   useEffect(() => {
+    onDoneRef.current = onDone;
+  });
+
+  /* simulated progress + message rotation + completion in one interval */
+  useEffect(() => {
+    let msgCounter = 0;
     const id = setInterval(() => {
       setProgress((p) => {
         if (p >= 100) return 100;
         const step = p < 60 ? 2.4 : p < 85 ? 1.2 : 0.5;
-        return Math.min(100, p + step + Math.random() * 1.5);
+        const next = Math.min(100, p + step + Math.random() * 1.5);
+        if (next >= 100 && !leaving) {
+          setLeaving(true);
+          setTimeout(() => onDoneRef.current?.(), 700);
+        }
+        return next;
       });
+      msgCounter++;
+      if (msgCounter % 27 === 0) { // ~1600ms given 60ms interval
+        setMsgIndex((i) => (i + 1) % MESSAGES.length);
+      }
     }, 60);
     return () => clearInterval(id);
-  }, []);
-
-  /* rotate status messages */
-  useEffect(() => {
-    const id = setInterval(() => setMsgIndex((i) => (i + 1) % MESSAGES.length), 1600);
-    return () => clearInterval(id);
-  }, []);
-
-  /* Trigger the fade-out exactly once, the moment progress reaches 100%. */
-  useEffect(() => {
-    if (progress >= 100) {
-      setLeaving(true);
-    }
-  }, [progress]);
-
-  /* Notify the parent once we actually start leaving. This is a separate
-     effect (rather than combined with the one above) so that toggling
-     `leaving` doesn't re-trigger this same effect and cancel its own
-     setTimeout via the cleanup function before onDone ever fires. */
-  useEffect(() => {
-    if (!leaving) return;
-    const t = setTimeout(() => onDone?.(), 700);
-    return () => clearTimeout(t);
-  }, [leaving, onDone]);
+  }, [leaving]);
 
   const pct = Math.floor(progress);
 

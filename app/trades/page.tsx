@@ -73,6 +73,8 @@ export default function TradesPage() {
   }
 
   useEffect(() => {
+    // Data fetch on auth ready — standard client-side pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);

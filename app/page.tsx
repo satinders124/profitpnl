@@ -19,7 +19,7 @@ import {
 } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
-import { TrialOfferModal } from "@/components/trial/TrialOfferModal";
+
 
 /* =====================================================================
    1. NAVBAR
@@ -46,7 +46,6 @@ function LoginDropdown({
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [trialOfferUid, setTrialOfferUid] = useState<string | null>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -105,10 +104,6 @@ function LoginDropdown({
     } finally {
       setLoading(false);
     }
-  }
-
-  function continueToDashboard() {
-    router.push("/dashboard");
   }
 
   return (
@@ -216,10 +211,6 @@ function LoginDropdown({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {trialOfferUid && (
-        <TrialOfferModal uid={trialOfferUid} onDone={continueToDashboard} />
-      )}
     </div>
   );
 }

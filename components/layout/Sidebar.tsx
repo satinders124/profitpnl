@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   BookOpen,
@@ -9,7 +10,6 @@ import {
   CreditCard,
   Crown,
   Home,
-  LineChart,
   ListChecks,
   MoreHorizontal,
   Settings,
@@ -100,10 +100,18 @@ export function Sidebar() {
   const isProPaid = isPro && planSource !== "trial";
   const canStartTrial = isFree && !hasUsedTrial;
 
-  const trialDaysRemaining =
-    isOnTrial && trialEndsAtMs
-      ? Math.max(0, Math.ceil((trialEndsAtMs - Date.now()) / (1000 * 60 * 60 * 24)))
-      : 0;
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState(0);
+  useEffect(() => {
+    if (isOnTrial && trialEndsAtMs) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTrialDaysRemaining(
+        Math.max(0, Math.ceil((trialEndsAtMs - Date.now()) / (1000 * 60 * 60 * 24)))
+      );
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTrialDaysRemaining(0);
+    }
+  }, [isOnTrial, trialEndsAtMs]);
 
   // Plan badge text and style
   const planBadge = isOnTrial

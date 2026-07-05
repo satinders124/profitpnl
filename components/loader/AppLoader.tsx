@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useCallback } from "react";
 import Loader from "@/components/loader/Loader";
 
 const SESSION_KEY = "ppnl_loader_played";
+
+function getInitialVisible() {
+  if (typeof window === "undefined") return null;
+  try {
+    return sessionStorage.getItem(SESSION_KEY) !== "1";
+  } catch {
+    return true;
+  }
+}
 
 /**
  * Wraps the whole app and shows the animated Loader once per browser
@@ -13,28 +22,16 @@ const SESSION_KEY = "ppnl_loader_played";
  * (new session) will show it again.
  */
 export function AppLoader({ children }: { children: React.ReactNode }) {
-  const [visible, setVisible] = useState<boolean | null>(null);
+  const [visible, setVisible] = useState<boolean | null>(getInitialVisible);
 
-  useEffect(() => {
-    let alreadyPlayed = false;
-
-    try {
-      alreadyPlayed = sessionStorage.getItem(SESSION_KEY) === "1";
-    } catch {
-      // sessionStorage unavailable (privacy mode, etc.) — just show it once.
-    }
-
-    setVisible(!alreadyPlayed);
-  }, []);
-
-  function handleDone() {
+  const handleDone = useCallback(() => {
     setVisible(false);
     try {
       sessionStorage.setItem(SESSION_KEY, "1");
     } catch {
       // ignore
     }
-  }
+  }, []);
 
   // Avoid a flash of real content on the very first server-rendered paint,
   // before we know whether the loader should show.

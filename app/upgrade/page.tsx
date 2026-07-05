@@ -10,6 +10,7 @@ import {
   Crown,
   Rocket,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 
@@ -195,26 +196,4 @@ function FeatureItem({ text, active }: { text: string; active: boolean }) {
   );
 }
 
-function Loader2({
-  className,
-  size,
-}: {
-  className?: string;
-  size?: number;
-}) {
-  return (
-    <svg
-      className={className}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  );
-}
+

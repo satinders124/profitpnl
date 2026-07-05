@@ -6,7 +6,7 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 // Paths that should always be reachable, even in Coming Soon mode.
 const ALLOWED_PATHS = ["/coming-soon"];
 
-export function proxy(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const comingSoonEnabled = process.env.COMING_SOON_MODE === "true";
 
   if (!comingSoonEnabled) {
@@ -42,7 +42,7 @@ export function proxy(req: NextRequest) {
       maxAge: COOKIE_MAX_AGE,
       httpOnly: true,
       sameSite: "lax",
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       path: "/",
     });
 

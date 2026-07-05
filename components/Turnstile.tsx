@@ -18,7 +18,6 @@ declare global {
 }
 
 const SCRIPT_ID = "cf-turnstile-script";
-let globalWidgetCount = 0;
 
 interface TurnstileProps {
   siteKey: string;
@@ -43,9 +42,12 @@ export function Turnstile({
   const onVerifyRef = useRef(onVerify);
   const onExpireRef = useRef(onExpire);
   const onErrorRef = useRef(onError);
-  onVerifyRef.current = onVerify;
-  onExpireRef.current = onExpire;
-  onErrorRef.current = onError;
+
+  useEffect(() => {
+    onVerifyRef.current = onVerify;
+    onExpireRef.current = onExpire;
+    onErrorRef.current = onError;
+  });
 
   const renderWidget = useCallback(() => {
     const container = containerRef.current;
@@ -60,7 +62,6 @@ export function Turnstile({
     }
 
     renderedRef.current = true;
-    globalWidgetCount++;
 
     widgetIdRef.current = window.turnstile.render(container, {
       sitekey: siteKey,
