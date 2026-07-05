@@ -3,7 +3,16 @@ import { BINANCE_SYMBOLS, TIMEFRAMES, type Candle } from "@/lib/backtesting/type
 
 export const runtime = "nodejs";
 
-const BINANCE_INTERVALS = new Set(TIMEFRAMES);
+const SUPPORTED_INTERVALS = new Set(TIMEFRAMES);
+const INTERVAL_SECONDS: Record<string, number> = {
+  "1m": 60,
+  "5m": 300,
+  "15m": 900,
+  "30m": 1800,
+  "1h": 3600,
+  "4h": 14400,
+  "1d": 86400,
+};
 const COINBASE_GRANULARITY: Record<string, number> = {
   "1m": 60,
   "5m": 300,
@@ -19,6 +28,23 @@ const COINBASE_SYMBOLS: Record<string, string> = {
   XRPUSDT: "XRP-USD",
   ADAUSDT: "ADA-USD",
 };
+const YAHOO_SYMBOLS: Record<string, string> = {
+  BTCUSDT: "BTC-USD",
+  ETHUSDT: "ETH-USD",
+  SOLUSDT: "SOL-USD",
+  BNBUSDT: "BNB-USD",
+  XRPUSDT: "XRP-USD",
+  ADAUSDT: "ADA-USD",
+};
+const YAHOO_INTERVALS: Record<string, string> = {
+  "1m": "1m",
+  "5m": "5m",
+  "15m": "15m",
+  "30m": "30m",
+  "1h": "1h",
+  "4h": "1h", // Yahoo has no 4h interval; aggregate 1h candles to 4h.
+  "1d": "1d",
+};
 
 function parseDateMs(value: string | null) {
   if (!value) return null;
@@ -27,7 +53,72 @@ function parseDateMs(value: string | null) {
 }
 
 function intervalSeconds(timeframe: string) {
-  return COINBASE_GRANULARITY[timeframe] || 300;
+  return INTERVAL_SECONDS[timeframe] || 300;
+}
+
+function aggregateCandles(candles: Candle[], targetSeconds: number): Candle[] {
+  const buckets = new Map<number, Candle[]>();
+  for (const candle of candles) {
+    const bucket = Math.floor(candle.time / targetSeconds) * targetSeconds;
+    const rows = buckets.get(bucket) || [];
+    rows.push(candle);
+    buckets.set(bucket, rows);
+  }
+
+  return Array.from(buckets.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([time, rows]) => {
+      const sorted = rows.sort((a, b) => a.time - b.time);
+      return {
+        time,
+        open: sorted[0].open,
+        high: Math.max(...sorted.map((c) => c.high)),
+        low: Math.min(...sorted.map((c) => c.low)),
+        close: sorted[sorted.length - 1].close,
+        volume: sorted.reduce((sum, c) => sum + (c.volume || 0), 0),
+      };
+    });
+}
+
+async function fetchYahoo(symbol: string, timeframe: string, from: number | null, to: number | null): Promise<Candle[]> {
+  const yahooSymbol = YAHOO_SYMBOLS[symbol];
+  if (!yahooSymbol) throw new Error("No Yahoo product for symbol");
+
+  const interval = YAHOO_INTERVALS[timeframe] || "5m";
+  const targetSeconds = intervalSeconds(timeframe);
+  const endSeconds = Math.floor((to || Date.now()) / 1000);
+  const startSeconds = Math.floor((from || (Date.now() - targetSeconds * 300 * 1000)) / 1000);
+
+  const params = new URLSearchParams({
+    period1: String(startSeconds),
+    period2: String(endSeconds),
+    interval,
+    includePrePost: "true",
+  });
+
+  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?${params.toString()}`, {
+    headers: { "User-Agent": "Mozilla/5.0 ProfitPnL Backtesting Terminal" },
+    next: { revalidate: 60 * 5 },
+  });
+
+  if (!res.ok) throw new Error(`Yahoo ${res.status}: ${await res.text()}`);
+  const json = await res.json();
+  const result = json?.chart?.result?.[0];
+  const timestamps = result?.timestamp as number[] | undefined;
+  const quote = result?.indicators?.quote?.[0];
+  if (!timestamps?.length || !quote) throw new Error("Yahoo returned no candles");
+
+  const candles = timestamps.flatMap((time, index) => {
+    const open = Number(quote.open?.[index]);
+    const high = Number(quote.high?.[index]);
+    const low = Number(quote.low?.[index]);
+    const close = Number(quote.close?.[index]);
+    const volume = Number(quote.volume?.[index] || 0);
+    if (![open, high, low, close].every(Number.isFinite)) return [];
+    return [{ time, open, high, low, close, volume } as Candle];
+  });
+
+  return timeframe === "4h" ? aggregateCandles(candles, targetSeconds) : candles;
 }
 
 async function fetchBinance(symbol: string, timeframe: string, from: number | null, to: number | null): Promise<Candle[]> {
@@ -62,13 +153,10 @@ async function fetchBinance(symbol: string, timeframe: string, from: number | nu
 async function fetchCoinbase(symbol: string, timeframe: string, from: number | null, to: number | null): Promise<Candle[]> {
   const product = COINBASE_SYMBOLS[symbol];
   if (!product) throw new Error("No Coinbase fallback product for symbol");
-  const granularity = intervalSeconds(timeframe);
+  const granularity = COINBASE_GRANULARITY[timeframe] || 300;
   const end = to ? new Date(to) : new Date();
   const start = from ? new Date(from) : new Date(end.getTime() - granularity * 300 * 1000);
 
-  // Coinbase caps public candle requests to ~300 candles. This is enough for
-  // a robust MVP fallback when Binance is geo-blocked; users can upload CSV for
-  // larger custom datasets.
   const params = new URLSearchParams({
     granularity: String(granularity),
     start: start.toISOString(),
@@ -122,53 +210,46 @@ function generateDemoCandles(symbol: string, timeframe: string, count = 240): Ca
   });
 }
 
+async function firstAvailable(symbol: string, timeframe: string, from: number | null, to: number | null) {
+  const attempts = [
+    { name: "yahoo", fn: () => fetchYahoo(symbol, timeframe, from, to) },
+    { name: "coinbase", fn: () => fetchCoinbase(symbol, timeframe, from, to) },
+    { name: "binance", fn: () => fetchBinance(symbol, timeframe, from, to) },
+  ];
+
+  const errors: string[] = [];
+  for (const attempt of attempts) {
+    try {
+      const candles = await attempt.fn();
+      if (candles.length) return { provider: attempt.name, candles };
+    } catch (error) {
+      errors.push(`${attempt.name}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return { provider: "demo-fallback", candles: generateDemoCandles(symbol, timeframe), warning: `Live providers unavailable (${errors.slice(0, 2).join(" | ")}). Demo candles loaded. Upload CSV for real custom data.` };
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const provider = searchParams.get("provider") || "binance";
+    const provider = searchParams.get("provider") || "crypto";
     const symbol = (searchParams.get("symbol") || "BTCUSDT").toUpperCase();
     const timeframe = searchParams.get("timeframe") || "5m";
     const from = parseDateMs(searchParams.get("from"));
     const to = parseDateMs(searchParams.get("to"));
 
-    if (provider !== "binance") {
-      return NextResponse.json({ error: "Only Binance/Coinbase crypto data is enabled in this MVP. Upload CSV for any other market/data source." }, { status: 400 });
+    if (provider !== "binance" && provider !== "crypto") {
+      return NextResponse.json({ error: "Only crypto API data is enabled in this MVP. Upload CSV for any other market/data source." }, { status: 400 });
     }
     if (!BINANCE_SYMBOLS.includes(symbol)) {
       return NextResponse.json({ error: "Unsupported crypto symbol." }, { status: 400 });
     }
-    if (!BINANCE_INTERVALS.has(timeframe)) {
+    if (!SUPPORTED_INTERVALS.has(timeframe)) {
       return NextResponse.json({ error: "Unsupported timeframe." }, { status: 400 });
     }
 
-    try {
-      const candles = await fetchBinance(symbol, timeframe, from, to);
-      return NextResponse.json({ provider: "binance", symbol, timeframe, candles });
-    } catch (binanceError) {
-      console.warn("Binance unavailable, trying Coinbase fallback:", binanceError);
-      try {
-        const candles = await fetchCoinbase(symbol, timeframe, from, to);
-        if (candles.length) {
-          return NextResponse.json({
-            provider: "coinbase-fallback",
-            symbol,
-            timeframe,
-            candles,
-            warning: "Binance was unavailable from this region, so Coinbase fallback data was used.",
-          });
-        }
-      } catch (coinbaseError) {
-        console.warn("Coinbase fallback unavailable, returning demo candles:", coinbaseError);
-      }
-    }
-
-    return NextResponse.json({
-      provider: "demo-fallback",
-      symbol,
-      timeframe,
-      candles: generateDemoCandles(symbol, timeframe),
-      warning: "Live data providers were unavailable. Deterministic demo candles were returned so the replay engine can still be tested. Upload CSV for real custom data.",
-    });
+    const result = await firstAvailable(symbol, timeframe, from, to);
+    return NextResponse.json({ symbol, timeframe, ...result });
   } catch (error) {
     console.error("Candles API error:", error);
     return NextResponse.json({ error: "Could not load candles." }, { status: 500 });

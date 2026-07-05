@@ -52,7 +52,7 @@ const TerminalChart = dynamic(() => import("@/components/backtesting/TerminalCha
 });
 
 type DataSource = "binance" | "csv";
-type BottomTab = "trades" | "stats" | "journal" | "sessions" | "data";
+type BottomTab = "order" | "trades" | "stats" | "journal" | "sessions" | "data";
 
 type SavedSession = {
   id: string;
@@ -159,7 +159,7 @@ export default function BacktestingTerminalPage() {
   const [speedMs, setSpeedMs] = useState(650);
   const [openTrade, setOpenTrade] = useState<OpenBacktestTrade | null>(null);
   const [trades, setTrades] = useState<BacktestTrade[]>([]);
-  const [bottomTab, setBottomTab] = useState<BottomTab>("trades");
+  const [bottomTab, setBottomTab] = useState<BottomTab>("order");
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
@@ -212,7 +212,7 @@ export default function BacktestingTerminalPage() {
 
       const fromIso = liveMode ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() : `${from}T${fromTime || "00:00"}:00`;
       const toIso = liveMode ? new Date().toISOString() : `${to}T${toTime || "23:59"}:00`;
-      const params = new URLSearchParams({ symbol, timeframe, from: fromIso, to: toIso, provider: "binance" });
+      const params = new URLSearchParams({ symbol, timeframe, from: fromIso, to: toIso, provider: "crypto" });
       const res = await fetch(`/api/market-data/candles?${params.toString()}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not load market data.");
@@ -396,7 +396,7 @@ export default function BacktestingTerminalPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen flex-col overflow-hidden bg-[#05050B] text-white">
+      <div className="flex h-[100svh] flex-col overflow-hidden bg-[#05050B] text-white">
         {/* ProfitPnL View top command bar */}
         <div className="border-b border-[#1E1E38] bg-[#f7f7f8] px-3 py-2 text-[#101018]">
           <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
@@ -481,7 +481,7 @@ export default function BacktestingTerminalPage() {
               </div>
             </div>
 
-            <div className="relative min-h-[520px] flex-1">
+            <div className="relative min-h-[280px] flex-1 sm:min-h-[420px] xl:min-h-[520px]">
               <TerminalChart candles={visibleCandles} openTrade={openTrade} trades={trades} />
               {openTrade && currentCandle && (
                 <div className="absolute left-4 top-4 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A]/90 p-4 shadow-2xl backdrop-blur">
@@ -564,9 +564,10 @@ export default function BacktestingTerminalPage() {
         </div>
 
         {/* Bottom terminal */}
-        <div className="border-t border-[#1E1E38] bg-[#08080F]">
+        <div className="max-h-[42svh] overflow-hidden border-t border-[#1E1E38] bg-[#08080F] xl:max-h-72">
           <div className="flex overflow-x-auto border-b border-[#1E1E38] px-3">
             {[
+              ["order", "Order"],
               ["trades", "Trades"],
               ["stats", "Stats"],
               ["journal", "Journal"],
@@ -577,6 +578,33 @@ export default function BacktestingTerminalPage() {
             ))}
           </div>
           <div className="max-h-72 overflow-auto p-4">
+            {bottomTab === "order" && (
+              <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <Field label="Capital"><input value={startingBalance} onChange={(event) => { setStartingBalance(event.target.value); setBalance(Number(event.target.value) || 0); }} className={terminalInput} /></Field>
+                  <Field label="Risk %"><input value={riskPercent} onChange={(event) => setRiskPercent(event.target.value)} className={terminalInput} /></Field>
+                  <Field label="Stop"><input value={stopLoss} onChange={(event) => setStopLoss(event.target.value)} placeholder={currentCandle ? (currentCandle.close * 0.99).toFixed(2) : ""} className={terminalInput} /></Field>
+                  <Field label="Target"><input value={takeProfit} onChange={(event) => setTakeProfit(event.target.value)} placeholder={currentCandle ? (currentCandle.close * 1.02).toFixed(2) : ""} className={terminalInput} /></Field>
+                  <Field label="Quantity"><input value={manualQuantity} onChange={(event) => setManualQuantity(event.target.value)} placeholder="auto" className={terminalInput} /></Field>
+                  <Field label="Setup"><input value={setup} onChange={(event) => setSetup(event.target.value)} className={terminalInput} /></Field>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                  {openTrade ? (
+                    <>
+                      <div className="rounded-xl border border-[#F0B429]/25 bg-[#F0B429]/10 p-3 text-xs text-[#F0B429]">Open {openTrade.side.toUpperCase()} @ {openTrade.entryPrice.toFixed(2)}</div>
+                      <button onClick={() => closeOpenTrade("manual")} className="rounded-xl bg-[#F0B429] px-4 py-3 text-sm font-black text-black">Close position</button>
+                      <button onClick={moveStopToBreakEven} className="rounded-xl border border-[#1E1E38] px-4 py-3 text-xs font-bold text-zinc-300 hover:text-[#F0B429]">Move SL to BE</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => openPosition("long")} disabled={!currentCandle} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#00D084] px-4 py-3 text-sm font-black text-black disabled:opacity-50"><TrendingUp size={16} /> BUY</button>
+                      <button onClick={() => openPosition("short")} disabled={!currentCandle} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF4565] px-4 py-3 text-sm font-black text-white disabled:opacity-50"><TrendingDown size={16} /> SELL</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {bottomTab === "trades" && (
               trades.length === 0 ? <p className="rounded-xl border border-dashed border-[#2A2A3C] p-6 text-center text-sm text-zinc-500">No closed trades yet.</p> : (
                 <table className="w-full min-w-[980px] text-left text-xs">
