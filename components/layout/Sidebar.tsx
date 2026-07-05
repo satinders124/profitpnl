@@ -7,6 +7,7 @@ import {
   BarChart3,
   BookOpen,
   Brain,
+  CandlestickChart,
   CreditCard,
   Crown,
   Home,
@@ -50,6 +51,11 @@ const navGroups = [
         label: "Certificates",
         href: "/certificates",
         icon: Award,
+      },
+      {
+        label: "Backtesting",
+        href: "/backtesting",
+        icon: CandlestickChart,
       },
       {
         label: "AI Coach",

@@ -9,6 +9,7 @@ import {
   BarChart3,
   BookOpen,
   Brain,
+  CandlestickChart,
   CreditCard,
   Home,
   ListChecks,
@@ -28,6 +29,7 @@ const mainItems = [
 
 const baseMoreItems = [
   { label: "Certificates", href: "/certificates", icon: Award },
+  { label: "Backtesting", href: "/backtesting", icon: CandlestickChart },
   { label: "Playbook", href: "/playbook", icon: BookOpen },
   { label: "Psychology", href: "/psychology", icon: Brain },
   { label: "Accounts", href: "/accounts", icon: CreditCard },
