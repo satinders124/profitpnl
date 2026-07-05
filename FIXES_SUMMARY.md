@@ -181,6 +181,14 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - Added automatic retry fallback during checkout session creation: if an attached promotion code causes Stripe to reject the annual subscription, the route automatically retries without the promotion lock.
 - Added explicit Stripe configuration diagnostics informing administrators immediately if `STRIPE_PRICE_ID_ANNUAL` is missing or invalid.
 
+### 25. 🎨 UX FIXED: Institutional UI/UX Overhaul Across Dashboard, Trades, & Analytics
+**Files:** `app/dashboard/page.tsx`, `app/trades/page.tsx`, `app/analytics/page.tsx`
+**Problem:** Core screens placed bulky filter dropdown cards at the top of every view above the charts and data, making the UI feel clunky rather than institutional or high-end ("wow factor").
+
+**Fix:**
+- **Dashboard:** Created an ultra-sleek **Institutional Command Desk HUD** at the top with live indicators and neon metric accents, moved the full-width **Cumulative Equity Performance Chart** immediately beneath the hero metrics, and repositioned filters below the primary visual overview.
+- **Trades & Analytics:** Replaced massive always-open filter cards with compact **Collapsible Filter & Search Decks** featuring interactive pill chips (`All Trades`, `Wins Only`, `Losses`, `Needs Review`, `All Time`, `30 Days`), giving users instant data visibility and a $2,000/yr Bloomberg trading blotter feel.
+
 ## Files Changed
 
 | File | Change |
@@ -223,6 +231,9 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `lib/ai-context.ts` | Enabled server-side Supabase client injection |
 | `app/api/ai/claude/route.ts` | Built 100% live server-side trading context on every request using service role bypass |
 | `app/api/payments/checkout/route.ts` | Added promotion code compatibility retry and detailed Stripe error feedback |
+| `app/dashboard/page.tsx` | Added Institutional Command Desk HUD & moved equity chart to hero position |
+| `app/trades/page.tsx` | Upgraded to collapsible quick filter pill bar |
+| `app/analytics/page.tsx` | Upgraded to collapsible executive filter bar |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result

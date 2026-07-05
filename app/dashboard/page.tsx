@@ -281,104 +281,85 @@ export default function DashboardPage() {
             <DemoBanner onLogTrade={() => setTradeModalOpen(true)} />
           )}
 
-          {/* --- TOP FILTERS BAR --- */}
-          <DashboardFilters
-            accountNames={accountNames}
-            strategyNames={strategyNames}
-            accountFilter={accountFilter}
-            strategyFilter={strategyFilter}
-            timeRange={timeRange}
-            totalTrades={effectiveTrades.length}
-            filteredTrades={filteredTrades.length}
-            onAccountChange={setAccountFilter}
-            onStrategyChange={setStrategyFilter}
-            onTimeRangeChange={setTimeRange}
-            onClear={() => {
-              setAccountFilter("");
-              setStrategyFilter("");
-              setTimeRange("all");
-            }}
-          />
+          {/* --- INSTITUTIONAL COMMAND HUD & TOP METRICS --- */}
+          <div className="relative overflow-hidden rounded-2xl border border-[#F0B429]/30 bg-gradient-to-r from-[#121224] via-[#16162C] to-[#1A1A34] p-5 shadow-2xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#242444] pb-4 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F0B429]/20 border border-[#F0B429]/40 text-[#F0B429] shrink-0 shadow-[0_0_15px_rgba(240,180,41,0.3)]">
+                  <Flame size={22} className="animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black text-white tracking-tight">Institutional Performance Desk</h2>
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#00D084]/20 border border-[#00D084]/40 text-[#00D084] text-[10px] font-black uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00D084] animate-ping" /> Live Terminal
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#A0A0C0] mt-0.5">Real-time edge attribution, quantitative expectancy & risk telemetry</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-[#A0A0C0]">
+                <span>Status: <strong className="text-white">Active Edge</strong></span>
+                <span className="text-zinc-600">|</span>
+                <span>Trades: <strong className="text-[#F0B429]">{stats.count} Closed</strong></span>
+              </div>
+            </div>
 
-          {/* --- TOP METRICS STRIP (4 CARDS) --- */}
-          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              icon={<Trophy size={18} />}
-              label="Net Profit"
-              value={
-                tradesWithPnl.length
-                  ? `${dollarProfit >= 0 ? "+" : "-"}$${Math.abs(
-                      dollarProfit
-                    ).toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}`
-                  : "—"
-              }
-              sub={
-                tradesMissingPnl > 0
-                  ? `${formatR(stats.totalR)} · ${tradesMissingPnl} trade${
-                      tradesMissingPnl === 1 ? "" : "s"
-                    } missing $`
-                  : `${formatR(stats.totalR)} · actual P/L`
-              }
-              tone={dollarProfit >= 0 ? "green" : "red"}
-            />
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                icon={<Trophy size={18} />}
+                label="Net Profit"
+                value={
+                  tradesWithPnl.length
+                    ? `${dollarProfit >= 0 ? "+" : "-"}$${Math.abs(
+                        dollarProfit
+                      ).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`
+                    : "—"
+                }
+                sub={
+                  tradesMissingPnl > 0
+                    ? `${formatR(stats.totalR)} · ${tradesMissingPnl} trade${
+                        tradesMissingPnl === 1 ? "" : "s"
+                      } missing $`
+                    : `${formatR(stats.totalR)} · actual P/L`
+                }
+                tone={dollarProfit >= 0 ? "green" : "red"}
+              />
 
-            <MetricCard
-              icon={<Target size={18} />}
-              label="Win Rate"
-              value={stats.count ? formatPct(stats.winRate) : "—"}
-              sub={`${stats.wins}W / ${stats.losses}L`}
-              tone="gold"
-            />
+              <MetricCard
+                icon={<Target size={18} />}
+                label="Win Rate"
+                value={stats.count ? formatPct(stats.winRate) : "—"}
+                sub={`${stats.wins}W / ${stats.losses}L`}
+                tone="gold"
+              />
 
-            <MetricCard
-              icon={<Activity size={18} />}
-              label="Expectancy"
-              value={formatR(stats.expectancy)}
-              sub="average per trade"
-              tone={stats.expectancy >= 0 ? "green" : "red"}
-            />
+              <MetricCard
+                icon={<Activity size={18} />}
+                label="Expectancy"
+                value={formatR(stats.expectancy)}
+                sub="average per trade"
+                tone={stats.expectancy >= 0 ? "green" : "red"}
+              />
 
-            <MetricCard
-              icon={<BarChart3 size={18} />}
-              label="Profit Factor"
-              value={
-                stats.profitFactor >= 99 ? "∞" : stats.profitFactor.toFixed(2)
-              }
-              sub={
-                stats.profitFactor >= 1.5 ? "strong edge" : "needs improvement"
-              }
-              tone={stats.profitFactor >= 1 ? "green" : "red"}
-            />
+              <MetricCard
+                icon={<BarChart3 size={18} />}
+                label="Profit Factor"
+                value={
+                  stats.profitFactor >= 99 ? "∞" : stats.profitFactor.toFixed(2)
+                }
+                sub={
+                  stats.profitFactor >= 1.5 ? "strong edge" : "needs improvement"
+                }
+                tone={stats.profitFactor >= 1 ? "green" : "red"}
+              />
+            </div>
           </div>
 
-          {/* --- EXACT MONTHLY P&L CALENDAR HEATMAP & EDGE SCORE CARD --- */}
-          <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-            <ExactMonthlyCalendarHeatmap
-              trades={filteredTrades}
-              viewMode={calendarView}
-              onViewModeChange={setCalendarView}
-            />
-
-            <RedesignedEdgeScoreCard
-              score={edgeScore}
-              grade={grade}
-              gradeColor={gradeColor}
-              stats={stats}
-              bestSetup={bestSetup?.name || "None yet"}
-              worstSetup={
-                worstSetup?.totalR && worstSetup.totalR < 0
-                  ? worstSetup.name
-                  : "None detected"
-              }
-              hasDollarData={tradesWithPnl.length > 0}
-              dollarProfit={dollarProfit}
-            />
-          </section>
-
-          {/* --- INTERACTIVE EQUITY CURVE & RISK DESK --- */}
+          {/* --- INTERACTIVE EQUITY CURVE & RISK DESK (MOVED TO TOP) --- */}
           <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <Card className="flex min-w-0 flex-col justify-between overflow-hidden border-[#1E1E38] bg-[#0D0D1A] p-6 shadow-lg transition-all hover:border-[#3A3A5A]">
               <div className="mb-5 flex flex-col justify-between gap-4 border-b border-[#1E1E38] pb-4 sm:flex-row sm:items-center">
@@ -424,6 +405,49 @@ export default function DashboardPage() {
               openTrades={openTrades.length}
               expectancy={stats.expectancy}
               profitFactor={stats.profitFactor}
+            />
+          </section>
+
+          {/* --- SLEEK FILTERS BAR --- */}
+          <DashboardFilters
+            accountNames={accountNames}
+            strategyNames={strategyNames}
+            accountFilter={accountFilter}
+            strategyFilter={strategyFilter}
+            timeRange={timeRange}
+            totalTrades={effectiveTrades.length}
+            filteredTrades={filteredTrades.length}
+            onAccountChange={setAccountFilter}
+            onStrategyChange={setStrategyFilter}
+            onTimeRangeChange={setTimeRange}
+            onClear={() => {
+              setAccountFilter("");
+              setStrategyFilter("");
+              setTimeRange("all");
+            }}
+          />
+
+          {/* --- EXACT MONTHLY P&L CALENDAR HEATMAP & EDGE SCORE CARD --- */}
+          <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+            <ExactMonthlyCalendarHeatmap
+              trades={filteredTrades}
+              viewMode={calendarView}
+              onViewModeChange={setCalendarView}
+            />
+
+            <RedesignedEdgeScoreCard
+              score={edgeScore}
+              grade={grade}
+              gradeColor={gradeColor}
+              stats={stats}
+              bestSetup={bestSetup?.name || "None yet"}
+              worstSetup={
+                worstSetup?.totalR && worstSetup.totalR < 0
+                  ? worstSetup.name
+                  : "None detected"
+              }
+              hasDollarData={tradesWithPnl.length > 0}
+              dollarProfit={dollarProfit}
             />
           </section>
 

@@ -38,6 +38,7 @@ import {
   TrendingUp,
   Trophy,
   Wallet,
+  Filter,
 } from "lucide-react";
 
 type TimeRange = "all" | "7d" | "30d" | "90d" | "365d";
@@ -126,6 +127,7 @@ export default function AnalyticsPage() {
   const [strategyFilter, setStrategyFilter] = useState("");
   const [rangeFilter, setRangeFilter] = useState<TimeRange>("all");
   const [search, setSearch] = useState("");
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   async function loadData() {
     if (!user) return;
@@ -316,73 +318,80 @@ export default function AnalyticsPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          <Card className="border-[#1E1E38] p-4 shadow-md">
-            <div className="grid min-w-0 gap-3 md:grid-cols-3">
-              <FilterSelect
-                label="Account"
-                value={accountFilter}
-                onChange={setAccountFilter}
-                allLabel="All Accounts"
-                options={accountNames}
-              />
-
-              <FilterSelect
-                label="Strategy"
-                value={strategyFilter}
-                onChange={setStrategyFilter}
-                allLabel="All Strategies"
-                options={strategyNames}
-              />
-
-              <div className="min-w-0">
-                <label className="text-xs font-semibold text-[#8080A0]">Time Range</label>
-                <select
-                  value={rangeFilter}
-                  onChange={(e) => setRangeFilter(e.target.value as TimeRange)}
-                  className={selectClass}
+          <div className="rounded-2xl border border-[#1E1E38] bg-[#111124]/80 p-4 shadow-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setRangeFilter("all")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${rangeFilter === "all" ? "gold-gradient text-black shadow-md shadow-[#F0B429]/20" : "bg-[#18182C] text-zinc-400 hover:text-white border border-[#282840]"}`}
                 >
-                  <option value="all">All Time</option>
-                  <option value="7d">Last 7 Days</option>
-                  <option value="30d">Last 30 Days</option>
-                  <option value="90d">Last 90 Days</option>
-                  <option value="365d">Last 1 Year</option>
-                </select>
+                  All Time
+                </button>
+                <button
+                  onClick={() => setRangeFilter("30d")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${rangeFilter === "30d" ? "bg-[#F0B429]/20 border border-[#F0B429] text-[#F0B429]" : "bg-[#18182C] text-zinc-400 hover:text-white border border-[#282840]"}`}
+                >
+                  30 Days
+                </button>
+                <button
+                  onClick={() => setRangeFilter("90d")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${rangeFilter === "90d" ? "bg-[#F0B429]/20 border border-[#F0B429] text-[#F0B429]" : "bg-[#18182C] text-zinc-400 hover:text-white border border-[#282840]"}`}
+                >
+                  90 Days
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 md:w-64">
+                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search analytics..."
+                    className="w-full rounded-xl border border-[#24243C] bg-[#0D0D1A] py-2 pl-9 pr-4 text-xs font-bold text-white outline-none focus:border-[#F0B429]"
+                  />
+                </div>
+                <button
+                  onClick={() => setFiltersExpanded(!filtersExpanded)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 shrink-0 ${filtersExpanded || hasFilters ? "bg-[#F0B429]/15 border-[#F0B429] text-[#F0B429]" : "bg-[#18182C] border-[#282840] text-zinc-300 hover:text-white"}`}
+                >
+                  <span>Filters</span>
+                  {hasFilters && <span className="w-2 h-2 rounded-full bg-[#F0B429]" />}
+                </button>
               </div>
             </div>
 
-            <div className="relative mt-4">
-              <Search
-                size={17}
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#5A5A80]"
-              />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search instrument, notes, emotion, tags..."
-                className="w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] py-3 pl-12 pr-4 text-sm font-bold text-white outline-none transition-colors focus:border-[#F0B429]"
-              />
-            </div>
+            {filtersExpanded && (
+              <div className="mt-4 pt-4 border-t border-[#24243C] grid gap-3 md:grid-cols-2 animate-in fade-in duration-200">
+                <FilterSelect
+                  label="Account"
+                  value={accountFilter}
+                  onChange={setAccountFilter}
+                  allLabel="All Accounts"
+                  options={accountNames}
+                />
 
-            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-[#1E1E38]/60 pt-3 text-xs text-[#8080A0]">
-              <span className="min-w-0 truncate">
-                Showing <strong className="text-white">{filteredTrades.length}</strong> of{" "}
-                {trades.length} trades ·{" "}
-                <strong className="text-white">{stats.count}</strong> closed
-                {pendingTrades.length > 0 && (
-                  <> · {pendingTrades.length} open (excluded from stats)</>
-                )}
+                <FilterSelect
+                  label="Strategy"
+                  value={strategyFilter}
+                  onChange={setStrategyFilter}
+                  allLabel="All Strategies"
+                  options={strategyNames}
+                />
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center justify-between text-xs text-zinc-400">
+              <span>
+                Showing <strong className="text-white">{filteredTrades.length}</strong> of {trades.length} trades · <strong className="text-white">{stats.count}</strong> closed
               </span>
-
               {hasFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="shrink-0 whitespace-nowrap font-black text-[#F0B429] hover:underline"
-                >
+                <button onClick={clearFilters} className="font-bold text-[#F0B429] hover:underline">
                   Clear filters ×
                 </button>
               )}
             </div>
-          </Card>
+          </div>
 
           {stats.count === 0 ? (
             <EmptyState hasFilters={hasFilters} onClear={clearFilters} />

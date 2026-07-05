@@ -30,6 +30,7 @@ import {
   Star,
   Target,
   TrendingUp,
+  Filter,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -48,6 +49,7 @@ export default function TradesPage() {
   const [strategyFilter, setStrategyFilter] = useState("");
   const [directionFilter, setDirectionFilter] = useState("");
   const [resultFilter, setResultFilter] = useState<ResultFilter>("");
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const [modalTrade, setModalTrade] = useState<Trade | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -280,82 +282,103 @@ export default function TradesPage() {
             />
           </div>
 
-          <Card className="p-4">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <FilterSelect
-                label="Account"
-                value={accountFilter}
-                onChange={setAccountFilter}
-                allLabel="All Accounts"
-                options={accountNames}
-              />
-
-              <FilterSelect
-                label="Strategy"
-                value={strategyFilter}
-                onChange={setStrategyFilter}
-                allLabel="All Strategies"
-                options={strategyNames}
-              />
-
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">
-                  Direction
-                </label>
-                <select
-                  value={directionFilter}
-                  onChange={(e) => setDirectionFilter(e.target.value)}
-                  className={selectClass}
+          {/* --- SLEEK QUICK FILTER HUD --- */}
+          <div className="rounded-2xl border border-[#1E1E38] bg-[#111124]/80 p-4 shadow-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setResultFilter("")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${!resultFilter ? "gold-gradient text-black shadow-md shadow-[#F0B429]/20" : "bg-[#18182C] text-zinc-400 hover:text-white border border-[#282840]"}`}
                 >
-                  <option value="">All Directions</option>
-                  <option value="LONG">LONG</option>
-                  <option value="SHORT">SHORT</option>
-                </select>
+                  All Trades ({trades.length})
+                </button>
+                <button
+                  onClick={() => setResultFilter(resultFilter === "win" ? "" : "win")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${resultFilter === "win" ? "bg-[#00D084]/20 border border-[#00D084] text-[#00D084]" : "bg-[#18182C] text-zinc-400 hover:text-white border border-[#282840]"}`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#00D084]" /> Wins Only
+                </button>
+                <button
+                  onClick={() => setResultFilter(resultFilter === "loss" ? "" : "loss")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${resultFilter === "loss" ? "bg-[#FF4565]/20 border border-[#FF4565] text-[#FF4565]" : "bg-[#18182C] text-zinc-400 hover:text-white border border-[#282840]"}`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#FF4565]" /> Losses
+                </button>
+                <button
+                  onClick={() => setResultFilter(resultFilter === "needs-review" ? "" : "needs-review")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${resultFilter === "needs-review" ? "bg-[#F0B429]/20 border border-[#F0B429] text-[#F0B429]" : "bg-[#18182C] text-zinc-400 hover:text-white border border-[#282840]"}`}
+                >
+                  Needs Review ({trades.filter(t => !t.reviewed).length})
+                </button>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">
-                  Review Filter
-                </label>
-                <select
-                  value={resultFilter}
-                  onChange={(e) => setResultFilter(e.target.value as ResultFilter)}
-                  className={selectClass}
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 md:w-64">
+                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search instrument, tag..."
+                    className="w-full rounded-xl border border-[#24243C] bg-[#0D0D1A] py-2 pl-9 pr-4 text-xs font-bold text-white outline-none focus:border-[#F0B429]"
+                  />
+                </div>
+                <button
+                  onClick={() => setFiltersExpanded(!filtersExpanded)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 shrink-0 ${filtersExpanded || hasFilters ? "bg-[#F0B429]/15 border-[#F0B429] text-[#F0B429]" : "bg-[#18182C] border-[#282840] text-zinc-300 hover:text-white"}`}
                 >
-                  <option value="">All Results</option>
-                  <option value="win">Wins</option>
-                  <option value="loss">Losses</option>
-                  <option value="open">Open</option>
-                  <option value="needs-review">Needs Review</option>
-                </select>
+                  <Filter size={13} />
+                  <span>Filters</span>
+                  {hasFilters && <span className="w-2 h-2 rounded-full bg-[#F0B429]" />}
+                </button>
               </div>
             </div>
 
-            <div className="relative mt-4">
-              <Search
-                size={17}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5A5A80]"
-              />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search instrument, strategy, notes, mistake, emotion, tags..."
-                className="w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] py-3 pl-12 pr-4 text-sm font-bold outline-none focus:border-[#F0B429]"
-              />
-            </div>
+            {filtersExpanded && (
+              <div className="mt-4 pt-4 border-t border-[#24243C] grid gap-3 md:grid-cols-3 animate-in fade-in duration-200">
+                <FilterSelect
+                  label="Account"
+                  value={accountFilter}
+                  onChange={setAccountFilter}
+                  allLabel="All Accounts"
+                  options={accountNames}
+                />
 
-            <div className="mt-3 flex items-center justify-between text-xs text-[#5A5A80]">
+                <FilterSelect
+                  label="Strategy"
+                  value={strategyFilter}
+                  onChange={setStrategyFilter}
+                  allLabel="All Strategies"
+                  options={strategyNames}
+                />
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">
+                    Direction
+                  </label>
+                  <select
+                    value={directionFilter}
+                    onChange={(e) => setDirectionFilter(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">All Directions</option>
+                    <option value="LONG">LONG</option>
+                    <option value="SHORT">SHORT</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center justify-between text-xs text-zinc-400">
               <span>
-                Showing {filteredTrades.length} of {trades.length} trades
+                Showing <strong className="text-white">{filteredTrades.length}</strong> of {trades.length} trades
               </span>
-
               {hasFilters && (
-                <button onClick={clearFilters} className="font-black text-[#F0B429]">
-                  Clear filters
+                <button onClick={clearFilters} className="font-bold text-[#F0B429] hover:underline">
+                  Reset filters ×
                 </button>
               )}
             </div>
-          </Card>
+          </div>
 
           <div className="space-y-3">
             {filteredTrades.length ? (
