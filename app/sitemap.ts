@@ -16,6 +16,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/tools/r-multiple-calculator", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/tools/drawdown-calculator", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/tools/prop-firm-challenge-calculator", priority: 0.9, changeFrequency: "weekly" as const },
+    { path: "/journaling-guides", priority: 0.8, changeFrequency: "monthly" as const },
+    { path: "/csv-templates", priority: 0.8, changeFrequency: "monthly" as const },
     { path: "/about", priority: 0.4, changeFrequency: "monthly" as const },
     { path: "/contact", priority: 0.4, changeFrequency: "monthly" as const },
     { path: "/privacy", priority: 0.2, changeFrequency: "yearly" as const },

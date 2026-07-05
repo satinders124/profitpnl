@@ -1837,10 +1837,10 @@ const footerCols = [
   {
     h: "Resources",
     items: [
-      { label: "Blog", href: "#" },
-      { label: "Journaling Guides", href: "#" },
-      { label: "CSV Templates", href: "#" },
-      { label: "Community", href: "#" },
+      { label: "Journaling Guides", href: "/journaling-guides" },
+      { label: "CSV Templates", href: "/csv-templates" },
+      { label: "Free Calculators", href: "/tools" },
+      { label: "Certificates", href: "/certificates" },
     ],
   },
   {

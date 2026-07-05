@@ -12,6 +12,8 @@ const PUBLIC_NO_AUTH_PATHS = new Set([
   "/risk-disclaimer",
   "/cookie-policy",
   "/refund-policy",
+  "/journaling-guides",
+  "/csv-templates",
 ]);
 
 /**

@@ -1,0 +1,3 @@
+date,time,instrument,direction,setup,session,timeframe,emotion,entry,sl,tp,rr,result,pnl,account,notes,tags,reviewed,execution_rating,mistake,lesson
+2026-07-01,09:45,ES,LONG,NY Open Drive,New York,2m,Focused,5620.25,5615.25,5630.25,2,2,500,Topstep 50K,"Strong market internals, clean pullback","futures,ES",true,5,,"Size was appropriate for stop distance"
+2026-07-03,10:05,NQ,SHORT,Failed Breakout,New York,1m,Rushed,20350,20375,20300,2,-1,-250,Topstep 50K,"Shorted before confirmation candle closed","NQ,rushed",true,2,No confirmation,"Wait for candle close before entry"

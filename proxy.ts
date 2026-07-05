@@ -13,6 +13,8 @@ const ALLOWED_PATHS = [
   "/risk-disclaimer",
   "/cookie-policy",
   "/refund-policy",
+  "/journaling-guides",
+  "/csv-templates",
 ];
 const ALLOWED_PREFIXES = ["/tools", "/cert"];
 
