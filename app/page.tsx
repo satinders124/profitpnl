@@ -830,14 +830,14 @@ function Hero() {
         >
           <DashboardMockup />
 
-          <div className="animate-float absolute -top-6 -left-3 sm:-left-8">
+          <div className="animate-float absolute -top-6 left-0 sm:-left-8">
             <div className="rounded-xl border border-bull/30 bg-panel/90 px-4 py-3 shadow-[0_8px_40px_rgba(0,208,132,0.25)] backdrop-blur">
               <p className="text-[10px] tracking-wider text-dim uppercase">This month</p>
               <p className="font-mono2 text-lg font-bold text-bull">+18.4R</p>
             </div>
           </div>
 
-          <div className="animate-float-slow absolute -right-3 -bottom-6 sm:-right-8">
+          <div className="animate-float-slow absolute right-0 -bottom-6 sm:-right-8">
             <div className="rounded-xl border border-gold/30 bg-panel/90 px-4 py-3 shadow-[0_8px_40px_rgba(240,180,41,0.25)] backdrop-blur">
               <p className="text-[10px] tracking-wider text-dim uppercase">Discipline streak</p>
               <p className="font-mono2 text-lg font-bold text-gold">🔥 12 days on-plan</p>
@@ -950,7 +950,7 @@ const featuresData = [
 
 function Features() {
   return (
-    <section id="features" className="relative py-20 sm:py-28">
+    <section id="features" className="relative overflow-hidden py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -1382,7 +1382,7 @@ const reviewsData = [
 
 function Testimonials() {
   return (
-    <section id="reviews" className="relative py-20 sm:py-28">
+    <section id="reviews" className="relative overflow-hidden py-20 sm:py-28">
       <div className="animate-pulse-glow absolute top-1/2 -right-40 h-96 w-96 -translate-y-1/2 rounded-full bg-gold/8 blur-[130px]" />
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <motion.div
@@ -1478,7 +1478,7 @@ const plansData = [
 
 function Pricing() {
   return (
-    <section id="pricing" className="relative py-20 sm:py-28">
+    <section id="pricing" className="relative overflow-hidden py-20 sm:py-28">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -1588,7 +1588,7 @@ function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="relative border-t border-line/60 bg-ink2/40 py-20 sm:py-28">
+    <section id="faq" className="relative overflow-hidden border-t border-line/60 bg-ink2/40 py-20 sm:py-28">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -1797,9 +1797,9 @@ function Footer() {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-ink text-txt antialiased">
+    <div className="min-h-screen overflow-x-hidden bg-ink text-txt antialiased">
       <Navbar />
-      <main className="pt-14">
+      <main className="overflow-x-hidden pt-14">
         <TickerTape />
         <Hero />
         <Stats />
