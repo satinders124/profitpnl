@@ -302,7 +302,15 @@ export default function TradesPage() {
                 </button>
               </div>
               <div className="rounded-xl overflow-hidden border border-[#24243C]">
-                <TradingViewChart symbol={selectedChartTrade.instrument} theme="dark" />
+                <TradingViewChart
+                  symbol={selectedChartTrade.instrument}
+                  theme="dark"
+                  interval={selectedChartTrade.timeframe}
+                  entry={selectedChartTrade.entry}
+                  sl={selectedChartTrade.sl}
+                  tp={selectedChartTrade.tp}
+                  direction={selectedChartTrade.direction as "LONG" | "SHORT"}
+                />
               </div>
               <div className="mt-2 text-[10px] text-zinc-500 text-center">
                 Visualizing market feed for {selectedChartTrade.instrument} synced with your trade log context.
