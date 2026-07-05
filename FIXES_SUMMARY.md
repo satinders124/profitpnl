@@ -151,6 +151,14 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - Resized and centered the raw `public/favicon.png` image onto a true 1:1 square transparent PNG canvas (`401x401`).
 - Added `aspect-square object-contain shrink-0` styling to all 7 UI occurrences (including the initial Loader animation tile) so it always renders crisp, centered, and unstretched.
 
+### 21. ⚡ UX FIXED: Subscription & Upgrade Button Loading States and New Tab Redirects
+**Files:** `app/settings/page.tsx`, `app/upgrade/page.tsx`
+**Problem:** Clicking "Manage Subscription" or "Upgrade to Pro" paused silently without loading feedback while communicating with Stripe API, and then opened external billing pages in the same tab.
+
+**Fix:**
+- Added animated loading spinners (`<Loader2 className="animate-spin" />`) and disabled button states while starting trials or fetching Stripe Customer Portal sessions.
+- Configured Stripe Customer Portal (`openBillingPortal`) and Stripe Checkout URLs (`/upgrade`) to launch in a new browser tab (`window.open(url, "_blank", "noopener,noreferrer")`), keeping the user's dashboard and settings active in the background.
+
 ## Files Changed
 
 | File | Change |
@@ -183,6 +191,8 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `lib/ai-context.ts` | Expanded AI context builder with full playbook rules, prop drawdown cushions, and execution discipline breakdowns |
 | `public/favicon.png` | Centered and squared raw image onto a 1:1 transparent PNG canvas |
 | `components/loader/Loader.tsx` | Added `object-contain aspect-square` to logo tile |
+| `app/settings/page.tsx` | Added animated loading spinners on subscription buttons and opened billing portal in a new tab |
+| `app/upgrade/page.tsx` | Configured Stripe Checkout URLs to launch in a new browser tab |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result

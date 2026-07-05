@@ -57,6 +57,7 @@ import {
   FileText,
   ExternalLink,
   AlertCircle,
+  Loader2,
   Loader2 as LoaderIcon,
 } from "lucide-react";
 
@@ -76,6 +77,8 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [managingBilling, setManagingBilling] = useState(false);
+  const [startingTrial, setStartingTrial] = useState(false);
   const [comingSoonBroker, setComingSoonBroker] = useState<string | null>(null);
   const [upgradeToast, setUpgradeToast] = useState<string | null>(null);
 
@@ -331,6 +334,37 @@ export default function SettingsPage() {
     } catch (err) {
       console.error("Logout error:", err);
       alert("Failed to log out. Please try again.");
+    }
+  }
+
+  async function openBillingPortal() {
+    if (managingBilling) return;
+    setManagingBilling(true);
+    try {
+      const { data: { session } } = await createClient().auth.getSession();
+      const res = await fetch("/api/payments/manage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ uid: user?.id }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+      } else if (res.status === 503) {
+        setComingSoonBroker("Billing Portal");
+        setTimeout(() => setComingSoonBroker(null), 3000);
+      } else {
+        setComingSoonBroker(data.error || "Billing Portal");
+        setTimeout(() => setComingSoonBroker(null), 4000);
+      }
+    } catch {
+      setComingSoonBroker("Connection error — please try again.");
+      setTimeout(() => setComingSoonBroker(null), 3000);
+    } finally {
+      setManagingBilling(false);
     }
   }
 
@@ -1495,7 +1529,10 @@ export default function SettingsPage() {
                     <div className="shrink-0">
                       {isFree && canStartTrial && (
                         <button
+                          disabled={startingTrial}
                           onClick={async () => {
+                            if (startingTrial) return;
+                            setStartingTrial(true);
                             try {
                               const { data: { session } } = await createClient().auth.getSession();
                               const res = await fetch("/api/trial/start", {
@@ -1517,19 +1554,19 @@ export default function SettingsPage() {
                               }
                             } catch {
                               alert("Connection error. Please try again.");
+                            } finally {
+                              setStartingTrial(false);
                             }
                           }}
-                          className="px-5 py-2.5 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] text-black font-bold text-xs transition-colors flex items-center gap-2 shadow-lg shadow-[#F0B429]/20"
+                          className="px-5 py-2.5 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] text-black font-bold text-xs transition-colors flex items-center gap-2 shadow-lg shadow-[#F0B429]/20 disabled:opacity-50"
                         >
-                          <Zap size={14} />
-                          Start 7-Day Free Trial
+                          {startingTrial ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />}
+                          {startingTrial ? "Activating..." : "Start 7-Day Free Trial"}
                         </button>
                       )}
                       {isFree && !canStartTrial && (
                         <button
-                          onClick={() =>
-                            (window.location.href = "/upgrade")
-                          }
+                          onClick={() => window.open("/upgrade", "_blank", "noopener,noreferrer")}
                           className="px-5 py-2.5 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] text-black font-bold text-xs transition-colors flex items-center gap-2 shadow-lg shadow-[#F0B429]/20"
                         >
                           <Crown size={14} />
@@ -1538,9 +1575,7 @@ export default function SettingsPage() {
                       )}
                       {isOnTrial && (
                         <button
-                          onClick={() =>
-                            (window.location.href = "/upgrade")
-                          }
+                          onClick={() => window.open("/upgrade", "_blank", "noopener,noreferrer")}
                           className="px-5 py-2.5 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] text-black font-bold text-xs transition-colors flex items-center gap-2 shadow-lg shadow-[#F0B429]/20"
                         >
                           <Crown size={14} />
@@ -1549,40 +1584,12 @@ export default function SettingsPage() {
                       )}
                       {isProPaid && (
                         <button
-                          onClick={async () => {
-                            try {
-                              const { data: { session } } = await createClient().auth.getSession();
-                              const res = await fetch(
-                                "/api/payments/manage",
-                                {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                    "Authorization": `Bearer ${session?.access_token}`
-                                  },
-                                  body: JSON.stringify({ uid: user?.id }),
-                                }
-                              );
-                              const data = await res.json();
-                              if (data.url) {
-                                window.location.href = data.url;
-                              } else if (res.status === 503) {
-                                setComingSoonBroker("Billing Portal");
-                                setTimeout(() => setComingSoonBroker(null), 3000);
-                              } else {
-                                // 400 = no billing account yet, or other error
-                                setComingSoonBroker(data.error || "Billing Portal");
-                                setTimeout(() => setComingSoonBroker(null), 4000);
-                              }
-                            } catch {
-                              setComingSoonBroker("Connection error — please try again.");
-                              setTimeout(() => setComingSoonBroker(null), 3000);
-                            }
-                          }}
-                          className="px-5 py-2.5 rounded-lg border border-[#242436] bg-[#14141E] hover:bg-[#1C1C2A] text-white font-semibold text-xs transition-colors flex items-center gap-2"
+                          disabled={managingBilling}
+                          onClick={openBillingPortal}
+                          className="px-5 py-2.5 rounded-lg border border-[#242436] bg-[#14141E] hover:bg-[#1C1C2A] text-white font-semibold text-xs transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
-                          <CreditCard size={14} />
-                          Manage Subscription
+                          {managingBilling ? <Loader2 className="animate-spin" size={14} /> : <CreditCard size={14} />}
+                          {managingBilling ? "Opening Portal..." : "Manage Subscription"}
                         </button>
                       )}
                     </div>
@@ -1656,37 +1663,11 @@ export default function SettingsPage() {
                     <p className="text-zinc-600 text-xs">
                       View and download past invoices from the{" "}
                       <button
-                        onClick={async () => {
-                          try {
-                            const { data: { session } } = await createClient().auth.getSession();
-                            const res = await fetch(
-                              "/api/payments/manage",
-                              {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                  "Authorization": `Bearer ${session?.access_token}`
-                                },
-                                body: JSON.stringify({ uid: user?.id }),
-                              }
-                            );
-                            const data = await res.json();
-                            if (data.url) {
-                              window.location.href = data.url;
-                            } else if (res.status === 503) {
-                              setComingSoonBroker("Billing Portal");
-                              setTimeout(() => setComingSoonBroker(null), 3000);
-                            } else {
-                              setComingSoonBroker(data.error || "Billing Portal");
-                              setTimeout(() => setComingSoonBroker(null), 4000);
-                            }
-                          } catch {
-                            setComingSoonBroker("Connection error — please try again.");
-                            setTimeout(() => setComingSoonBroker(null), 3000);
-                          }
-                        }}
-                        className="text-[#F0B429] hover:underline inline-flex items-center gap-1"
+                        onClick={openBillingPortal}
+                        disabled={managingBilling}
+                        className="text-[#F0B429] hover:underline inline-flex items-center gap-1 disabled:opacity-50"
                       >
+                        {managingBilling ? <Loader2 className="animate-spin inline" size={12} /> : null}
                         Stripe Customer Portal
                         <ExternalLink size={10} />
                       </button>

@@ -62,7 +62,7 @@ export default function UpgradePage() {
       const data = await response.json();
 
       if (data.url) {
-        window.location.href = data.url;
+        window.open(data.url, "_blank", "noopener,noreferrer");
       } else if (response.status === 503) {
         showToast(data.error || "Payments coming soon — Stripe is being set up.");
       } else {
