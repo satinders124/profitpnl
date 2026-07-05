@@ -15,6 +15,7 @@ import {
   Settings,
   Sparkles,
   X,
+  Award,
 } from "lucide-react";
 
 const mainItems = [
@@ -25,6 +26,7 @@ const mainItems = [
 ];
 
 const moreItems = [
+  { label: "Certificates", href: "/certificates", icon: Award },
   { label: "Playbook", href: "/playbook", icon: BookOpen },
   { label: "Psychology", href: "/psychology", icon: Brain },
   { label: "Accounts", href: "/accounts", icon: CreditCard },

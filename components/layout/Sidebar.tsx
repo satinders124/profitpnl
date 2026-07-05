@@ -18,6 +18,7 @@ import {
   Timer,
   Zap,
   ArrowUpRight,
+  Award,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 
@@ -44,6 +45,11 @@ const navGroups = [
         label: "Performance",
         href: "/analytics",
         icon: BarChart3,
+      },
+      {
+        label: "Certificates",
+        href: "/certificates",
+        icon: Award,
       },
       {
         label: "AI Coach",
@@ -108,7 +114,6 @@ export function Sidebar() {
         Math.max(0, Math.ceil((trialEndsAtMs - Date.now()) / (1000 * 60 * 60 * 24)))
       );
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTrialDaysRemaining(0);
     }
   }, [isOnTrial, trialEndsAtMs]);

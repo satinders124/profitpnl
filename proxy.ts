@@ -5,7 +5,7 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 // Paths that should always be reachable, even in Coming Soon mode.
 const ALLOWED_PATHS = ["/coming-soon"];
-const ALLOWED_PREFIXES = ["/tools"];
+const ALLOWED_PREFIXES = ["/tools", "/cert"];
 
 export function proxy(req: NextRequest) {
   const comingSoonEnabled = process.env.COMING_SOON_MODE === "true";
