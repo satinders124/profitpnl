@@ -54,7 +54,7 @@ const navGroups = [
       },
       {
         label: "Backtesting",
-        href: "/backtesting",
+        href: "/backtesting/terminal",
         icon: CandlestickChart,
       },
       {

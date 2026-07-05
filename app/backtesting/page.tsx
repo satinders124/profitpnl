@@ -22,8 +22,8 @@ export default function BacktestingPage() {
                 Load candles, hide the future, replay one candle at a time, place demo trades, manage SL/TP, and save your tested edge to ProfitPnL.
               </p>
             </div>
-            <Link href="/backtesting/lab" className="gold-gradient inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-black text-black">
-              <Play size={16} /> Open Lab
+            <Link href="/backtesting/terminal" className="gold-gradient inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-black text-black">
+              <Play size={16} /> Open Terminal
             </Link>
           </div>
         </Card>
