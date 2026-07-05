@@ -132,6 +132,17 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 
 **Fix:** Added a dedicated Sign Out icon button next to the user profile card in the Sidebar and added a confirmation modal dialog ("Sign out of ProfitPnL? [No, Stay Logged In] [Yes, Sign Out]") across both the Sidebar and Settings page.
 
+### 19. 🚀 FEATURE: Comprehensive Elite MVP AI Coach Neural Context
+**File:** `lib/ai-context.ts`
+**Problem:** The AI Coach previously received only high-level summary statistics and lacked deep visibility into the trader's playbook execution rules, account drawdown buffers, and psychology notes.
+
+**Fix:** Expanded `buildTradingContext(uid)` into an all-seeing neural context builder:
+- **Detailed Playbook Rules:** Feeds exact entry models, stop loss invalidation rules, target models, and checklists for active strategies into Claude.
+- **Prop Firm Account & Drawdown Cushion:** Calculates current balance against max drawdown ceilings and tells Claude exact remaining dollar cushion.
+- **Execution Discipline Correlation:** Compares P&L of high-discipline trades (rating 4-5) against impulse trades (rating 1-2).
+- **Session Breakdown:** Breaks down win rate and total R across NY, London, and Asian sessions.
+- **Expanded Logs:** Feeds the last 10 detailed trade logs and last 5 psychology journals.
+
 ## Files Changed
 
 | File | Change |
@@ -161,6 +172,7 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `app/api/auth/forgot-password/route.ts` | Updated recovery email redirect to point to `/reset-password` |
 | `components/layout/Sidebar.tsx` | Added quick Sign Out button and logout confirmation dialog |
 | `app/settings/page.tsx` | Added logout confirmation modal dialog before signing out |
+| `lib/ai-context.ts` | Expanded AI context builder with full playbook rules, prop drawdown cushions, and execution discipline breakdowns |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result

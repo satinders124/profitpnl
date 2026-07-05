@@ -15,7 +15,7 @@ function formatDate(d: string) {
   if (!d) return "";
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return d;
-  return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function avg(arr: number[]) {
@@ -47,7 +47,7 @@ export async function buildTradingContext(uid: string): Promise<TradingContext> 
   const tradeCount = trades.length;
 
   if (tradeCount === 0) {
-    const summary = `This trader has not logged any trades yet. They are a new user. Encourage them to log their first trade and build a playbook. Their base currency is ${profile?.currency || "USD"}.`;
+    const summary = `This trader has not logged any completed trades yet. They are a new user or exploring the system. Encourage them to log their first trade and define their playbook strategies. Base currency: ${profile?.currency || "USD"}.`;
     return { summary, tradeCount: 0, winRate: 0, totalR: 0 };
   }
 
@@ -63,7 +63,7 @@ export async function buildTradingContext(uid: string): Promise<TradingContext> 
   const avgLoss = avg(losses);
   const pf = profitFactor(wins, losses);
 
-  // Streak
+  // Streak calculation
   let currentStreak = 0;
   let streakType: "W" | "L" | "B" = "B";
   for (let i = trades.length - 1; i >= 0; i--) {
@@ -85,10 +85,10 @@ export async function buildTradingContext(uid: string): Promise<TradingContext> 
     }
   }
 
-  // Setup performance
+  // Setup performance breakdown
   const setupMap = new Map<string, { wins: number; losses: number; totalR: number; count: number }>();
   for (const t of trades) {
-    const s = t.setup || "Unnamed";
+    const s = t.setup || "Unnamed Setup";
     const r = Number(t.result);
     if (!Number.isFinite(r)) continue;
     const ex = setupMap.get(s) || { wins: 0, losses: 0, totalR: 0, count: 0 };
@@ -98,9 +98,42 @@ export async function buildTradingContext(uid: string): Promise<TradingContext> 
     else if (r < 0) ex.losses++;
     setupMap.set(s, ex);
   }
-  const setupsByR = Array.from(setupMap.entries())
-    .sort((a, b) => b[1].totalR - a[1].totalR)
-    .slice(0, 4);
+  const setupsByR = Array.from(setupMap.entries()).sort((a, b) => b[1].totalR - a[1].totalR);
+
+  // Trading Session performance breakdown
+  const sessionMap = new Map<string, { wins: number; losses: number; totalR: number; count: number }>();
+  for (const t of trades) {
+    const sess = t.session || "Unspecified Session";
+    const r = Number(t.result);
+    if (!Number.isFinite(r)) continue;
+    const ex = sessionMap.get(sess) || { wins: 0, losses: 0, totalR: 0, count: 0 };
+    ex.count++;
+    ex.totalR += r;
+    if (r > 0) ex.wins++;
+    else if (r < 0) ex.losses++;
+    sessionMap.set(sess, ex);
+  }
+
+  // Execution Rating & Discipline breakdown
+  let ratedCount = 0;
+  let highDisciplineR = 0;
+  let highDisciplineCount = 0;
+  let lowDisciplineR = 0;
+  let lowDisciplineCount = 0;
+  for (const t of trades) {
+    const rating = Number(t.executionRating);
+    const r = Number(t.result);
+    if (Number.isFinite(rating) && Number.isFinite(r)) {
+      ratedCount++;
+      if (rating >= 4) {
+        highDisciplineR += r;
+        highDisciplineCount++;
+      } else if (rating <= 2) {
+        lowDisciplineR += r;
+        lowDisciplineCount++;
+      }
+    }
+  }
 
   // Mistake frequency
   const mistakeMap = new Map<string, number>();
@@ -109,96 +142,132 @@ export async function buildTradingContext(uid: string): Promise<TradingContext> 
       mistakeMap.set(t.mistake, (mistakeMap.get(t.mistake) || 0) + 1);
     }
   }
-  const topMistakes = Array.from(mistakeMap.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
+  const topMistakes = Array.from(mistakeMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  // Recent trades (last 5)
-  const recent = trades.slice(0, 5);
-
-  // Recent journals (last 3)
-  const recentJournals = journalsRaw.slice(0, 3);
-
-  // Active playbook
-  const activePlaybook = playbookRaw.filter((p) => p.status === "Active").slice(0, 4);
-
-  // Accounts
-  const activeAccounts = accountsRaw.filter((a) => a.status === "Active");
-
-  // Build concise context block
+  // Build Comprehensive Context Markdown
   const lines: string[] = [];
-  lines.push(`## Trader Performance Snapshot`);
+  lines.push(`## 📊 Overall Trader Performance Snapshot`);
   lines.push(`- Total reviewed trades: ${tradeCount}`);
-  lines.push(`- Win rate: ${winRate.toFixed(1)}% (${wins.length}W / ${losses.length}L / ${breakeven.length}BE)`);
-  lines.push(`- Total R: ${totalR > 0 ? "+" : ""}${totalR.toFixed(2)} | Avg R per trade: ${avgR > 0 ? "+" : ""}${avgR.toFixed(2)}`);
-  lines.push(`- Profit factor: ${pf.toFixed(2)} | Avg win: ${avgWin.toFixed(2)}R | Avg loss: ${avgLoss.toFixed(2)}R`);
-  lines.push(`- Current streak: ${currentStreak}${streakType === "W" ? " wins" : streakType === "L" ? " losses" : " breakeven"}`);
+  lines.push(`- Win rate: ${winRate.toFixed(1)}% (${wins.length} Wins / ${losses.length} Losses / ${breakeven.length} Breakeven)`);
+  lines.push(`- Net P&L (R-Multiple): ${totalR > 0 ? "+" : ""}${totalR.toFixed(2)}R | Expected Value per trade: ${avgR > 0 ? "+" : ""}${avgR.toFixed(2)}R`);
+  lines.push(`- Profit Factor: ${pf.toFixed(2)} | Average Win: +${avgWin.toFixed(2)}R | Average Loss: ${avgLoss.toFixed(2)}R`);
+  lines.push(`- Current Streak: ${currentStreak} consecutive ${streakType === "W" ? "WINS 🔥" : streakType === "L" ? "LOSSES ⚠️" : "breakeven trades"}`);
 
-  if (setupsByR.length) {
-    lines.push(`\n## Setup Performance (top by total R)`);
+  // Execution Discipline Analysis
+  if (ratedCount > 0) {
+    lines.push(`\n## 🧠 Execution Discipline & Plan Compliance Analysis`);
+    lines.push(`- High Discipline Trades (Rating 4-5 out of 5): ${highDisciplineCount} trades generating ${highDisciplineR > 0 ? "+" : ""}${highDisciplineR.toFixed(2)}R`);
+    lines.push(`- Low Discipline / Impulse Trades (Rating 1-2 out of 5): ${lowDisciplineCount} trades generating ${lowDisciplineR > 0 ? "+" : ""}${lowDisciplineR.toFixed(2)}R`);
+    if (lowDisciplineR < 0 && highDisciplineR > 0) {
+      lines.push(`- ⚠️ CRITICAL INSIGHT: Following the plan yields net profit (+${highDisciplineR.toFixed(1)}R), while breaking discipline accounts for ${lowDisciplineR.toFixed(1)}R of losses!`);
+    }
+  }
+
+  // Session Breakdown
+  if (sessionMap.size > 0) {
+    lines.push(`\n## 🕒 Performance by Trading Session`);
+    for (const [sess, stats] of sessionMap.entries()) {
+      const wr = stats.count ? ((stats.wins / stats.count) * 100).toFixed(0) : "0";
+      lines.push(`- ${sess}: ${stats.totalR > 0 ? "+" : ""}${stats.totalR.toFixed(2)}R over ${stats.count} trades (${wr}% WR)`);
+    }
+  }
+
+  // Setup Performance
+  if (setupsByR.length > 0) {
+    lines.push(`\n## 🎯 Playbook Setup Breakdown (Sorted by Net R)`);
     for (const [name, stats] of setupsByR) {
       const wr = stats.count ? ((stats.wins / stats.count) * 100).toFixed(0) : "0";
-      lines.push(`- ${name}: ${stats.totalR > 0 ? "+" : ""}${stats.totalR.toFixed(1)}R over ${stats.count} trades (${wr}% WR)`);
+      lines.push(`- ${name}: ${stats.totalR > 0 ? "+" : ""}${stats.totalR.toFixed(2)}R across ${stats.count} trades (${wr}% WR)`);
     }
   }
 
-  if (topMistakes.length) {
-    lines.push(`\n## Recurring Mistakes`);
+  // Mistakes
+  if (topMistakes.length > 0) {
+    lines.push(`\n## 🚨 Recurring Execution Leaks / Mistakes`);
     for (const [m, count] of topMistakes) {
-      lines.push(`- ${m}: ${count} times`);
+      lines.push(`- ${m}: Logged ${count} time${count !== 1 ? "s" : ""}`);
     }
   }
 
-  if (recent.length) {
-    lines.push(`\n## Recent Trades (last ${recent.length})`);
-    for (const t of recent) {
-      const r = Number(t.result);
-      const rStr = Number.isFinite(r) ? `${r > 0 ? "+" : ""}${r}R` : "open";
-      lines.push(`- ${formatDate(t.date)} ${t.instrument} ${t.direction} | ${t.setup || "no setup"} | ${rStr} | ${t.emotion || "no emotion"}${t.mistake && t.mistake !== "None" ? ` | mistake: ${t.mistake}` : ""}`);
+  // Detailed Active Playbook Strategies
+  const activePlaybooks = playbookRaw.filter((p) => p.status === "Active" || !p.status);
+  if (activePlaybooks.length > 0) {
+    lines.push(`\n## 📘 Active Playbook Strategies & Execution Rules`);
+    for (const p of activePlaybooks.slice(0, 5)) {
+      lines.push(`### Strategy: ${p.name} (${p.market || "Any Market"} | TF: ${p.timeframe || "Any"} | Bias: ${p.directionBias || "Neutral"})`);
+      if (p.description) lines.push(`- Description: ${p.description}`);
+      if (p.entryModel) lines.push(`- Entry Model & Trigger: ${p.entryModel}`);
+      if (p.invalidation) lines.push(`- Stop Loss / Invalidation Level: ${p.invalidation}`);
+      if (p.targetModel) lines.push(`- Target / Take Profit Rule: ${p.targetModel}`);
+      if (p.riskRule) lines.push(`- Risk Management Rule: ${p.riskRule}`);
+      if (p.rules && p.rules.length > 0) lines.push(`- Checklist Rules: ${p.rules.join("; ")}`);
+      if (p.mistakesToAvoid && p.mistakesToAvoid.length > 0) lines.push(`- Mistakes to Avoid: ${p.mistakesToAvoid.join("; ")}`);
     }
   }
 
-  if (recentJournals.length) {
-    lines.push(`\n## Recent Journal Entries`);
-    for (const j of recentJournals) {
-      const snippet = (j.notes || j.text || j.entry || "").slice(0, 80).replace(/\n/g, " ");
-      lines.push(`- ${formatDate(j.date)} Mood: ${j.mood || "N/A"}${snippet ? ` | "${snippet}${snippet.length >= 80 ? "..." : ""}"` : ""}`);
-    }
-  }
-
-  if (activePlaybook.length) {
-    lines.push(`\n## Active Playbook Strategies`);
-    for (const p of activePlaybook) {
-      lines.push(`- ${p.name} (${p.market || "any market"}, ${p.timeframe || "any TF"}) — ${p.directionBias || "no bias"}`);
-    }
-  }
-
-  if (activeAccounts.length) {
-    lines.push(`\n## Active Accounts`);
+  // Active Trading Accounts & Drawdown Health
+  const activeAccounts = accountsRaw.filter((a) => a.status === "Active" || !a.status);
+  if (activeAccounts.length > 0) {
+    lines.push(`\n## 💼 Active Trading Accounts & Prop Firm Drawdown Health`);
     for (const a of activeAccounts) {
-      const bal = a.currentBalance !== "" && a.currentBalance != null ? `$${Number(a.currentBalance).toLocaleString()}` : "balance N/A";
-      lines.push(`- ${a.name} (${a.firm || "personal"}) — ${bal}${a.maxDD ? ` | max DD: $${Number(a.maxDD).toLocaleString()}` : ""}`);
+      const balNum = Number(a.currentBalance);
+      const startNum = Number(a.startingBalance || a.size);
+      const balStr = Number.isFinite(balNum) ? `$${balNum.toLocaleString()}` : "N/A";
+      const pnlDollars = Number.isFinite(balNum) && Number.isFinite(startNum) ? balNum - startNum : 0;
+      const pnlPct = Number.isFinite(startNum) && startNum > 0 ? (pnlDollars / startNum) * 100 : 0;
+
+      let ddInfo = "";
+      if (a.maxDD && Number.isFinite(Number(a.maxDD)) && Number.isFinite(balNum)) {
+        const ddCeiling = Number(a.maxDD);
+        const cushion = balNum - ddCeiling;
+        ddInfo = ` | Max DD Breach Level: $${ddCeiling.toLocaleString()} (Cushion Remaining: $${cushion.toLocaleString()})`;
+      }
+
+      lines.push(`- ${a.name} (${a.firm || "Personal"} | Type: ${a.type || "Funded"}): Current Balance ${balStr} (${pnlDollars >= 0 ? "+" : ""}$${pnlDollars.toLocaleString()} / ${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%)${ddInfo}`);
     }
   }
 
-  // Risk settings from profile
-  const dailyLoss = profile?.daily_loss_limit;
-  const maxDD = profile?.max_drawdown_limit;
-  const profitTarget = profile?.daily_profit_target;
-  if (dailyLoss || maxDD || profitTarget) {
-    lines.push(`\n## Risk Rules`);
-    if (dailyLoss) lines.push(`- Daily loss limit: $${Number(dailyLoss).toLocaleString()}`);
-    if (maxDD) lines.push(`- Max drawdown ceiling: $${Number(maxDD).toLocaleString()}`);
-    if (profitTarget) lines.push(`- Daily profit target: $${Number(profitTarget).toLocaleString()}`);
-    lines.push(`- Max consecutive losses before lockout: ${profile?.max_consecutive_losses || 3}`);
+  // Last 10 Trade Logs
+  const recentTrades = trades.slice(0, 10);
+  if (recentTrades.length > 0) {
+    lines.push(`\n## 📜 Recent 10 Trade Logs (Most Recent First)`);
+    for (const t of recentTrades) {
+      const r = Number(t.result);
+      const rStr = Number.isFinite(r) ? `${r > 0 ? "+" : ""}${r}R` : "Open";
+      const pnlStr = t.pnl && Number.isFinite(Number(t.pnl)) ? ` ($${Number(t.pnl) > 0 ? "+" : ""}${t.pnl})` : "";
+      const notesSnippet = t.notes ? ` | Notes: "${t.notes.slice(0, 90).replace(/\n/g, " ")}"` : "";
+      lines.push(`- [${formatDate(t.date)}] ${t.instrument} ${t.direction} | Setup: ${t.setup || "None"} | Session: ${t.session || "N/A"} | Result: ${rStr}${pnlStr} | Rating: ${t.executionRating || "-"}/5${t.mistake && t.mistake !== "None" ? ` | Mistake: ${t.mistake}` : ""}${notesSnippet}`);
+    }
   }
 
-  lines.push(`\n## Coaching Rules`);
-  lines.push(`- Base all advice on this trader's actual data above.`);
-  lines.push(`- If they broke rules recently, call it out directly.`);
-  lines.push(`- Reference specific setups and mistakes by name.`);
-  lines.push(`- Keep responses under 200 words unless they ask for deep analysis.`);
-  lines.push(`- Never give buy/sell signals. Only review process, psychology, and risk.`);
+  // Last 5 Psychology Journals
+  const recentJournals = journalsRaw.slice(0, 5);
+  if (recentJournals.length > 0) {
+    lines.push(`\n## 📓 Recent Psychology & Mindset Journal Entries`);
+    for (const j of recentJournals) {
+      const textSnippet = (j.notes || j.text || j.entry || "").slice(0, 120).replace(/\n/g, " ");
+      lines.push(`- [${formatDate(j.date)}] Mood: ${j.mood || "Unspecified"}${j.tags && j.tags.length ? ` | Tags: [${j.tags.join(", ")}]` : ""}${textSnippet ? ` | Notes: "${textSnippet}..."` : ""}`);
+    }
+  }
+
+  // Profile Risk Limits
+  if (profile) {
+    const dl = profile.daily_loss_limit;
+    const md = profile.max_drawdown_limit;
+    const pt = profile.daily_profit_target;
+    if (dl || md || pt) {
+      lines.push(`\n## 🛑 Trader's Hard Risk Limits`);
+      if (dl) lines.push(`- Daily Loss Limit: $${Number(dl).toLocaleString()}`);
+      if (md) lines.push(`- Max Drawdown Limit: $${Number(md).toLocaleString()}`);
+      if (pt) lines.push(`- Daily Profit Target: $${Number(pt).toLocaleString()}`);
+    }
+  }
+
+  lines.push(`\n## 🎯 Coaching Mandate & Behavioral Directives`);
+  lines.push(`- You have COMPLETE visibility into this user's trading journal, playbook rules, accounts, and psychology above.`);
+  lines.push(`- Always hold the trader accountable to their own written Playbook entry models and stop loss rules.`);
+  lines.push(`- If they ask about an account or prop firm challenge, calculate their remaining drawdown cushion and advise on lot size / risk adjustment.`);
+  lines.push(`- Be elite, direct, analytical, and highly personalized.`);
 
   return {
     summary: lines.join("\n"),
