@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { Turnstile } from "@/components/Turnstile";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 // Replace with your Cloudflare Turnstile Site Key
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
@@ -14,6 +15,7 @@ export default function RegisterClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const startTrial = searchParams.get("trial") === "true";
+  const { refreshPlan } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -96,11 +98,15 @@ export default function RegisterClient() {
       // Auto-start trial if user came from "Start Trial" CTA
       if (startTrial) {
         try {
-          await fetch("/api/trial/start", {
+          const res = await fetch("/api/trial/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ uid: data.user.id }),
           });
+          if (res.ok) {
+            // Force AuthProvider to re-fetch plan so UI shows Pro trial immediately
+            await refreshPlan();
+          }
         } catch {
           // Silent fail — user can start trial manually from Settings
         }
