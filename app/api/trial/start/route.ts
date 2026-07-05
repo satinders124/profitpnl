@@ -1,67 +1,47 @@
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { createServerClient } from "@/lib/supabase-server";
 
-// Inline constant — avoids importing lib/trial.ts which pulls in
-// client-side Firebase SDK (breaks server-side build without env vars).
 const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
  * POST /api/trial/start
  *
  * Starts a 7-day no-card-required Pro trial for the given user.
- * Each account may only start a trial once (tracked via hasUsedTrial).
+ * Each account may only start a trial once (tracked via has_used_trial).
  *
- * This uses firebase-admin (server-side) to update the user doc directly,
- * granting real Pro access for the trial window.
- *
- * The daily cron job (app/api/cron/trial-expiry) handles:
- * - 24h-before-expiry reminder email
- * - Automatic reversion to Free Plan when trial ends
- *
- * Accepts: { uid }
+ * Accepts: { uid } (from authenticated user)
  * Returns: { ok: true, trialEndsAtMs }
  */
 export async function POST(req: Request) {
   try {
     const { uid } = await req.json();
-
     if (!uid) {
-      return NextResponse.json(
-        { error: "Missing uid" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing uid" }, { status: 400 });
     }
 
-    const adminDb = getAdminDb();
-    const userDoc = await adminDb.collection("users").doc(uid).get();
+    const supabase = createServerClient();
 
-    if (!userDoc.exists) {
-      // Create the user doc if it doesn't exist yet (edge case)
-      const trialEndsAtMs = Date.now() + TRIAL_DURATION_MS;
-      await adminDb.collection("users").doc(uid).set({
-        plan: "Pro Plan",
-        planSource: "trial",
-        trialStartedAt: new Date(),
-        trialEndsAt: new Date(trialEndsAtMs),
-        trialReminderSentAt: null,
-        trialEndedEmailSentAt: null,
-        hasUsedTrial: true,
-      });
-      return NextResponse.json({ ok: true, trialEndsAtMs });
+    // Check current state
+    const { data: profile, error: fetchError } = await supabase
+      .from("profiles")
+      .select("plan, plan_source, has_used_trial")
+      .eq("id", uid)
+      .single();
+
+    if (fetchError || !profile) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const data = userDoc.data();
-
-    // Check if trial was already used
-    if (data?.hasUsedTrial) {
+    // Already used trial
+    if (profile.has_used_trial) {
       return NextResponse.json(
         { error: "Your free trial has already been used on this account." },
         { status: 403 }
       );
     }
 
-    // Check if already Pro (paid)
-    if (data?.plan === "Pro Plan" && data?.planSource === "paid") {
+    // Already Pro (paid)
+    if (profile.plan === "Pro Plan" && profile.plan_source === "paid") {
       return NextResponse.json(
         { error: "You are already on a paid Pro plan." },
         { status: 400 }
@@ -69,16 +49,25 @@ export async function POST(req: Request) {
     }
 
     const trialEndsAtMs = Date.now() + TRIAL_DURATION_MS;
+    const trialEndsAt = new Date(trialEndsAtMs).toISOString();
 
-    await adminDb.collection("users").doc(uid).update({
-      plan: "Pro Plan",
-      planSource: "trial",
-      trialStartedAt: new Date(),
-      trialEndsAt: new Date(trialEndsAtMs),
-      trialReminderSentAt: null,
-      trialEndedEmailSentAt: null,
-      hasUsedTrial: true,
-    });
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        plan: "Pro Plan",
+        plan_source: "trial",
+        trial_started_at: new Date().toISOString(),
+        trial_ends_at: trialEndsAt,
+        trial_reminder_sent_at: null,
+        trial_ended_email_sent_at: null,
+        has_used_trial: true,
+      })
+      .eq("id", uid);
+
+    if (updateError) {
+      console.error("Trial start update error:", updateError);
+      return NextResponse.json({ error: "Failed to start trial" }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true, trialEndsAtMs });
   } catch (error) {

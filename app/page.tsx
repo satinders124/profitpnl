@@ -18,14 +18,7 @@ import {
   animate,
 } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { auth } from "@/lib/firebase-client";
-import {
-  browserLocalPersistence,
-  browserSessionPersistence,
-  setPersistence,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
-import { getTrialEligibility } from "@/lib/trial";
+import { createClient } from "@/lib/supabase-client";
 import { TrialOfferModal } from "@/components/trial/TrialOfferModal";
 
 /* =====================================================================
@@ -83,12 +76,17 @@ function LoginDropdown({
     setLoading(true);
 
     try {
-      await setPersistence(
-        auth,
-        rememberMe ? browserLocalPersistence : browserSessionPersistence
-      );
+      const supabase = createClient();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      const cred = await signInWithEmailAndPassword(auth, email, password);
+      if (authError || !data.user) {
+        setError("Incorrect email or password.");
+        setLoading(false);
+        return;
+      }
 
       try {
         if (rememberMe) {
@@ -101,18 +99,6 @@ function LoginDropdown({
       }
 
       onLoggedIn?.();
-
-      // Offer the 7-day trial once, before routing in, if eligible.
-      try {
-        const eligibility = await getTrialEligibility(cred.user.uid);
-        if (eligibility.eligible) {
-          setTrialOfferUid(cred.user.uid);
-          return;
-        }
-      } catch {
-        // If the eligibility check fails for any reason, don't block login.
-      }
-
       router.push("/dashboard");
     } catch {
       setError("Incorrect email or password.");

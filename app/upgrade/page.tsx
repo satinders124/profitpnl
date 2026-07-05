@@ -34,7 +34,7 @@ export default function UpgradePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          uid: user.uid,
+          uid: user.id,
           email: user.email,
           billing: planType,
         }),

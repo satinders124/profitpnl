@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { getJournals, saveJournal, deleteJournal } from "@/lib/firestore";
+import { getJournals, saveJournal, deleteJournal } from "@/lib/db";
 import { 
   Brain, 
   Plus, 
@@ -41,7 +41,7 @@ export default function PsychologyPage() {
   useEffect(() => {
     async function loadJournals() {
       if (!user) return;
-      const data = await getJournals(user.uid);
+      const data = await getJournals(user.id);
       setEntries(data);
       setLoading(false);
     }
@@ -55,10 +55,10 @@ export default function PsychologyPage() {
       date: new Date().toISOString(),
       content,
       mood: selectedMood,
-      uid: user?.uid,
+      uid: user?.id,
     };
 
-    await saveJournal(user!.uid, newEntry);
+    await saveJournal(user!.id, newEntry);
     setEntries([newEntry, ...entries]);
     setContent("");
     setSelectedMood("neutral");
@@ -67,7 +67,7 @@ export default function PsychologyPage() {
 
   async function handleDelete(id: string) {
     if (confirm("Delete this reflection?")) {
-      await deleteJournal(user!.uid, id);
+      await deleteJournal(user!.id, id);
       setEntries(entries.filter(e => e.id !== id));
     }
   }

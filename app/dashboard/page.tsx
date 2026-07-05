@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import { TradeForm } from "@/components/trades/TradeForm";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { getAccounts, getPlaybook, getTrades } from "@/lib/firestore";
+import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
 import {
   calcStats,
   directionStats,
@@ -51,7 +51,7 @@ type TimeRange = "all" | "7d" | "30d" | "90d";
 type PnlViewMode = "r" | "dollar";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, displayName } = useAuth();
 
   const [trades, setTrades] = useState<Trade[]>([]);
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
@@ -71,9 +71,9 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       const [tradeRows, accountRows, playbookRows] = await Promise.all([
-        getTrades(user.uid),
-        getAccounts(user.uid),
-        getPlaybook(user.uid),
+        getTrades(user.id),
+        getAccounts(user.id),
+        getPlaybook(user.id),
       ]);
 
       setTrades(tradeRows);
@@ -169,7 +169,7 @@ export default function DashboardPage() {
   return (
     <AppShell
       title="Overview"
-      subtitle={`Welcome back${user?.displayName ? `, ${user.displayName}` : ""}`}
+      subtitle={`Welcome back${displayName ? `, ${displayName}` : ""}`}
       actionLabel="+ Log New Trade"
       onAction={() => setTradeModalOpen(true)}
     >
@@ -181,7 +181,7 @@ export default function DashboardPage() {
           title="Log Trade Execution"
         >
           <TradeForm
-            uid={user.uid}
+            uid={user.id}
             accounts={accounts}
             playbook={playbook}
             strategiesFromTrades={strategyNames}

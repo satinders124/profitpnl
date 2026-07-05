@@ -12,7 +12,7 @@ import {
   savePlaybookSetup,
   deletePlaybookSetup,
   getTrades,
-} from "@/lib/firestore";
+} from "@/lib/db";
 import { PlaybookSetup } from "@/types/playbook";
 import { Trade } from "@/types/trade";
 import {
@@ -1017,8 +1017,8 @@ export default function PlaybookPage() {
 
     try {
       const [playbookData, tradeData] = await Promise.all([
-        getPlaybook(user.uid),
-        getTrades(user.uid),
+        getPlaybook(user.id),
+        getTrades(user.id),
       ]);
 
       setSetups(playbookData as PlaybookSetup[]);
@@ -1124,7 +1124,7 @@ export default function PlaybookPage() {
   async function handleSave(setup: Partial<PlaybookSetup>) {
     if (!user) return;
 
-    await savePlaybookSetup(user.uid, setup as PlaybookSetup);
+    await savePlaybookSetup(user.id, setup as PlaybookSetup);
 
     setModalOpen(false);
     setEditingSetup(null);
@@ -1141,7 +1141,7 @@ export default function PlaybookPage() {
 
     if (!confirmed) return;
 
-    await deletePlaybookSetup(user.uid, setup.id);
+    await deletePlaybookSetup(user.id, setup.id);
     await loadData();
   }
 

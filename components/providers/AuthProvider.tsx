@@ -1,16 +1,16 @@
 "use client";
 
-import { User, onAuthStateChanged, signOut } from "firebase/auth";
-import { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
-import { auth, db } from "@/lib/firebase-client";
-import { doc, getDoc } from "firebase/firestore";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { createClient } from "@/lib/supabase-client";
+import type { User } from "@supabase/supabase-js";
 
 type AuthContextValue = {
   user: User | null;
-  plan: string;              // "Free Plan" or "Pro Plan"
-  planSource: string;         // "free" | "trial" | "paid" | ""
+  plan: string;
+  planSource: string;
   trialEndsAtMs: number | null;
   hasUsedTrial: boolean;
+  displayName: string;
   loading: boolean;
   logout: () => Promise<void>;
   refreshPlan: () => Promise<void>;
@@ -22,81 +22,83 @@ const AuthContext = createContext<AuthContextValue>({
   planSource: "",
   trialEndsAtMs: null,
   hasUsedTrial: false,
+  displayName: "",
   loading: true,
   logout: async () => {},
   refreshPlan: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [plan, setPlan] = useState("Free Plan");
   const [planSource, setPlanSource] = useState("");
   const [trialEndsAtMs, setTrialEndsAtMs] = useState<number | null>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(true);
 
-  /**
-   * Fetches the user's subscription fields from Firestore and updates state.
-   * Called on login and can be called manually (e.g. after starting a trial
-   * or completing a Stripe checkout) so the UI reflects the new plan
-   * without requiring a full page reload.
-   */
   const fetchPlanData = useCallback(async (uid: string) => {
     try {
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setPlan(data.plan || "Free Plan");
-        setPlanSource(data.planSource || "");
-        setHasUsedTrial(!!data.hasUsedTrial);
+      const { data } = await supabase
+        .from("profiles")
+        .select("plan, plan_source, trial_ends_at, has_used_trial, display_name")
+        .eq("id", uid)
+        .single();
 
-        // trialEndsAt is a Firestore Timestamp — extract milliseconds
-        const trialTs = data.trialEndsAt;
-        if (trialTs && typeof trialTs.toMillis === "function") {
-          setTrialEndsAtMs(trialTs.toMillis());
-        } else if (typeof trialTs === "number") {
-          setTrialEndsAtMs(trialTs);
+      if (data) {
+        setPlan(data.plan || "Free Plan");
+        setPlanSource(data.plan_source || "");
+        setHasUsedTrial(!!data.has_used_trial);
+        setDisplayName(data.display_name || "");
+
+        if (data.trial_ends_at) {
+          setTrialEndsAtMs(new Date(data.trial_ends_at).getTime());
         } else {
           setTrialEndsAtMs(null);
         }
-      } else {
-        setPlan("Free Plan");
-        setPlanSource("");
-        setTrialEndsAtMs(null);
-        setHasUsedTrial(false);
       }
     } catch (error) {
       console.error("Error fetching plan:", error);
-      setPlan("Free Plan");
-      setPlanSource("");
-      setTrialEndsAtMs(null);
-      setHasUsedTrial(false);
     }
-  }, []);
+  }, [supabase]);
 
   const refreshPlan = useCallback(async () => {
     if (user) {
-      await fetchPlanData(user.uid);
+      await fetchPlanData(user.id);
     }
   }, [user, fetchPlanData]);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        await fetchPlanData(firebaseUser.uid);
-      } else {
-        setUser(null);
-        setPlan("Free Plan");
-        setPlanSource("");
-        setTrialEndsAtMs(null);
-        setHasUsedTrial(false);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        fetchPlanData(session.user.id);
       }
       setLoading(false);
     });
 
-    return () => unsub();
-  }, [fetchPlanData]);
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          setUser(session.user);
+          fetchPlanData(session.user.id);
+        } else {
+          setUser(null);
+          setPlan("Free Plan");
+          setPlanSource("");
+          setTrialEndsAtMs(null);
+          setHasUsedTrial(false);
+          setDisplayName("");
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [supabase, fetchPlanData]);
 
   const value = useMemo(
     () => ({
@@ -105,13 +107,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       planSource,
       trialEndsAtMs,
       hasUsedTrial,
+      displayName,
       loading,
       logout: async () => {
-        await signOut(auth);
+        await supabase.auth.signOut();
       },
       refreshPlan,
     }),
-    [user, plan, planSource, trialEndsAtMs, hasUsedTrial, loading, refreshPlan]
+    [user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName, loading, refreshPlan, supabase]
   );
 
   return (

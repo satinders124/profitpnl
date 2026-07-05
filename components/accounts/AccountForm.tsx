@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { saveAccount, getAccounts } from "@/lib/firestore";
+import { saveAccount, getAccounts } from "@/lib/db";
 import { TradingAccount } from "@/types/account";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Wallet, Target, ShieldAlert, FileText, Globe, TrendingUp } from "lucide-react";

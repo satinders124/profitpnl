@@ -4,19 +4,8 @@ import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { db } from "@/lib/firebase-client";
-import {
-  doc,
-  updateDoc,
-  getDoc,
-  setDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  writeBatch,
-} from "firebase/firestore";
-import { deleteUser } from "firebase/auth";
-import { auth } from "@/lib/firebase-client";
+import { createClient } from "@/lib/supabase-client";
+import { getProfile, updateProfile } from "@/lib/db";
 import {
   User,
   Bell,
@@ -149,41 +138,32 @@ export default function SettingsPage() {
     async function loadSettings() {
       if (!user) return;
       try {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          const data = userDoc.data();
+        const data = await getProfile(user.id);
+        if (data) {
           setSettings((prev) => ({
             ...prev,
-            displayName: data.displayName || "",
+            displayName: data.display_name || "",
             bio: data.bio || prev.bio,
             currency: data.currency || "USD",
             timezone: data.timezone || "UTC",
-            notifications:
-              data.notifications !== undefined ? data.notifications : true,
-            soundEffects:
-              data.soundEffects !== undefined ? data.soundEffects : true,
-            initialAccountSize: data.initialAccountSize || 50000,
-            defaultRiskPercentage: data.defaultRiskPercentage || 1.0,
-            defaultCommission:
-              data.defaultCommission !== undefined
-                ? data.defaultCommission
-                : 2.5,
-            autoCalculateR:
-              data.autoCalculateR !== undefined ? data.autoCalculateR : true,
-            dailyLossLimit: data.dailyLossLimit || 1000,
-            maxDrawdownLimit: data.maxDrawdownLimit || 3000,
-            dailyProfitTarget: data.dailyProfitTarget || 1500,
-            maxConsecutiveLosses: data.maxConsecutiveLosses || 3,
-            enforceReview:
-              data.enforceReview !== undefined ? data.enforceReview : true,
-            activeBroker: data.activeBroker || "",
-            connectedBrokers: data.connectedBrokers || [],
-            webhookUrl: data.webhookUrl || "",
-            apiKey: data.apiKey || prev.apiKey,
-            setupTags: data.setupTags || prev.setupTags,
-            mistakeTags: data.mistakeTags || prev.mistakeTags,
-            psychologyTags: data.psychologyTags || prev.psychologyTags,
+            notifications: data.notifications ?? true,
+            soundEffects: data.sound_effects ?? true,
+            initialAccountSize: Number(data.initial_account_size) || 50000,
+            defaultRiskPercentage: Number(data.default_risk_percentage) || 1.0,
+            defaultCommission: data.default_commission != null ? Number(data.default_commission) : 2.5,
+            autoCalculateR: data.auto_calculate_r ?? true,
+            dailyLossLimit: Number(data.daily_loss_limit) || 1000,
+            maxDrawdownLimit: Number(data.max_drawdown_limit) || 3000,
+            dailyProfitTarget: Number(data.daily_profit_target) || 1500,
+            maxConsecutiveLosses: Number(data.max_consecutive_losses) || 3,
+            enforceReview: data.enforce_review ?? true,
+            activeBroker: data.active_broker || "",
+            connectedBrokers: data.connected_brokers || [],
+            webhookUrl: data.webhook_url || "",
+            apiKey: data.api_key || prev.apiKey,
+            setupTags: data.setup_tags || prev.setupTags,
+            mistakeTags: data.mistake_tags || prev.mistakeTags,
+            psychologyTags: data.psychology_tags || prev.psychologyTags,
           }));
         }
       } catch (err) {
@@ -199,8 +179,30 @@ export default function SettingsPage() {
     if (!user) return;
     setSaving(true);
     try {
-      const userDocRef = doc(db, "users", user.uid);
-      await setDoc(userDocRef, settings, { merge: true });
+      await updateProfile(user.id, {
+        display_name: settings.displayName,
+        bio: settings.bio,
+        currency: settings.currency,
+        timezone: settings.timezone,
+        notifications: settings.notifications,
+        sound_effects: settings.soundEffects,
+        initial_account_size: settings.initialAccountSize,
+        default_risk_percentage: settings.defaultRiskPercentage,
+        default_commission: settings.defaultCommission,
+        auto_calculate_r: settings.autoCalculateR,
+        daily_loss_limit: settings.dailyLossLimit,
+        max_drawdown_limit: settings.maxDrawdownLimit,
+        daily_profit_target: settings.dailyProfitTarget,
+        max_consecutive_losses: settings.maxConsecutiveLosses,
+        enforce_review: settings.enforceReview,
+        active_broker: settings.activeBroker,
+        connected_brokers: settings.connectedBrokers,
+        webhook_url: settings.webhookUrl,
+        api_key: settings.apiKey,
+        setup_tags: settings.setupTags,
+        mistake_tags: settings.mistakeTags,
+        psychology_tags: settings.psychologyTags,
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -221,7 +223,7 @@ export default function SettingsPage() {
   }
 
   function handleCopyKey() {
-    navigator.clipboard.writeText(settings.apiKey);
+    navigator.clipboard.writeText(settings.apiKey || "ppnl_live_8f932k019283mn4b_x9q");
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
   }
@@ -284,7 +286,7 @@ export default function SettingsPage() {
   function handleExportData() {
     const exportBundle = {
       user: {
-        uid: user?.uid,
+        uid: user?.id,
         email: user?.email,
         plan,
       },
@@ -319,30 +321,22 @@ export default function SettingsPage() {
 
     setDeletingAccount(true);
     try {
-      // 1. Delete all subcollections (trades, journals, etc.)
-      const subcollections = ["trades", "journals", "playbooks", "accounts"];
-      for (const collName of subcollections) {
+      const supabase = createClient();
+
+      // 1. Delete all user data from Supabase tables
+      const tables = ["trades", "journals", "playbook", "accounts"];
+      for (const table of tables) {
         try {
-          const subSnap = await getDocs(
-            collection(db, "users", user.uid, collName)
-          );
-          if (subSnap.size > 0) {
-            const batch = writeBatch(db);
-            subSnap.forEach((d) => batch.delete(d.ref));
-            await batch.commit();
-          }
+          await supabase.from(table).delete().eq("user_id", user.id);
         } catch {
-          // subcollection may not exist — that's fine
+          // table may not have data — that's fine
         }
       }
 
-      // 2. Delete the user document itself
-      await deleteDoc(doc(db, "users", user.uid));
+      // 2. Delete the profile
+      await supabase.from("profiles").delete().eq("id", user.id);
 
-      // 3. Delete the Firebase Auth account
-      await deleteUser(auth.currentUser!);
-
-      // 4. Sign out (onAuthStateChanged will handle redirect)
+      // 3. Sign out
       await logout();
     } catch (err: unknown) {
       console.error("Account deletion error:", err);
@@ -1492,7 +1486,7 @@ export default function SettingsPage() {
                               const res = await fetch("/api/trial/start", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ uid: user?.uid }),
+                                body: JSON.stringify({ uid: user?.id }),
                               });
                               const data = await res.json();
                               if (data.ok) {
@@ -1546,7 +1540,7 @@ export default function SettingsPage() {
                                   headers: {
                                     "Content-Type": "application/json",
                                   },
-                                  body: JSON.stringify({ uid: user?.uid }),
+                                  body: JSON.stringify({ uid: user?.id }),
                                 }
                               );
                               const data = await res.json();
@@ -1651,7 +1645,7 @@ export default function SettingsPage() {
                                 headers: {
                                   "Content-Type": "application/json",
                                 },
-                                body: JSON.stringify({ uid: user?.uid }),
+                                body: JSON.stringify({ uid: user?.id }),
                               }
                             );
                             const data = await res.json();

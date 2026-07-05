@@ -7,7 +7,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { Card } from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import { AccountForm } from "@/components/accounts/AccountForm";
-import { deleteAccount, getAccounts, getTrades } from "@/lib/firestore";
+import { deleteAccount, getAccounts, getTrades } from "@/lib/db";
 import { TradingAccount } from "@/types/account";
 import { Trade } from "@/types/trade";
 import {
@@ -244,8 +244,8 @@ export default function AccountsPage() {
     setLoading(true);
     try {
       const [accountRows, tradeRows] = await Promise.all([
-        getAccounts(user.uid),
-        getTrades(user.uid),
+        getAccounts(user.id),
+        getTrades(user.id),
       ]);
       setAccounts(accountRows);
       setTrades(tradeRows);
@@ -273,7 +273,7 @@ export default function AccountsPage() {
   async function handleDelete(id: string) {
     if (!user) return;
     if (!confirm("Delete this account?")) return;
-    await deleteAccount(user.uid, id);
+    await deleteAccount(user.id, id);
     await load();
   }
 
@@ -352,7 +352,7 @@ export default function AccountsPage() {
       {formOpen && user && (
         <Modal title={editing ? "Edit Account" : "Add Account"} onClose={() => setFormOpen(false)}>
           <AccountForm
-            uid={user.uid}
+            uid={user.id}
             existing={editing}
             onCancel={() => setFormOpen(false)}
             onSaved={async () => {

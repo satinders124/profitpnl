@@ -294,7 +294,7 @@ export default function AiCoachPage() {
           <main> padding (px-4 py-6 pb-24 lg:px-8 lg:py-8 lg:pb-12) so the
           chat reaches every edge. h-full (not a guessed vh calc) fills
           exactly the space <main> already has as a flex-1 item. */}
-      <div className="-mx-4 -mt-6 -mb-24 flex h-full flex-col bg-[#08080C] lg:-mx-8 lg:-mt-8 lg:-mb-12">
+      <div className="-mx-4 -mt-6 -mb-24 flex h-[calc(100%+120px)] flex-col bg-[#08080C] lg:-mx-8 lg:-mt-8 lg:-mb-12 lg:h-[calc(100%+80px)]">
         {messages.length > 0 && (
           <div className="flex shrink-0 items-center justify-end gap-2 border-b border-[#1E1E38] bg-[#0D0D1A]/60 px-4 py-2.5 backdrop-blur-md">
             <button
@@ -496,7 +496,7 @@ export default function AiCoachPage() {
           </AnimatePresence>
         </div>
 
-        <div className="shrink-0 border-t border-[#1E1E38] bg-[#0D0D1A]/70 px-4 py-4 backdrop-blur-md sm:px-6 lg:px-10">
+        <div className="shrink-0 border-t border-[#1E1E38] bg-[#0D0D1A]/70 px-4 pt-3 pb-0 backdrop-blur-md sm:px-6 lg:px-10">
           <form onSubmit={handleSend} className="relative mx-auto max-w-3xl">
             <textarea
               ref={textareaRef}
@@ -505,13 +505,13 @@ export default function AiCoachPage() {
               onKeyDown={handleKeyDown}
               placeholder="Describe a trade, an emotion, or a rule-break..."
               rows={1}
-              className="w-full resize-none rounded-2xl border border-[#1E1E38] bg-[#111120] py-3.5 pl-5 pr-14 text-sm leading-relaxed text-[#F0F0FF] shadow-inner outline-none transition-all placeholder:text-[#5A5A80] focus:border-[#F0B429] focus:ring-1 focus:ring-[#F0B429]"
+              className="w-full resize-none rounded-2xl border border-[#1E1E38] bg-[#111120] py-3 pl-5 pr-14 text-sm leading-relaxed text-[#F0F0FF] shadow-inner outline-none transition-all placeholder:text-[#5A5A80] focus:border-[#F0B429] focus:ring-1 focus:ring-[#F0B429]"
               style={{ maxHeight: 160 }}
             />
             <button
               type="submit"
               disabled={busy || !input.trim()}
-              className="absolute right-2 bottom-2 flex h-9 w-9 items-center justify-center rounded-xl gold-gradient text-[#080810] transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+              className="absolute right-2 bottom-1.5 flex h-9 w-9 items-center justify-center rounded-xl gold-gradient text-[#080810] transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
             >
               {busy ? (
                 <span className="h-4 w-4 rounded-full border-2 border-[#080810]/30 border-t-[#080810] animate-spin" />
@@ -520,7 +520,7 @@ export default function AiCoachPage() {
               )}
             </button>
           </form>
-          <p className="mx-auto mt-2 max-w-3xl text-center text-[10px] text-[#5A5A80]">
+          <p className="mx-auto mt-1 mb-1 max-w-3xl text-center text-[10px] text-[#5A5A80]">
             Press <span className="font-bold text-[#8080A0]">Enter</span> to send,{" "}
             <span className="font-bold text-[#8080A0]">Shift + Enter</span> for a new line.
           </p>

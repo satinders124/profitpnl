@@ -10,7 +10,7 @@ import {
   getAccounts,
   getPlaybook,
   getTrades,
-} from "@/lib/firestore";
+} from "@/lib/db";
 import {
   calcStats,
   formatPct,
@@ -59,9 +59,9 @@ export default function TradesPage() {
 
     try {
       const [tradeRows, accountRows, playbookRows] = await Promise.all([
-        getTrades(user.uid),
-        getAccounts(user.uid),
-        getPlaybook(user.uid),
+        getTrades(user.id),
+        getAccounts(user.id),
+        getPlaybook(user.id),
       ]);
 
       setTrades(tradeRows);
@@ -173,7 +173,7 @@ export default function TradesPage() {
     if (!user) return;
     if (!confirm("Delete this trade? This cannot be undone.")) return;
 
-    await deleteTrade(user.uid, tradeId);
+    await deleteTrade(user.id, tradeId);
     await load();
   }
 
@@ -399,7 +399,7 @@ export default function TradesPage() {
           onClose={() => setFormOpen(false)}
         >
           <TradeForm
-            uid={user.uid}
+            uid={user.id}
             existing={modalTrade}
             accounts={accounts}
             playbook={playbook}

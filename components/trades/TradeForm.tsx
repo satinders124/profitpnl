@@ -1,6 +1,6 @@
 "use client";
 
-import { saveTrade } from "@/lib/firestore";
+import { saveTrade } from "@/lib/db";
 import { TradingAccount } from "@/types/account";
 import { PlaybookSetup } from "@/types/playbook";
 import { Trade } from "@/types/trade";

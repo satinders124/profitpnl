@@ -1,5 +1,4 @@
-import { doc, getDoc, serverTimestamp, Timestamp, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase-client";
+import { createServerClient } from "@/lib/supabase-server";
 
 export const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export const TRIAL_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours before expiry
@@ -7,23 +6,21 @@ export const TRIAL_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours before 
 export type TrialUserRecord = {
   plan?: string;
   planSource?: string;
-  trialEndsAtMs?: number; // trialEndsAt.toMillis()
-  trialReminderSentAt?: unknown; // any truthy value means "already sent"
+  trialEndsAtMs?: number;
+  trialReminderSentAt?: unknown;
   trialEndedEmailSentAt?: unknown;
 };
 
 export type TrialCronAction =
-  | { type: "skip" } // not an active trial user, nothing to do
-  | { type: "revert_and_email"; alreadyEmailed: false } // expired, first time -> update plan + send email
-  | { type: "revert_only" } // expired, email already sent previously (repair-only pass)
-  | { type: "remind" } // within reminder window, not yet reminded
-  | { type: "wait" }; // active trial, not yet due for reminder or expiry
+  | { type: "skip" }
+  | { type: "revert_and_email"; alreadyEmailed: false }
+  | { type: "revert_only" }
+  | { type: "remind" }
+  | { type: "wait" };
 
 /**
- * Pure decision function for the daily trial-expiry cron job — given a
- * user's current trial-related fields and "now", decides exactly one
- * action to take. Kept separate from Firestore/SendGrid I/O so it can be
- * unit tested directly (see scripts/test-trial-expiry-logic.ts).
+ * Pure decision function for the daily trial-expiry cron job.
+ * No database calls — just logic based on the user's trial fields.
  */
 export function decideTrialCronAction(
   user: TrialUserRecord,
@@ -56,27 +53,30 @@ export class TrialAlreadyUsedError extends Error {
 }
 
 export type TrialEligibility = {
-  eligible: boolean; // Free plan, never used a trial before
+  eligible: boolean;
   plan: string;
   hasUsedTrial: boolean;
 };
 
 /**
- * Checks whether a user can start a free trial, without requiring
- * AuthProvider context — safe to call right after login, before the
- * app shell / dashboard have loaded any plan state.
+ * Checks whether a user can start a free trial.
+ * Server-side only (uses service role key).
  */
 export async function getTrialEligibility(uid: string): Promise<TrialEligibility> {
-  const ref = doc(db, "users", uid);
-  const snap = await getDoc(ref);
+  const supabase = createServerClient();
 
-  if (!snap.exists()) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("plan, plan_source, has_used_trial")
+    .eq("id", uid)
+    .single();
+
+  if (error || !data) {
     return { eligible: true, plan: "Free Plan", hasUsedTrial: false };
   }
 
-  const data = snap.data();
   const plan = data.plan || "Free Plan";
-  const hasUsedTrial = !!data.hasUsedTrial;
+  const hasUsedTrial = !!data.has_used_trial;
 
   return {
     eligible: plan === "Free Plan" && !hasUsedTrial,
@@ -87,35 +87,43 @@ export async function getTrialEligibility(uid: string): Promise<TrialEligibility
 
 /**
  * Starts a 7-day, no-card-required Pro trial for the given user.
- * Each account may only start a trial once (tracked via hasUsedTrial).
- *
- * IMPORTANT: this grants real Pro access for the trial window by setting
- * plan: "Pro Plan" (previously this only recorded dates and never actually
- * unlocked anything — a real bug). `planSource: "trial"` is stamped so the
- * daily expiry job (app/api/cron/trial-expiry/route.ts) knows it's safe to
- * automatically revert this specific user back to Free Plan once
- * trialEndsAt passes — it will never touch a user who paid directly
- * (planSource would be "paid"/unset for those).
+ * Server-side only (uses service role key).
  */
 export async function startFreeTrial(uid: string): Promise<number> {
-  const ref = doc(db, "users", uid);
-  const snap = await getDoc(ref);
+  const supabase = createServerClient();
 
-  if (snap.exists() && snap.data().hasUsedTrial) {
+  const { data: profile, error: fetchError } = await supabase
+    .from("profiles")
+    .select("has_used_trial")
+    .eq("id", uid)
+    .single();
+
+  if (fetchError || !profile) {
+    throw new Error("User not found");
+  }
+
+  if (profile.has_used_trial) {
     throw new TrialAlreadyUsedError();
   }
 
   const trialEndsAtMs = Date.now() + TRIAL_DURATION_MS;
 
-  await updateDoc(ref, {
-    plan: "Pro Plan",
-    planSource: "trial",
-    trialStartedAt: serverTimestamp(),
-    trialEndsAt: Timestamp.fromMillis(trialEndsAtMs),
-    trialReminderSentAt: null,
-    trialEndedEmailSentAt: null,
-    hasUsedTrial: true,
-  });
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      plan: "Pro Plan",
+      plan_source: "trial",
+      trial_started_at: new Date().toISOString(),
+      trial_ends_at: new Date(trialEndsAtMs).toISOString(),
+      trial_reminder_sent_at: null,
+      trial_ended_email_sent_at: null,
+      has_used_trial: true,
+    })
+    .eq("id", uid);
+
+  if (updateError) {
+    throw new Error("Failed to start trial: " + updateError.message);
+  }
 
   return trialEndsAtMs;
 }

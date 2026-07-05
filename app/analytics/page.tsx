@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { getAccounts, getPlaybook, getTrades } from "@/lib/firestore";
+import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
 import {
   breakdownBy,
   buildEquityPoints,
@@ -123,9 +123,9 @@ export default function AnalyticsPage() {
 
     try {
       const [tradeData, accountData, playbookData] = await Promise.all([
-        getTrades(user.uid),
-        getAccounts(user.uid),
-        getPlaybook(user.uid),
+        getTrades(user.id),
+        getAccounts(user.id),
+        getPlaybook(user.id),
       ]);
 
       setTrades(tradeData as Trade[]);

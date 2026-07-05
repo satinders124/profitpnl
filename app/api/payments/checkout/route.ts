@@ -1,47 +1,23 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { createServerClient } from "@/lib/supabase-server";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error("STRIPE_NOT_CONFIGURED");
-  }
-  if (!_stripe) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  }
+  if (!process.env.STRIPE_SECRET_KEY) throw new Error("STRIPE_NOT_CONFIGURED");
+  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   return _stripe;
 }
 
-async function getAdminDbSafe() {
-  try {
-    const { getAdminDb } = await import("@/lib/firebase-admin");
-    return getAdminDb();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * POST /api/payments/checkout
- *
- * Creates a Stripe Checkout Session for upgrading to Pro Plan.
- * Accepts: { uid, email, billing: "monthly" | "annual" }
- * Returns: { url } — redirect the user to Stripe Checkout
- * Returns: { error } with 503 if Stripe not configured
- */
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => null);
     const { uid, email, billing } = body || {};
 
     if (!uid || !email || !billing) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Check if Stripe is configured
     if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json(
         { error: "Payments are not available yet. Stripe integration is being set up." },
@@ -49,99 +25,74 @@ export async function POST(req: Request) {
       );
     }
 
-    // Determine price ID based on billing frequency
-    const priceId =
-      billing === "annual"
-        ? process.env.STRIPE_PRICE_ID_ANNUAL
-        : process.env.STRIPE_PRICE_ID_MONTHLY;
+    const priceId = billing === "annual"
+      ? process.env.STRIPE_PRICE_ID_ANNUAL
+      : process.env.STRIPE_PRICE_ID_MONTHLY;
 
     if (!priceId) {
-      const label = billing === "annual" ? "Annual" : "Monthly";
       return NextResponse.json(
-        { error: `${label} plan is not available yet. Please try the other option.` },
+        { error: `${billing === "annual" ? "Annual" : "Monthly"} plan is not available yet.` },
         { status: 503 }
       );
     }
 
     const stripe = getStripe();
+    const supabase = createServerClient();
 
     // Get or create Stripe customer
-    const adminDb = await getAdminDbSafe();
-    let customerId: string | undefined;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("id", uid)
+      .single();
 
-    if (adminDb) {
-      const userDoc = await adminDb.collection("users").doc(uid).get();
-      const savedCustomerId = userDoc.data()?.stripeCustomerId;
+    let customerId = profile?.stripe_customer_id;
 
-      // Validate the saved customer ID still exists in Stripe
-      // (handles test/live mode switches or deleted customers)
-      if (savedCustomerId) {
-        try {
-          await stripe.customers.retrieve(savedCustomerId);
-          customerId = savedCustomerId;
-        } catch {
-          // Stale customer ID — clear it and create a new one
-          customerId = undefined;
-        }
+    if (customerId) {
+      // Validate customer still exists
+      try {
+        await stripe.customers.retrieve(customerId);
+      } catch {
+        customerId = undefined;
       }
+    }
 
-      if (!customerId) {
-        const customer = await stripe.customers.create({
-          email,
-          metadata: { firebaseUID: uid },
-        });
-        customerId = customer.id;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email,
+        metadata: { supabase_uid: uid },
+      });
+      customerId = customer.id;
 
-        // Save customer ID to Firestore (use set with merge in case doc doesn't exist yet)
-        await adminDb.collection("users").doc(uid).set(
-          { stripeCustomerId: customerId },
-          { merge: true }
-        );
-      }
+      await supabase
+        .from("profiles")
+        .update({ stripe_customer_id: customerId })
+        .eq("id", uid);
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://profitpnl.com";
 
-    // Create Checkout Session
     const session = await stripe.checkout.sessions.create({
-      ...(customerId ? { customer: customerId } : { customer_email: email }),
+      customer: customerId,
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
       success_url: `${appUrl}/settings?upgrade=success`,
       cancel_url: `${appUrl}/upgrade?upgrade=cancelled`,
-      metadata: {
-        firebaseUID: uid,
-      },
-      subscription_data: {
-        metadata: {
-          firebaseUID: uid,
-        },
-      },
+      metadata: { supabase_uid: uid },
+      subscription_data: { metadata: { supabase_uid: uid } },
     });
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("Checkout error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-
-    if (
-      message.includes("STRIPE_NOT_CONFIGURED") ||
-      message.includes("api key") ||
-      message.includes("secret")
-    ) {
+    if (message.includes("STRIPE_NOT_CONFIGURED")) {
       return NextResponse.json(
-        { error: "Payments are not available yet. Stripe integration is being set up." },
+        { error: "Payments are not available yet." },
         { status: 503 }
       );
     }
-
-    // Don't leak internal Stripe errors to the user
     return NextResponse.json(
       { error: "Could not start checkout. Please try again or contact support." },
       { status: 500 }

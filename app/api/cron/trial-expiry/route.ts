@@ -1,25 +1,16 @@
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { createServerClient } from "@/lib/supabase-server";
 import sgMail from "@sendgrid/mail";
 import { trialEndedEmailHtml, trialEndingSoonEmailHtml } from "@/lib/email-templates";
-import { decideTrialCronAction } from "@/lib/trial";
 
 export const runtime = "nodejs";
 
+const TRIAL_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours before expiry
+
 /**
- * Daily job (see vercel.json "crons") that:
- *  1. Sends a "trial ends tomorrow" reminder to trial users within 24h of
- *     expiry who haven't been reminded yet.
- *  2. Reverts any trial user whose trialEndsAt has passed back to
- *     "Free Plan" and sends a "trial has ended" email.
- *
- * Only ever touches users with planSource === "trial" — a user who
- * upgraded and paid for real is never modified by this job.
- *
- * Security: Vercel automatically sends the CRON_SECRET env var as a
- * `Authorization: Bearer <CRON_SECRET>` header on every scheduled
- * invocation (see vercel.json). We reject anything else so this route
- * can't be triggered by a random request hitting the URL.
+ * Daily cron job that:
+ *  1. Sends a "trial ends tomorrow" reminder to trial users within 24h of expiry.
+ *  2. Reverts expired trial users back to Free Plan and sends a "trial ended" email.
  */
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -33,64 +24,72 @@ export async function GET(req: Request) {
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
   if (apiKey) sgMail.setApiKey(apiKey);
 
-  const adminDb = getAdminDb();
+  const supabase = createServerClient();
   const now = Date.now();
 
-  // Single equality filter (planSource == "trial") keeps this query index-free;
-  // the small remaining logic (date comparisons, already-sent guards) runs in
-  // memory, which is fine at trial-user volumes.
-  const snap = await adminDb
-    .collection("users")
-    .where("planSource", "==", "trial")
-    .get();
+  // Get all trial users
+  const { data: trialUsers, error } = await supabase
+    .from("profiles")
+    .select("id, email, display_name, plan, plan_source, trial_ends_at, trial_reminder_sent_at, trial_ended_email_sent_at")
+    .eq("plan_source", "trial")
+    .eq("plan", "Pro Plan");
+
+  if (error) {
+    console.error("Cron fetch error:", error);
+    return NextResponse.json({ error: "Failed to fetch trial users" }, { status: 500 });
+  }
 
   let remindersSent = 0;
   let expiredReverted = 0;
   const errors: string[] = [];
 
-  for (const docSnap of snap.docs) {
-    const data = docSnap.data();
-    const uid = docSnap.id;
-    const email: string | undefined = data.email;
-    const name: string = data.name || "there";
-    const trialEndsAtMs: number | undefined = data.trialEndsAt?.toMillis?.();
+  for (const user of trialUsers || []) {
+    const uid = user.id;
+    const email = user.email;
+    const name = user.display_name || "there";
+    const trialEndsAtMs = user.trial_ends_at ? new Date(user.trial_ends_at).getTime() : null;
 
-    const action = decideTrialCronAction(
-      {
-        plan: data.plan,
-        planSource: data.planSource,
-        trialEndsAtMs,
-        trialReminderSentAt: data.trialReminderSentAt,
-        trialEndedEmailSentAt: data.trialEndedEmailSentAt,
-      },
-      now
-    );
+    if (!trialEndsAtMs) continue;
 
-    if (action.type === "skip" || action.type === "wait") continue;
+    const msRemaining = trialEndsAtMs - now;
 
     try {
-      if (action.type === "revert_and_email") {
-        await docSnap.ref.update({
-          plan: "Free Plan",
-          trialEndedEmailSentAt: new Date(),
-        });
-        if (email && apiKey && fromEmail) {
-          await sgMail.send({
-            to: email,
-            from: { email: fromEmail, name: "ProfitPnL" },
-            subject: "Your ProfitPnL Pro trial has ended",
-            text: `Hi ${name},\n\nYour 7-day Pro trial has ended and your account is back on the Free Plan. Nothing was charged. Upgrade any time from the Upgrade page to unlock Pro again.\n\n— The ProfitPnL Team`,
-            html: trialEndedEmailHtml(name),
-          });
+      if (msRemaining <= 0) {
+        // Trial expired
+        if (!user.trial_ended_email_sent_at) {
+          // Revert to Free Plan and send email
+          await supabase
+            .from("profiles")
+            .update({
+              plan: "Free Plan",
+              trial_ended_email_sent_at: new Date().toISOString(),
+            })
+            .eq("id", uid);
+
+          if (email && apiKey && fromEmail) {
+            await sgMail.send({
+              to: email,
+              from: { email: fromEmail, name: "ProfitPnL" },
+              subject: "Your ProfitPnL Pro trial has ended",
+              text: `Hi ${name},\n\nYour 7-day Pro trial has ended and your account is back on the Free Plan. Nothing was charged. Upgrade any time from the Upgrade page to unlock Pro again.\n\n— The ProfitPnL Team`,
+              html: trialEndedEmailHtml(name),
+            });
+          }
+          expiredReverted++;
+        } else {
+          // Already emailed but plan still Pro — repair
+          await supabase
+            .from("profiles")
+            .update({ plan: "Free Plan" })
+            .eq("id", uid);
         }
-        expiredReverted++;
-      } else if (action.type === "revert_only") {
-        // Already emailed previously but plan somehow still says Pro
-        // (e.g. an earlier run's Firestore update failed after email send) —
-        // safe to just fix the plan field without re-emailing.
-        await docSnap.ref.update({ plan: "Free Plan" });
-      } else if (action.type === "remind") {
-        await docSnap.ref.update({ trialReminderSentAt: new Date() });
+      } else if (msRemaining <= TRIAL_REMINDER_WINDOW_MS && !user.trial_reminder_sent_at) {
+        // Trial ending soon — send reminder
+        await supabase
+          .from("profiles")
+          .update({ trial_reminder_sent_at: new Date().toISOString() })
+          .eq("id", uid);
+
         if (email && apiKey && fromEmail) {
           await sgMail.send({
             to: email,
@@ -109,7 +108,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    checked: snap.size,
+    checked: trialUsers?.length || 0,
     remindersSent,
     expiredReverted,
     errors,
