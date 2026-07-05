@@ -159,6 +159,12 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - Added animated loading spinners (`<Loader2 className="animate-spin" />`) and disabled button states while starting trials or fetching Stripe Customer Portal sessions.
 - Configured Stripe Customer Portal (`openBillingPortal`) and Stripe Checkout URLs (`/upgrade`) to launch in a new browser tab (`window.open(url, "_blank", "noopener,noreferrer")`), keeping the user's dashboard and settings active in the background.
 
+### 22. ⚡ UX FIXED: Unclickable Sign In / Login Buttons After Error or Password Reset
+**Files:** `app/login/LoginClient.tsx`, `app/page.tsx`, `app/register/RegisterClient.tsx`, `app/forgot-password/page.tsx`
+**Problem:** All authentication forms disabled the submit button whenever `TURNSTILE_SITE_KEY && !captchaToken`. If CAPTCHA expired, took time to verify, or after returning from a password reset, the submit button became frozen (`disabled={true}`), preventing the user from signing in.
+
+**Fix:** Removed the `!captchaToken` disable lock across all authentication forms (`disabled={loading}`). Now the submit button is always clickable while typing credentials. If CAPTCHA verification isn't ready when submitted, a clear message is displayed directly on the screen rather than mysteriously locking the button.
+
 ## Files Changed
 
 | File | Change |
@@ -193,6 +199,10 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `components/loader/Loader.tsx` | Added `object-contain aspect-square` to logo tile |
 | `app/settings/page.tsx` | Added animated loading spinners on subscription buttons and opened billing portal in a new tab |
 | `app/upgrade/page.tsx` | Configured Stripe Checkout URLs to launch in a new browser tab |
+| `app/login/LoginClient.tsx` | Removed unclickable button CAPTCHA lock |
+| `app/page.tsx` | Removed unclickable button CAPTCHA lock on landing page login dropdown |
+| `app/register/RegisterClient.tsx` | Removed unclickable button CAPTCHA lock |
+| `app/forgot-password/page.tsx` | Removed unclickable button CAPTCHA lock |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result

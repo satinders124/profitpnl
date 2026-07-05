@@ -206,7 +206,7 @@ export default function LoginClient() {
 
               <button
                 type="submit"
-                disabled={loading || (TURNSTILE_SITE_KEY ? !captchaToken : false)}
+                disabled={loading}
                 className="w-full py-3 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] text-black font-bold text-sm transition-colors disabled:opacity-50"
               >
                 {loading ? "Sending code..." : "Send Login Code"}
@@ -274,7 +274,7 @@ export default function LoginClient() {
 
               <button
                 type="submit"
-                disabled={loading || (TURNSTILE_SITE_KEY ? !captchaToken : false)}
+                disabled={loading}
                 className="w-full py-3 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] text-black font-bold text-sm transition-colors disabled:opacity-50"
               >
                 {loading ? "Signing in..." : "Sign In"}

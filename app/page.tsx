@@ -227,7 +227,7 @@ function LoginDropdown({
 
               <button
                 type="submit"
-                disabled={loading || (TURNSTILE_SITE_KEY ? !captchaToken : false)}
+                disabled={loading}
                 className="gold-gradient w-full rounded-lg py-2.5 text-sm font-bold text-ink disabled:opacity-50"
               >
                 {loading ? "Logging in..." : "Login"}
