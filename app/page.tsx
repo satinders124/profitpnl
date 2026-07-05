@@ -1846,10 +1846,11 @@ const footerCols = [
   {
     h: "Company",
     items: [
-      { label: "About", href: "#" },
-      { label: "Contact", href: "#" },
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms", href: "/terms" },
+      { label: "Risk Disclaimer", href: "/risk-disclaimer" },
     ],
   },
 ];

@@ -4,7 +4,16 @@ const COOKIE_NAME = "ppnl_bypass";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 // Paths that should always be reachable, even in Coming Soon mode.
-const ALLOWED_PATHS = ["/coming-soon"];
+const ALLOWED_PATHS = [
+  "/coming-soon",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+  "/risk-disclaimer",
+  "/cookie-policy",
+  "/refund-policy",
+];
 const ALLOWED_PREFIXES = ["/tools", "/cert"];
 
 export function proxy(req: NextRequest) {

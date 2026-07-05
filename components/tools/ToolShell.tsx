@@ -128,6 +128,12 @@ export function ToolShell({
           <p className="font-mono2 text-xs text-dim">
             © {new Date().getFullYear()} ProfitPnL. Educational tools only — not financial advice. Trading involves risk.
           </p>
+          <div className="mt-3 flex flex-wrap justify-center gap-3 text-xs text-dim">
+            <Link href="/privacy" className="hover:text-gold">Privacy</Link>
+            <Link href="/terms" className="hover:text-gold">Terms</Link>
+            <Link href="/risk-disclaimer" className="hover:text-gold">Risk Disclaimer</Link>
+            <Link href="/contact" className="hover:text-gold">Contact</Link>
+          </div>
         </div>
       </footer>
     </div>
