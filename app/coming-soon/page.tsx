@@ -617,19 +617,12 @@ function Letters({ text, base = 0, className = "" }: { text: string; base?: numb
 function Logo() {
   return (
     <div className="flex items-center gap-3">
-      <div
-        className="btn-gold-glow flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-gold to-gold2"
+      <img
+        src="/logo.png"
+        alt="ProfitPnL"
+        className="h-11 w-auto"
         style={{ animation: "logoBeat 3.5s ease-in-out infinite" }}
-      >
-        <svg className="h-6 w-6 text-bg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 17l5-5 4 4 8-8" />
-          <path d="M16 8h4v4" />
-        </svg>
-      </div>
-      <span className="text-2xl font-extrabold tracking-tight">
-        <span className="text-text">Profit</span>
-        <span className="text-gold">PnL</span>
-      </span>
+      />
     </div>
   );
 }

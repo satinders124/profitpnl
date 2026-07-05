@@ -122,9 +122,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="text-center">
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F0B429] to-[#c8961e] text-black font-black text-xl shadow-lg shadow-[#F0B429]/20 mb-4">
-            P
-          </div>
+          <img
+            src="/favicon.png"
+            alt="ProfitPnL"
+            className="h-14 w-14 rounded-2xl shadow-lg shadow-[#F0B429]/20 mb-4"
+          />
           <h1 className="text-2xl font-black text-white">Welcome Back</h1>
           <p className="text-zinc-500 text-sm mt-1">Sign in to your trading journal</p>
         </div>

@@ -127,9 +127,11 @@ export function Sidebar() {
         href="/dashboard"
         className="flex items-center gap-3 border-b border-[#1F1F2C] px-5 py-4 hover:bg-[#12121A] transition-colors"
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#181824] border border-[#282838] text-sm font-bold text-[#F0B429] shadow-sm">
-          P
-        </div>
+        <img
+          src="/favicon.png"
+          alt="ProfitPnL"
+          className="h-9 w-9 rounded-lg shadow-sm"
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-base font-semibold tracking-tight text-white">

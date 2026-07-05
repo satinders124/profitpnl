@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: "ProfitPnL — AI Trading Journal",
   description:
     "Professional AI-powered trading journal for serious prop traders.",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

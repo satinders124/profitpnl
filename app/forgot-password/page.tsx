@@ -37,9 +37,11 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-[#080810] flex items-center justify-center p-6">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F0B429] to-[#c8961e] text-black font-black text-xl shadow-lg shadow-[#F0B429]/20 mb-4">
-            P
-          </div>
+          <img
+            src="/favicon.png"
+            alt="ProfitPnL"
+            className="h-14 w-14 rounded-2xl shadow-lg shadow-[#F0B429]/20 mb-4"
+          />
           <h1 className="text-2xl font-black text-white">Reset Password</h1>
           <p className="text-zinc-500 text-sm mt-1">
             We&apos;ll send you a link to reset your password

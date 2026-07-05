@@ -240,15 +240,11 @@ function Navbar() {
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         <a href="#" className="group flex items-center gap-2">
-          <div className="gold-gradient relative flex h-9 w-9 items-center justify-center rounded-lg font-black text-ink shadow-[0_0_20px_rgba(240,180,41,0.5)] transition-transform duration-300 group-hover:rotate-12">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M4 19V5m0 14h16" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M7 14l4-4 3 3 6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <span className="text-lg font-bold tracking-tight">
-            Profit<span className="text-gold">PnL</span>
-          </span>
+          <img
+            src="/logo.png"
+            alt="ProfitPnL"
+            className="h-9 w-auto transition-transform duration-300 group-hover:scale-105"
+          />
         </a>
 
         <div className="hidden items-center gap-7 md:flex">
@@ -1651,13 +1647,13 @@ function CTA() {
           className="border-spin rounded-3xl"
         >
           <div className="rounded-3xl bg-panel/95 px-6 py-12 sm:px-12 sm:py-16">
-            <motion.div
+            <motion.img
+              src="/favicon.png"
+              alt="ProfitPnL"
               animate={{ rotate: [0, 8, -8, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="gold-gradient mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-[0_0_45px_rgba(240,180,41,0.5)]"
-            >
-              📓
-            </motion.div>
+              className="mx-auto mb-6 h-16 w-16 rounded-2xl shadow-[0_0_45px_rgba(240,180,41,0.5)]"
+            />
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Your edge is hiding in your <span className="text-shimmer">trade history</span>
             </h2>
@@ -1714,15 +1710,11 @@ function Footer() {
             className="lg:col-span-2"
           >
             <div className="flex items-center gap-2">
-              <div className="gold-gradient flex h-9 w-9 items-center justify-center rounded-lg text-ink shadow-[0_0_20px_rgba(240,180,41,0.5)]">
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M4 19V5m0 14h16" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M7 14l4-4 3 3 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <span className="text-lg font-bold">
-                Profit<span className="text-gold">PnL</span>
-              </span>
+              <img
+                src="/logo.png"
+                alt="ProfitPnL"
+                className="h-9 w-auto"
+              />
             </div>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted2">
               The professional trading journal for serious traders. Log every trade, decode every pattern, and let your AI Coach fix the leaks.

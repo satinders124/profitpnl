@@ -221,23 +221,16 @@ export default function Loader({ onDone }: { onDone?: () => void }) {
           />
         ))}
         {/* beating logo tile */}
-        <div
+        <img
+          src="/favicon.png"
+          alt="ProfitPnL"
           style={{
             width: 64,
             height: 64,
             borderRadius: 16,
-            background: "linear-gradient(135deg, #f0b429, #c8961e)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
             animation: "pnlLogoBeat 2.4s ease-in-out infinite, pnlGlowPulse 2.4s ease-in-out infinite",
           }}
-        >
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#080810" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 17l5-5 4 4 8-8" />
-            <path d="M16 8h4v4" />
-          </svg>
-        </div>
+        />
       </div>
 
       {/* ═══ bouncing candlesticks ═══ */}
