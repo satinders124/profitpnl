@@ -220,7 +220,7 @@ export default function RegisterClient() {
               </button>
               <button
                 type="button"
-                onClick={() => { setStep("form"); setOtp(""); setError(""); setCaptchaToken(null); }}
+                onClick={() => { setStep("form"); setOtp(""); setError(""); }}
                 className="w-full text-zinc-500 text-xs hover:text-zinc-300 transition-colors"
               >
                 ← Back to form

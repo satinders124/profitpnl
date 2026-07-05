@@ -167,6 +167,13 @@ export default function LoginClient() {
               >
                 ← Send a new code
               </button>
+              <button
+                type="button"
+                onClick={() => { setOtpMode(false); setOtpSent(false); setOtp(""); setError(""); }}
+                className="w-full text-zinc-600 text-xs hover:text-zinc-400 transition-colors"
+              >
+                ← Back to password login
+              </button>
             </form>
           ) : otpMode ? (
             /* ═══ OTP MODE: Enter email ═══ */
@@ -207,7 +214,7 @@ export default function LoginClient() {
 
               <button
                 type="button"
-                onClick={() => { setOtpMode(false); setError(""); setCaptchaToken(null); }}
+                onClick={() => { setOtpMode(false); setError(""); }}
                 className="w-full text-zinc-500 text-xs hover:text-zinc-300 transition-colors"
               >
                 ← Back to password login
