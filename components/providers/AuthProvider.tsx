@@ -121,6 +121,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchPlanData, supabase]);
 
   useEffect(() => {
+    // If user landed on homepage or any other page with a Supabase password recovery hash/query, route to /reset-password
+    if (typeof window !== "undefined") {
+      const isRecovery = window.location.hash.includes("type=recovery") || window.location.search.includes("type=recovery");
+      if (isRecovery && window.location.pathname !== "/reset-password") {
+        window.location.href = `/reset-password${window.location.hash || window.location.search}`;
+        return;
+      }
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -132,7 +141,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        if (event === "PASSWORD_RECOVERY" && typeof window !== "undefined" && window.location.pathname !== "/reset-password") {
+          window.location.href = `/reset-password${window.location.hash || window.location.search}`;
+          return;
+        }
         if (session?.user) {
           setUser(session.user);
           fetchPlanData(session.user.id);

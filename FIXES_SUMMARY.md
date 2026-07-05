@@ -117,6 +117,15 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - Implemented automatic model fallback (`claude-3-5-sonnet-20241022` -> `claude-3-5-sonnet-latest` -> `claude-3-haiku-20240307`) to resolve 404 model deprecation/restriction errors seamlessly.
 - Streamed explicit error messages (`[AI Coach Error: ...]`) on failure so issues can be diagnosed instantly.
 
+### 17. 🔴 FIXED: Supabase Password Reset Link Redirecting to Homepage
+**Files:** `app/reset-password/page.tsx` (new), `app/api/auth/forgot-password/route.ts`, `components/providers/AuthProvider.tsx`
+**Problem:** When users clicked a Supabase password reset link, they were redirected to the homepage (`/`) or `/settings` without any UI to enter a new password.
+
+**Fix:**
+- Created a dedicated password update UI at `app/reset-password/page.tsx` allowing users to securely set a new password via `supabase.auth.updateUser({ password })`.
+- Updated `app/api/auth/forgot-password/route.ts` so `resetPasswordForEmail` sets `redirectTo: ${appUrl}/reset-password`.
+- Added an automated recovery interceptor in `AuthProvider.tsx`: if a user lands on the homepage or any other route with `type=recovery` or triggers a `PASSWORD_RECOVERY` event (e.g., due to restrictive Supabase Dashboard redirect rules), they are automatically routed to `/reset-password`.
+
 ## Files Changed
 
 | File | Change |
@@ -142,6 +151,8 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `app/ai-coach/page.tsx` | Added Bearer authorization header to Claude AI API calls |
 | `app/api/payments/verify/route.ts` | Enforced strict JWT authentication and user ownership guards |
 | `app/api/ai/claude/route.ts` | Fixed message role formatting, dynamic system prompt, and API key error reporting |
+| `app/reset-password/page.tsx` | **New** — dedicated password update screen for recovery email links |
+| `app/api/auth/forgot-password/route.ts` | Updated recovery email redirect to point to `/reset-password` |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result
