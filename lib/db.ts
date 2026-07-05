@@ -8,8 +8,8 @@ import { JournalEntry } from "@/types/journal";
 // Profile (user settings)
 // ═══════════════════════════════════════════
 
-export async function getProfile(uid: string) {
-  const supabase = createClient();
+export async function getProfile(uid: string, customClient?: any) {
+  const supabase = customClient || createClient();
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
@@ -69,8 +69,8 @@ export async function updateProfile(uid: string, updates: Record<string, unknown
 // Trades
 // ═══════════════════════════════════════════
 
-export async function getTrades(uid: string): Promise<Trade[]> {
-  const supabase = createClient();
+export async function getTrades(uid: string, customClient?: any): Promise<Trade[]> {
+  const supabase = customClient || createClient();
   const { data, error } = await supabase
     .from("trades")
     .select("*")
@@ -78,7 +78,7 @@ export async function getTrades(uid: string): Promise<Trade[]> {
     .order("date", { ascending: false });
 
   if (error) throw error;
-  return (data || []).map((row) => ({
+  return (data || []).map((row: any) => ({
     id: row.id,
     date: row.date || "",
     time: row.time || "",
@@ -170,8 +170,8 @@ export async function deleteTrade(uid: string, tradeId: string) {
 // Accounts (Trading accounts)
 // ═══════════════════════════════════════════
 
-export async function getAccounts(uid: string): Promise<TradingAccount[]> {
-  const supabase = createClient();
+export async function getAccounts(uid: string, customClient?: any): Promise<TradingAccount[]> {
+  const supabase = customClient || createClient();
   const { data, error } = await supabase
     .from("accounts")
     .select("*")
@@ -179,7 +179,7 @@ export async function getAccounts(uid: string): Promise<TradingAccount[]> {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data || []).map((row) => ({
+  return (data || []).map((row: any) => ({
     id: row.id,
     name: row.name || "",
     firm: row.firm || "",
@@ -248,8 +248,8 @@ export async function deleteAccount(uid: string, accountId: string) {
 // Playbook (Strategy setups)
 // ═══════════════════════════════════════════
 
-export async function getPlaybook(uid: string): Promise<PlaybookSetup[]> {
-  const supabase = createClient();
+export async function getPlaybook(uid: string, customClient?: any): Promise<PlaybookSetup[]> {
+  const supabase = customClient || createClient();
   const { data, error } = await supabase
     .from("playbook")
     .select("*")
@@ -257,7 +257,7 @@ export async function getPlaybook(uid: string): Promise<PlaybookSetup[]> {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data || []).map((row) => ({
+  return (data || []).map((row: any) => ({
     id: row.id,
     name: row.name || "",
     status: row.status || "Active",
@@ -330,8 +330,8 @@ export async function deletePlaybookSetup(uid: string, setupId: string) {
 // Journals (Psychology journal)
 // ═══════════════════════════════════════════
 
-export async function getJournals(uid: string): Promise<JournalEntry[]> {
-  const supabase = createClient();
+export async function getJournals(uid: string, customClient?: any): Promise<JournalEntry[]> {
+  const supabase = customClient || createClient();
   const { data, error } = await supabase
     .from("journals")
     .select("*")
@@ -339,7 +339,7 @@ export async function getJournals(uid: string): Promise<JournalEntry[]> {
     .order("date", { ascending: false });
 
   if (error) throw error;
-  return (data || []).map((row) => ({
+  return (data || []).map((row: any) => ({
     id: row.id,
     date: row.date || "",
     mood: row.mood || "",

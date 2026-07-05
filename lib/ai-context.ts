@@ -34,13 +34,13 @@ function profitFactor(wins: number[], losses: number[]) {
   return grossProfit / grossLoss;
 }
 
-export async function buildTradingContext(uid: string): Promise<TradingContext> {
+export async function buildTradingContext(uid: string, customClient?: any): Promise<TradingContext> {
   const [tradesRaw, journalsRaw, playbookRaw, accountsRaw, profile] = await Promise.all([
-    getTrades(uid).catch(() => [] as Trade[]),
-    getJournals(uid).catch(() => [] as JournalEntry[]),
-    getPlaybook(uid).catch(() => [] as PlaybookSetup[]),
-    getAccounts(uid).catch(() => [] as TradingAccount[]),
-    getProfile(uid).catch(() => null),
+    getTrades(uid, customClient).catch(() => [] as Trade[]),
+    getJournals(uid, customClient).catch(() => [] as JournalEntry[]),
+    getPlaybook(uid, customClient).catch(() => [] as PlaybookSetup[]),
+    getAccounts(uid, customClient).catch(() => [] as TradingAccount[]),
+    getProfile(uid, customClient).catch(() => null),
   ]);
 
   const trades = tradesRaw.filter((t) => t.result !== "" && t.result !== null);

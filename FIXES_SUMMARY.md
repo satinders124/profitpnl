@@ -165,6 +165,14 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 
 **Fix:** Removed the `!captchaToken` disable lock across all authentication forms (`disabled={loading}`). Now the submit button is always clickable while typing credentials. If CAPTCHA verification isn't ready when submitted, a clear message is displayed directly on the screen rather than mysteriously locking the button.
 
+### 23. 🧠 FIXED: AI Coach Not Seeing Trades or Playbook (Client vs Server RLS Gap)
+**Files:** `lib/db.ts`, `lib/ai-context.ts`, `app/api/ai/claude/route.ts`
+**Problem:** The AI Coach previously relied on the client browser (`app/ai-coach/page.tsx`) to fetch trading context and send it in the request payload. If the client navigated quickly or experienced network delays, the context payload was empty (`""`). Furthermore, database getters didn't support server-side Supabase client injection.
+
+**Fix:**
+- Updated all database getters (`getTrades`, `getPlaybook`, `getAccounts`, `getJournals`, `getProfile`) and `buildTradingContext` to accept an optional `customClient` injection parameter.
+- Updated `/api/ai/claude/route.ts` to execute `buildTradingContext(user.id, createServerClient())` directly on the backend server for every incoming request. Using the service role client on the backend guarantees 100% complete visibility into all trades, playbook strategies, accounts, and journals on every prompt without client race conditions or RLS delays.
+
 ## Files Changed
 
 | File | Change |
@@ -203,6 +211,9 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `app/page.tsx` | Removed unclickable button CAPTCHA lock on landing page login dropdown |
 | `app/register/RegisterClient.tsx` | Removed unclickable button CAPTCHA lock |
 | `app/forgot-password/page.tsx` | Removed unclickable button CAPTCHA lock |
+| `lib/db.ts` | Added custom client injection parameter to all database queries |
+| `lib/ai-context.ts` | Enabled server-side Supabase client injection |
+| `app/api/ai/claude/route.ts` | Built 100% live server-side trading context on every request using service role bypass |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result

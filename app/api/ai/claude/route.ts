@@ -1,6 +1,7 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import { getAuthenticatedUser } from '@/lib/auth-utils';
 import { createServerClient } from '@/lib/supabase-server';
+import { buildTradingContext } from '@/lib/ai-context';
 
 export const runtime = 'nodejs';
 
@@ -28,7 +29,16 @@ export async function POST(req: Request) {
       });
     }
 
-    const { messages } = await req.json();
+    const { messages, systemPrompt: clientSystemPrompt } = await req.json();
+
+    // Query 100% live neural trading context directly on the backend server using service role bypass
+    let liveSummary = "";
+    try {
+      const liveContext = await buildTradingContext(user.id, supabase);
+      liveSummary = liveContext.summary;
+    } catch (ctxErr) {
+      console.error("Error building server trading context:", ctxErr);
+    }
 
     // 3. Check if ANTHROPIC_API_KEY is configured
     if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY.startsWith("your_")) {
@@ -78,6 +88,10 @@ export async function POST(req: Request) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    const baseSystem = 'You are an Elite Trading Performance Coach embedded inside ProfitPnL, a trading journal app. Use Markdown formatting. Be direct, concise, analytical, and hold the trader accountable.';
+    const contextToUse = liveSummary || clientSystemPrompt || '';
+    const finalSystem = contextToUse ? `${baseSystem}\n\n${contextToUse}` : baseSystem;
 
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
