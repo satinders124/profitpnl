@@ -14,12 +14,14 @@ import {
   RotateCcw,
   Trash2,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
+import { buildTradingContext, TradingContext } from "@/lib/ai-context";
 
 type ChatMessage = {
   id: string;
@@ -39,9 +41,10 @@ function formatTime(ts: number) {
   });
 }
 
-// The site's real brand mark (same growth-chart glyph used in the Navbar
-// and Footer logo) — used here instead of a generic robot-face icon so
-// the AI Coach still looks unmistakably like ProfitPnL, not a stock chatbot.
+function chatKey(uid: string) {
+  return `profitpnl_chat_v1_${uid}`;
+}
+
 function BrandMark({ size = 22 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -51,27 +54,80 @@ function BrandMark({ size = 22 }: { size?: number }) {
   );
 }
 
-const SYSTEM_PROMPT =
-  "You are an Elite Trading Performance Coach. Use Markdown formatting to make your responses professional. Use bold text for key trading concepts, risk rules, and psychological triggers. Be direct and high-impact.";
+const BASE_SYSTEM =
+  "You are an Elite Trading Performance Coach embedded inside ProfitPnL, a trading journal app. Use Markdown formatting. Use bold for key concepts, risk rules, and psychological triggers. Be direct, concise, and high-impact.";
 
 export default function AiCoachPage() {
   const { user, plan } = useAuth();
   const { playSend, playReceive, playError } = useSoundEffects();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [isThinking, setIsThinking] = useState(false); // waiting for first token
-  const [isStreaming, setIsStreaming] = useState(false); // tokens actively arriving
+  const [isThinking, setIsThinking] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [tradingContext, setTradingContext] = useState<TradingContext | null>(null);
+  const [loadingContext, setLoadingContext] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const autoScrollRef = useRef(true);
+  const contextRef = useRef<string>("");
 
   const isFreePlan = plan === "Free Plan";
+
+  // ── Load chat history from localStorage ──
+  useEffect(() => {
+    if (isFreePlan || !user) return;
+    try {
+      const raw = localStorage.getItem(chatKey(user.id));
+      if (raw) {
+        const parsed = JSON.parse(raw) as ChatMessage[];
+        if (Array.isArray(parsed) && parsed.length) {
+          setMessages(parsed.slice(-100)); // cap at 100 messages
+        }
+      }
+    } catch {
+      // ignore corrupt localStorage
+    }
+  }, [isFreePlan, user]);
+
+  // ── Persist chat history to localStorage ──
+  useEffect(() => {
+    if (isFreePlan || !user) return;
+    if (!messages.length) {
+      localStorage.removeItem(chatKey(user.id));
+      return;
+    }
+    localStorage.setItem(chatKey(user.id), JSON.stringify(messages.slice(-100)));
+  }, [messages, isFreePlan, user]);
+
+  // ── Load trading context once ──
+  useEffect(() => {
+    if (isFreePlan || !user) {
+      setLoadingContext(false);
+      return;
+    }
+    let cancelled = false;
+    buildTradingContext(user.id)
+      .then((ctx) => {
+        if (cancelled) return;
+        setTradingContext(ctx);
+        contextRef.current = ctx.summary;
+      })
+      .catch((err) => {
+        console.error("Failed to load trading context:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingContext(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFreePlan, user]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = scrollRef.current;
@@ -80,20 +136,16 @@ export default function AiCoachPage() {
     setShowJumpToBottom(false);
   }, []);
 
-  // Track whether the user has scrolled up (to stop auto-scroll while they
-  // read history) and toggle the "jump to bottom" affordance.
   useEffect(() => {
     if (isFreePlan) return;
     const el = scrollRef.current;
     if (!el) return;
-
     function handleScroll() {
       if (!el) return;
       const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
       autoScrollRef.current = distanceFromBottom < 80;
       setShowJumpToBottom(distanceFromBottom > 200);
     }
-
     el.addEventListener("scroll", handleScroll);
     return () => el.removeEventListener("scroll", handleScroll);
   }, [isFreePlan]);
@@ -103,9 +155,6 @@ export default function AiCoachPage() {
     if (autoScrollRef.current) scrollToBottom(messages.length <= 1 ? "auto" : "smooth");
   }, [isFreePlan, messages, scrollToBottom]);
 
-  // Auto-grow the textarea up to a max height instead of a fixed-height
-  // single-line input — this is also what stops the placeholder text from
-  // visually overflowing the box on narrow screens.
   useEffect(() => {
     if (isFreePlan) return;
     const el = textareaRef.current;
@@ -114,8 +163,6 @@ export default function AiCoachPage() {
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [isFreePlan, input]);
 
-  // BLOCK FREE USERS — rendered after all hooks above so hook order never
-  // changes between renders (React requires this).
   if (isFreePlan) {
     return (
       <AppShell title="AI Coach">
@@ -149,6 +196,11 @@ export default function AiCoachPage() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // Build enriched system prompt with live trading context
+    const systemPrompt = contextRef.current
+      ? `${BASE_SYSTEM}\n\n${contextRef.current}`
+      : BASE_SYSTEM;
+
     try {
       const response = await fetch("/api/ai/claude", {
         method: "POST",
@@ -156,7 +208,7 @@ export default function AiCoachPage() {
         signal: controller.signal,
         body: JSON.stringify({
           messages: history.map((m) => ({ role: m.role, content: m.content })),
-          systemPrompt: SYSTEM_PROMPT,
+          systemPrompt,
         }),
       });
 
@@ -259,6 +311,7 @@ export default function AiCoachPage() {
     setIsThinking(false);
     setIsStreaming(false);
     setStreamingId(null);
+    if (user) localStorage.removeItem(chatKey(user.id));
   }
 
   async function handleRetry() {
@@ -273,19 +326,19 @@ export default function AiCoachPage() {
 
   const quickPrompts = [
     {
-      label: "Analyze Psychology",
+      label: "Analyze My Edge",
       icon: <BrainCircuit size={14} />,
-      text: "I'm feeling anxious after a losing streak. How do I reset my mindset?",
+      text: "Based on my trading data, which setup is my most profitable and what mistakes are costing me the most R?",
     },
     {
-      label: "Risk Review",
+      label: "Review Last Session",
       icon: <Target size={14} />,
-      text: "Is my risk-to-reward ratio sustainable for a $100k prop account?",
+      text: "Review my last 5 trades. What patterns do you see in my execution and emotion?",
     },
     {
-      label: "Edge Validation",
+      label: "Risk Check",
       icon: <TrendingUp size={14} />,
-      text: "How do I determine if my current strategy has a statistical edge?",
+      text: "Am I on track with my risk rules? What's my current drawdown status vs my limits?",
     },
   ];
 
@@ -293,12 +346,6 @@ export default function AiCoachPage() {
 
   return (
     <AppShell title="AI Coach" subtitle={busy ? "Generating response…" : "Elite Neural Trading Mentorship"}>
-      {/* Full-bleed chat: fills the entire AppShell content area, no nested
-          header bar and no card border — this IS the page, not a widget
-          floating inside one. Negative margins precisely cancel AppShell's
-          <main> padding (px-4 py-6 pb-24 lg:px-8 lg:py-8 lg:pb-12) so the
-          chat reaches every edge. h-full (not a guessed vh calc) fills
-          exactly the space <main> already has as a flex-1 item. */}
       <div className="-mx-4 -mt-6 -mb-24 flex h-[calc(100%+120px)] flex-col bg-[#08080C] lg:-mx-8 lg:-mt-8 lg:-mb-12 lg:h-[calc(100%+80px)]">
         {messages.length > 0 && (
           <div className="flex shrink-0 items-center justify-end gap-2 border-b border-[#1E1E38] bg-[#0D0D1A]/60 px-4 py-2.5 backdrop-blur-md">
@@ -347,6 +394,29 @@ export default function AiCoachPage() {
                     What are we optimizing today?
                   </p>
                 </div>
+
+                {/* Trading context status */}
+                {loadingContext ? (
+                  <div className="flex items-center gap-2 text-[11px] text-[#5A5A80]">
+                    <Loader2 size={12} className="animate-spin" />
+                    Loading your trading data…
+                  </div>
+                ) : tradingContext && tradingContext.tradeCount > 0 ? (
+                  <div className="flex items-center gap-2 rounded-full border border-[#1E1E38] bg-[#111120] px-3 py-1.5 text-[11px] text-[#8080A0]">
+                    <Check size={12} className="text-emerald-400" />
+                    <span>
+                      {tradingContext.tradeCount} trades loaded · {tradingContext.winRate.toFixed(0)}% WR ·{" "}
+                      {tradingContext.totalR > 0 ? "+" : ""}
+                      {tradingContext.totalR.toFixed(1)}R
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-full border border-[#1E1E38] bg-[#111120] px-3 py-1.5 text-[11px] text-[#5A5A80]">
+                    <Zap size={12} className="text-[#F0B429]" />
+                    <span>No trades logged yet — AI will guide you from scratch</span>
+                  </div>
+                )}
+
                 <div className="grid w-full grid-cols-1 gap-3 pt-4 md:grid-cols-3">
                   {quickPrompts.map((prompt, i) => (
                     <motion.button
