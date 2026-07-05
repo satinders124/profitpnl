@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import sgMail from "@sendgrid/mail";
+import { escapeHtml, renderEmailLayout } from "@/lib/email-templates";
 import { getAuthenticatedUser } from "@/lib/auth-utils";
 import { createServerClient } from "@/lib/supabase-server";
 import { normalizeCouponCode, normalizeSlug, requireAdmin, type Affiliate } from "@/lib/affiliates";
@@ -162,39 +163,72 @@ function affiliateWelcomeHtml({
 }) {
   const referralLink = `${appUrl()}/r/${slug}`;
   const dashboardLink = `${appUrl()}/affiliate`;
-  return `
-<!doctype html>
-<html>
-  <body style="margin:0;padding:0;background:#080810;font-family:Arial,Helvetica,sans-serif;color:#f0f0ff;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#080810;padding:40px 16px;">
-      <tr><td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#161628;border:1px solid #1e1e38;border-radius:18px;overflow:hidden;">
-          <tr><td style="height:4px;background:linear-gradient(90deg,#c8961e,#f0b429,#c8961e);"></td></tr>
-          <tr><td style="padding:34px 38px;">
-            <h1 style="margin:0 0 12px;font-size:28px;line-height:1.25;color:#fff;">Welcome to the ProfitPnL Affiliate Program 🚀</h1>
-            <p style="margin:0 0 18px;color:#a0a0c0;line-height:1.7;">Hey ${name}, your affiliate account is ready. We also granted Pro access to this email so you can use and show ProfitPnL properly.</p>
+  const safeName = escapeHtml(name) || "there";
+  const safeCoupon = escapeHtml(couponCode);
+  const safeReferralLink = escapeHtml(referralLink);
+  const safeDashboardLink = escapeHtml(dashboardLink);
+  const safeSetupLink = escapeHtml(setupLink);
 
-            <div style="background:#0d0d1a;border:1px solid #1e1e38;border-radius:14px;padding:18px;margin:22px 0;">
-              <p style="margin:0 0 8px;color:#5a5a80;font-size:12px;text-transform:uppercase;letter-spacing:1.6px;">Your offer</p>
-              <p style="margin:0;color:#fff;font-size:18px;"><strong>${couponCode}</strong> — ${discountPercent}% off for ${discountDurationMonths} months</p>
-              <p style="margin:10px 0 0;color:#a0a0c0;">Commission: <strong style="color:#f0b429;">${commissionPercent}%</strong> for ${commissionDurationMonths} months.</p>
-            </div>
+  // Keep this email on the shared LIGHT transactional layout. Gmail mobile
+  // can turn dark navy email backgrounds pink/magenta, so do not use the
+  // website's dark theme inside emails.
+  const body = `
+    <h1 style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:20px;font-weight:900;color:#080810;letter-spacing:-0.02em;">
+      Welcome to the ProfitPnL Affiliate Program
+    </h1>
+    <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.7;color:#5b5b78;">
+      Hey ${safeName}, your affiliate account is ready. We also granted Pro access to this email so you can use and show ProfitPnL properly.
+    </p>
 
-            <p style="margin:0 0 8px;color:#a0a0c0;">Referral link:</p>
-            <p style="margin:0 0 18px;word-break:break-all;font-family:monospace;color:#f0b429;">${referralLink}</p>
-
-            <a href="${dashboardLink}" style="display:inline-block;background:linear-gradient(135deg,#f0b429,#c8961e);color:#080810;text-decoration:none;font-weight:bold;border-radius:12px;padding:14px 24px;margin-right:10px;">Open Dashboard</a>
-            <a href="${setupLink}" style="display:inline-block;border:1px solid #f0b429;color:#f0b429;text-decoration:none;font-weight:bold;border-radius:12px;padding:13px 22px;">Set Password</a>
-
-            <p style="margin:24px 0 0;color:#5a5a80;font-size:12px;line-height:1.7;">If the password link expires, go to ${appUrl()}/forgot-password and request a new link using this email.</p>
-          </td></tr>
-        </table>
-      </td></tr>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f7f5ef" style="background-color:#f7f5ef;border:1px solid #e7e7f0;border-radius:14px;margin:0 0 20px;">
+      <tr>
+        <td style="padding:18px;">
+          <p style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#8a8aa3;">
+            Your partner offer
+          </p>
+          <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:18px;line-height:1.35;color:#080810;">
+            <strong style="color:#c8961e;">${safeCoupon}</strong> — ${discountPercent}% off for ${discountDurationMonths} months
+          </p>
+          <p style="margin:10px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.6;color:#5b5b78;">
+            Your commission: <strong style="color:#c8961e;">${commissionPercent}%</strong> for ${commissionDurationMonths} months.
+          </p>
+        </td>
+      </tr>
     </table>
-  </body>
-</html>`;
-}
 
+    <p style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:12px;font-weight:800;color:#080810;">
+      Referral link
+    </p>
+    <p style="margin:0 0 18px;word-break:break-all;font-family:'Courier New',ui-monospace,monospace;font-size:12px;line-height:1.6;color:#c8961e;">
+      ${safeReferralLink}
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
+      <tr>
+        <td bgcolor="#f0b429" style="border-radius:12px;background-color:#f0b429;background-image:linear-gradient(135deg,#f0b429,#c8961e);">
+          <a href="${safeDashboardLink}" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:900;color:#080810;text-decoration:none;">
+            Open affiliate dashboard
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.7;color:#5b5b78;">
+      To set your password, use this secure link:
+    </p>
+    <p style="margin:0 0 18px;word-break:break-all;font-family:'Courier New',ui-monospace,monospace;font-size:11px;line-height:1.6;color:#8a8aa3;">
+      ${safeSetupLink}
+    </p>
+
+    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:1.7;color:#8a8aa3;">
+      If the password link expires, go to ${escapeHtml(appUrl())}/forgot-password and request a new link using this email.
+    </p>`;
+
+  return renderEmailLayout({
+    preheader: `${couponCode} is your ProfitPnL affiliate code`,
+    bodyHtml: body,
+  });
+}
 async function sendAffiliateWelcomeEmail(args: {
   email: string;
   name: string;
