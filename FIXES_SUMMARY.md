@@ -106,6 +106,16 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - Updated frontend fetch requests (`/upgrade`, `/ai-coach`, `AuthProvider`) to retrieve the user session (`await createClient().auth.getSession()`) and attach `Authorization: Bearer ${session.access_token}`.
 - Hardened `/api/payments/verify` to require JWT authentication (`getAuthenticatedUser(req)`) and enforce strict ownership (`targetUid === authUser.id`), preventing cross-user session checks.
 
+### 16. 🔴 FIXED: AI Coach "[System Error: Please try again later.]"
+**File:** `app/api/ai/claude/route.ts`
+**Problem:** When AI Coach (`/api/ai/claude`) encountered missing/unfunded `ANTHROPIC_API_KEY` or message role formatting errors (Anthropic requires strict alternating user/assistant roles starting with user), it swallowed the error and emitted `[System Error: Please try again later.]`. Additionally, it ignored the frontend's enriched live trading statistics `systemPrompt`.
+
+**Fix:**
+- Added explicit check for missing or unconfigured `ANTHROPIC_API_KEY`, returning a clear instruction banner instead of failing silently.
+- Added strict message role normalization (merging consecutive roles and ensuring the sequence begins with `'user'`).
+- Wired up dynamic `systemPrompt` support so live trading journal context is passed to Claude.
+- Streamed explicit error messages (`[AI Coach Error: ...]`) on failure so issues can be diagnosed instantly.
+
 ## Files Changed
 
 | File | Change |
@@ -130,6 +140,7 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `app/upgrade/page.tsx` | Added Bearer authorization header to checkout API calls |
 | `app/ai-coach/page.tsx` | Added Bearer authorization header to Claude AI API calls |
 | `app/api/payments/verify/route.ts` | Enforced strict JWT authentication and user ownership guards |
+| `app/api/ai/claude/route.ts` | Fixed message role formatting, dynamic system prompt, and API key error reporting |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result
