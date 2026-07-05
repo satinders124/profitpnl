@@ -27,6 +27,26 @@ type AffiliateAdminRow = {
 
 const inputClass = "w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#F0B429]";
 
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
+        {hint ? <span className="font-mono2 text-[10px] text-zinc-600">{hint}</span> : null}
+      </div>
+      {children}
+    </label>
+  );
+}
+
 function money(cents: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format((cents || 0) / 100);
 }
@@ -46,6 +66,8 @@ export default function AdminAffiliatesPage() {
     commissionPercent: "30",
     commissionDurationMonths: "12",
     createStripePromo: true,
+    grantFreeAccess: true,
+    sendWelcomeEmail: true,
     notes: "",
   });
 
@@ -93,7 +115,7 @@ export default function AdminAffiliatesPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not create affiliate.");
-      setForm({ name: "", email: "", slug: "", couponCode: "", discountPercent: "20", discountDurationMonths: "3", commissionPercent: "30", commissionDurationMonths: "12", createStripePromo: true, notes: "" });
+      setForm({ name: "", email: "", slug: "", couponCode: "", discountPercent: "20", discountDurationMonths: "3", commissionPercent: "30", commissionDurationMonths: "12", createStripePromo: true, grantFreeAccess: true, sendWelcomeEmail: true, notes: "" });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create affiliate.");
@@ -131,19 +153,46 @@ export default function AdminAffiliatesPage() {
             <ShieldCheck className="text-[#F0B429]" />
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <input className={inputClass} placeholder="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-            <input className={inputClass} placeholder="Email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-            <input className={inputClass} placeholder="Slug e.g. trader-tom" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} />
-            <input className={inputClass} placeholder="Coupon e.g. TOM20" value={form.couponCode} onChange={(e) => setForm((f) => ({ ...f, couponCode: e.target.value.toUpperCase() }))} />
-            <input className={inputClass} placeholder="Discount %" value={form.discountPercent} onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))} />
-            <input className={inputClass} placeholder="Discount months" value={form.discountDurationMonths} onChange={(e) => setForm((f) => ({ ...f, discountDurationMonths: e.target.value }))} />
-            <input className={inputClass} placeholder="Commission %" value={form.commissionPercent} onChange={(e) => setForm((f) => ({ ...f, commissionPercent: e.target.value }))} />
-            <input className={inputClass} placeholder="Commission months" value={form.commissionDurationMonths} onChange={(e) => setForm((f) => ({ ...f, commissionDurationMonths: e.target.value }))} />
+            <Field label="Influencer name">
+              <input className={inputClass} placeholder="Trader Tom" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+            </Field>
+            <Field label="Influencer email" hint="must match login">
+              <input className={inputClass} placeholder="tom@example.com" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+            </Field>
+            <Field label="Referral slug" hint="/r/slug">
+              <input className={inputClass} placeholder="trader-tom" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} />
+            </Field>
+            <Field label="Coupon code" hint="shown in Stripe">
+              <input className={inputClass} placeholder="TOM20" value={form.couponCode} onChange={(e) => setForm((f) => ({ ...f, couponCode: e.target.value.toUpperCase() }))} />
+            </Field>
+            <Field label="User discount" hint="% off">
+              <input className={inputClass} placeholder="20" value={form.discountPercent} onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))} />
+            </Field>
+            <Field label="Discount duration" hint="months">
+              <input className={inputClass} placeholder="3" value={form.discountDurationMonths} onChange={(e) => setForm((f) => ({ ...f, discountDurationMonths: e.target.value }))} />
+            </Field>
+            <Field label="Influencer commission" hint="% of paid amount">
+              <input className={inputClass} placeholder="30" value={form.commissionPercent} onChange={(e) => setForm((f) => ({ ...f, commissionPercent: e.target.value }))} />
+            </Field>
+            <Field label="Commission duration" hint="months">
+              <input className={inputClass} placeholder="12" value={form.commissionDurationMonths} onChange={(e) => setForm((f) => ({ ...f, commissionDurationMonths: e.target.value }))} />
+            </Field>
           </div>
+          <p className="mt-3 rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-4 py-3 text-xs leading-relaxed text-zinc-500">
+            Example: <strong className="text-white">20</strong> + <strong className="text-white">3</strong> means users get 20% off for 3 months. <strong className="text-white">30</strong> + <strong className="text-white">12</strong> means the influencer earns 30% commission for 12 months.
+          </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-zinc-400">
               <input type="checkbox" checked={form.createStripePromo} onChange={(e) => setForm((f) => ({ ...f, createStripePromo: e.target.checked }))} className="accent-[#F0B429]" />
               Create Stripe coupon/promotion code
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-400">
+              <input type="checkbox" checked={form.grantFreeAccess} onChange={(e) => setForm((f) => ({ ...f, grantFreeAccess: e.target.checked }))} className="accent-[#F0B429]" />
+              Create/link ProfitPnL account + grant free Pro access
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-400">
+              <input type="checkbox" checked={form.sendWelcomeEmail} onChange={(e) => setForm((f) => ({ ...f, sendWelcomeEmail: e.target.checked }))} className="accent-[#F0B429]" />
+              Send affiliate confirmation email
             </label>
             <button onClick={createAffiliate} disabled={creating} className="gold-gradient inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-black disabled:opacity-60">
               {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Create
