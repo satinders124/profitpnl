@@ -177,7 +177,7 @@ export function TradeForm({
             <select
               value={String(form.account || "")}
               onChange={(e) => update("account", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               <option value="">No Account</option>
               {accounts.map((account) => (
@@ -192,7 +192,7 @@ export function TradeForm({
             <select
               value={String(form.setup || "")}
               onChange={(e) => update("setup", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               <option value="">No strategy</option>
               {strategyOptions.map((setup) => (
@@ -207,7 +207,7 @@ export function TradeForm({
             <select
               value={String(form.instrument || "")}
               onChange={(e) => update("instrument", e.target.value)}
-              className={inputClass}
+              className={selectClass}
               required
             >
               {instruments.map((x) => (
@@ -222,7 +222,7 @@ export function TradeForm({
             <select
               value={String(form.direction || "LONG")}
               onChange={(e) => update("direction", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               <option value="LONG">LONG 📈</option>
               <option value="SHORT">SHORT 📉</option>
@@ -233,7 +233,7 @@ export function TradeForm({
             <select
               value={String(form.session || "")}
               onChange={(e) => update("session", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               {sessions.map((x) => (
                 <option key={x} value={x}>
@@ -247,7 +247,7 @@ export function TradeForm({
             <select
               value={String(form.timeframe || "")}
               onChange={(e) => update("timeframe", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               {timeframes.map((x) => (
                 <option key={x} value={x}>
@@ -329,7 +329,7 @@ export function TradeForm({
             <select
               value={String(form.emotion || "")}
               onChange={(e) => update("emotion", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               {emotions.map((x) => (
                 <option key={x} value={x}>
@@ -343,7 +343,7 @@ export function TradeForm({
             <select
               value={String(form.executionRating || "")}
               onChange={(e) => update("executionRating", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               <option value="">Not rated</option>
               <option value="5">5 — A+ execution</option>
@@ -358,7 +358,7 @@ export function TradeForm({
             <select
               value={String(form.mistake || "")}
               onChange={(e) => update("mistake", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               {mistakes.map((x) => (
                 <option key={x} value={x}>
@@ -445,7 +445,10 @@ export function TradeForm({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-4 py-3 text-sm font-bold text-[#F0F0FF] outline-none focus:border-[#F0B429]";
+  "w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-4 py-3 text-sm font-bold text-[#F0F0FF] outline-none focus:border-[#F0B429] [color-scheme:dark]";
+
+const selectClass =
+  `${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23A0A0C0%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_12px_center] bg-no-repeat pr-10`;
 
 function Section({
   title,

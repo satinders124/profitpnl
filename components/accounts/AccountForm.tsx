@@ -92,12 +92,12 @@ export function AccountForm({ uid, existing, onSaved, onCancel }: AccountFormPro
             <input value={String(form.firm || "")} onChange={(e) => update("firm", e.target.value)} className={inputClass} placeholder="FTMO, FundingPips..." />
           </Field>
           <Field label="Account Type" icon={<Target size={14} />}>
-            <select value={String(form.type || "")} onChange={(e) => update("type", e.target.value)} className={inputClass}>
+            <select value={String(form.type || "")} onChange={(e) => update("type", e.target.value)} className={selectClass}>
               {accountTypes.map((x) => <option key={x} value={x}>{x}</option>)}
             </select>
           </Field>
           <Field label="Status" icon={<TrendingUp size={14} />}>
-            <select value={String(form.status || "")} onChange={(e) => update("status", e.target.value)} className={inputClass}>
+            <select value={String(form.status || "")} onChange={(e) => update("status", e.target.value)} className={selectClass}>
               {statuses.map((x) => <option key={x} value={x}>{x}</option>)}
             </select>
           </Field>
@@ -184,7 +184,10 @@ export function AccountForm({ uid, existing, onSaved, onCancel }: AccountFormPro
   );
 }
 
-const inputClass = "w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-4 py-3 text-sm font-bold text-[#F0F0FF] outline-none focus:border-[#F0B429] focus:ring-1 focus:ring-[#F0B429]/50 transition-all";
+const inputClass = "w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-4 py-3 text-sm font-bold text-[#F0F0FF] outline-none focus:border-[#F0B429] focus:ring-1 focus:ring-[#F0B429]/50 transition-all [color-scheme:dark]";
+
+const selectClass =
+  `${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23A0A0C0%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_12px_center] bg-no-repeat pr-10`;
 
 function Field({ label, children, icon }: { label: string; children: React.ReactNode; icon?: React.ReactNode }) {
   return (
