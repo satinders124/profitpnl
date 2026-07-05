@@ -50,6 +50,67 @@ import {
 type TimeRange = "all" | "7d" | "30d" | "90d";
 type PnlViewMode = "r" | "dollar";
 
+/* ============================================================
+   DEMO DATA — shown when user has zero real trades
+   ============================================================ */
+const DEMO_TRADES: Trade[] = [
+  { id: "demo-1", date: "2026-06-16", instrument: "NQ", direction: "LONG", setup: "London ORB", session: "London", result: 2.4, pnl: 480, account: "FTMO 50K", reviewed: true, executionRating: 5, tags: "A+" },
+  { id: "demo-2", date: "2026-06-16", instrument: "ES", direction: "SHORT", setup: "FVG Retest", session: "NY", result: -1.0, pnl: -200, account: "FTMO 50K", reviewed: true, executionRating: 3, mistake: "Chased entry", tags: "emotional" },
+  { id: "demo-3", date: "2026-06-17", instrument: "XAUUSD", direction: "LONG", setup: "Liquidity Sweep", session: "London", result: 1.8, pnl: 360, account: "FTMO 50K", reviewed: true, executionRating: 4, tags: "patient" },
+  { id: "demo-4", date: "2026-06-17", instrument: "EURUSD", direction: "SHORT", setup: "NY Open Drive", session: "NY", result: 1.1, pnl: 220, account: "FTMO 50K", reviewed: true, executionRating: 4, tags: "followed plan" },
+  { id: "demo-5", date: "2026-06-18", instrument: "NQ", direction: "LONG", setup: "London ORB", session: "London", result: -0.5, pnl: -100, account: "FTMO 50K", reviewed: true, executionRating: 3, mistake: "Moved stop", tags: "discipline" },
+  { id: "demo-6", date: "2026-06-18", instrument: "BTCUSD", direction: "SHORT", setup: "Range Fade", session: "NY", result: 3.2, pnl: 640, account: "FTMO 50K", reviewed: true, executionRating: 5, tags: "A+" },
+  { id: "demo-7", date: "2026-06-19", instrument: "ES", direction: "LONG", setup: "VWAP Bounce", session: "NY", result: 0.8, pnl: 160, account: "FTMO 50K", reviewed: true, executionRating: 4, tags: "scalp" },
+  { id: "demo-8", date: "2026-06-19", instrument: "GBPJPY", direction: "SHORT", setup: "Supply Zone", session: "London", result: -1.0, pnl: -200, account: "FTMO 50K", reviewed: true, executionRating: 2, mistake: "News spike", tags: "avoid news" },
+  { id: "demo-9", date: "2026-06-20", instrument: "NQ", direction: "LONG", setup: "London ORB", session: "London", result: 2.1, pnl: 420, account: "FTMO 50K", reviewed: true, executionRating: 5, tags: "A+" },
+  { id: "demo-10", date: "2026-06-20", instrument: "US30", direction: "SHORT", setup: "Breaker Block", session: "NY", result: 1.6, pnl: 320, account: "FTMO 50K", reviewed: true, executionRating: 4, tags: "clean" },
+  { id: "demo-11", date: "2026-06-23", instrument: "XAUUSD", direction: "LONG", setup: "Liquidity Sweep", session: "London", result: -0.3, pnl: -60, account: "FTMO 50K", reviewed: true, executionRating: 3, mistake: "Late entry", tags: "FOMO" },
+  { id: "demo-12", date: "2026-06-23", instrument: "DAX", direction: "LONG", setup: "London ORB", session: "London", result: 1.5, pnl: 300, account: "FTMO 50K", reviewed: true, executionRating: 4, tags: "disciplined" },
+  { id: "demo-13", date: "2026-06-24", instrument: "NQ", direction: "SHORT", setup: "FVG Retest", session: "NY", result: -1.2, pnl: -240, account: "FTMO 50K", reviewed: true, executionRating: 2, mistake: "Revenge trade", tags: "emotional" },
+  { id: "demo-14", date: "2026-06-24", instrument: "ES", direction: "LONG", setup: "NY Open Drive", session: "NY", result: 0.9, pnl: 180, account: "FTMO 50K", reviewed: true, executionRating: 4, tags: "momentum" },
+  { id: "demo-15", date: "2026-06-25", instrument: "EURUSD", direction: "SHORT", setup: "Range Fade", session: "London", result: 2.7, pnl: 540, account: "FTMO 50K", reviewed: true, executionRating: 5, tags: "A+" },
+  { id: "demo-16", date: "2026-06-25", instrument: "BTCUSD", direction: "LONG", setup: "Trend Pullback", session: "NY", result: -0.8, pnl: -160, account: "FTMO 50K", reviewed: true, executionRating: 3, mistake: "Wrong timeframe", tags: "check HTF" },
+  { id: "demo-17", date: "2026-06-26", instrument: "NQ", direction: "LONG", setup: "London ORB", session: "London", result: 1.9, pnl: 380, account: "FTMO 50K", reviewed: true, executionRating: 5, tags: "A+" },
+  { id: "demo-18", date: "2026-06-26", instrument: "XAUUSD", direction: "SHORT", setup: "Supply Zone", session: "NY", result: 0.6, pnl: 120, account: "FTMO 50K", reviewed: true, executionRating: 4, tags: "patient" },
+  { id: "demo-19", date: "2026-06-27", instrument: "ES", direction: "LONG", setup: "VWAP Bounce", session: "NY", result: -0.4, pnl: -80, account: "FTMO 50K", reviewed: true, executionRating: 3, mistake: "Low conviction", tags: "skip" },
+  { id: "demo-20", date: "2026-06-27", instrument: "NQ", direction: "SHORT", setup: "FVG Retest", session: "London", result: 1.3, pnl: 260, account: "FTMO 50K", reviewed: true, executionRating: 4, tags: "clean" },
+];
+
+function DemoBanner({ onLogTrade }: { onLogTrade: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative overflow-hidden rounded-xl border border-[#F0B429]/30 bg-[#F0B429]/10 p-4 shadow-lg"
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(240,180,41,0.15),transparent_50%)]" />
+      <div className="relative flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0B429]/20 text-[#F0B429]">
+            <BarChart3 size={20} />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white">
+              Previewing demo data
+            </p>
+            <p className="mt-0.5 text-xs leading-5 text-[#A0A0C0]">
+              This is sample data so you can explore the dashboard. Log your
+              first real trade and this preview will be replaced with your
+              actual performance.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onLogTrade}
+          className="shrink-0 rounded-xl bg-[#F0B429] px-4 py-2.5 text-xs font-bold text-[#080810] transition hover:bg-[#d99f1e]"
+        >
+          Log First Trade →
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function DashboardPage() {
   const { user, displayName } = useAuth();
 
@@ -57,6 +118,7 @@ export default function DashboardPage() {
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [playbook, setPlaybook] = useState<PlaybookSetup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
 
   // Modal State for Log Trade
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
@@ -79,6 +141,8 @@ export default function DashboardPage() {
       setTrades(tradeRows);
       setAccounts(accountRows);
       setPlaybook(playbookRows);
+      // Enable demo mode only when user has zero real trades
+      setIsDemo(tradeRows.length === 0);
     } finally {
       setLoading(false);
     }
@@ -89,28 +153,32 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  const effectiveTrades = useMemo(() => {
+    return isDemo ? DEMO_TRADES : trades;
+  }, [isDemo, trades]);
+
   const accountNames = useMemo(() => {
     return uniqueClean([
       ...accounts.map((a) => a.name),
-      ...trades.map((t) => t.account),
+      ...effectiveTrades.map((t) => t.account),
     ]);
-  }, [accounts, trades]);
+  }, [accounts, effectiveTrades]);
 
   const strategyNames = useMemo(() => {
     return uniqueClean([
       ...playbook.map((p) => p.name),
-      ...trades.map((t) => t.setup),
+      ...effectiveTrades.map((t) => t.setup),
     ]);
-  }, [playbook, trades]);
+  }, [playbook, effectiveTrades]);
 
   const filteredTrades = useMemo(() => {
-    return trades.filter((trade) => {
+    return effectiveTrades.filter((trade) => {
       if (accountFilter && trade.account !== accountFilter) return false;
       if (strategyFilter && trade.setup !== strategyFilter) return false;
       if (!withinTimeRange(trade, timeRange)) return false;
       return true;
     });
-  }, [trades, accountFilter, strategyFilter, timeRange]);
+  }, [effectiveTrades, accountFilter, strategyFilter, timeRange]);
 
   const stats = useMemo(() => calcStats(filteredTrades), [filteredTrades]);
   const dir = useMemo(() => directionStats(filteredTrades), [filteredTrades]);
@@ -205,6 +273,10 @@ export default function DashboardPage() {
           transition={{ duration: 0.4 }}
           className="space-y-6"
         >
+          {isDemo && (
+            <DemoBanner onLogTrade={() => setTradeModalOpen(true)} />
+          )}
+
           {/* --- TOP FILTERS BAR --- */}
           <DashboardFilters
             accountNames={accountNames}
@@ -212,7 +284,7 @@ export default function DashboardPage() {
             accountFilter={accountFilter}
             strategyFilter={strategyFilter}
             timeRange={timeRange}
-            totalTrades={trades.length}
+            totalTrades={effectiveTrades.length}
             filteredTrades={filteredTrades.length}
             onAccountChange={setAccountFilter}
             onStrategyChange={setStrategyFilter}
