@@ -166,6 +166,8 @@ export function MobileNav() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      target={item.href.startsWith("/backtesting") ? "_blank" : undefined}
+                      rel={item.href.startsWith("/backtesting") ? "noopener noreferrer" : undefined}
                       onClick={() => setMoreOpen(false)}
                       className={[
                         "flex items-center gap-3 rounded-xl border px-4 py-3.5 text-sm font-medium transition-all",

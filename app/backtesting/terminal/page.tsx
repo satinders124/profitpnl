@@ -1,9 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Calendar,
   CandlestickChart,
+  Clock,
   Crosshair,
   Download,
   Eraser,
@@ -22,8 +25,9 @@ import {
   TrendingUp,
   Upload,
   Wallet,
+  X,
 } from "lucide-react";
-import { AppShell } from "@/components/layout/AppShell";
+import { ProtectedRoute } from "@/components/providers/ProtectedRoute";
 import { createClient } from "@/lib/supabase-client";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
@@ -120,6 +124,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const terminalInput = "w-full rounded-lg border border-[#1E1E38] bg-[#08080F] px-3 py-2 text-xs text-white outline-none focus:border-[#F0B429]";
+const TIMEZONES = ["UTC", "America/New_York", "Europe/London", "Asia/Tokyo", "Australia/Brisbane"];
 
 export default function BacktestingTerminalPage() {
   const { user } = useAuth();
@@ -128,6 +133,11 @@ export default function BacktestingTerminalPage() {
   const [timeframe, setTimeframe] = useState("5m");
   const [from, setFrom] = useState(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fromTime, setFromTime] = useState("00:00");
+  const [toTime, setToTime] = useState("23:59");
+  const [timezone, setTimezone] = useState("UTC");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [liveMode, setLiveMode] = useState(true);
   const [csv, setCsv] = useState(sampleCsv);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loadingData, setLoadingData] = useState(false);
@@ -200,7 +210,9 @@ export default function BacktestingTerminalPage() {
         return;
       }
 
-      const params = new URLSearchParams({ symbol, timeframe, from, to, provider: "binance" });
+      const fromIso = liveMode ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() : `${from}T${fromTime || "00:00"}:00`;
+      const toIso = liveMode ? new Date().toISOString() : `${to}T${toTime || "23:59"}:00`;
+      const params = new URLSearchParams({ symbol, timeframe, from: fromIso, to: toIso, provider: "binance" });
       const res = await fetch(`/api/market-data/candles?${params.toString()}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not load market data.");
@@ -214,7 +226,7 @@ export default function BacktestingTerminalPage() {
     } finally {
       setLoadingData(false);
     }
-  }, [csv, dataSource, from, startingBalance, symbol, timeframe, to]);
+  }, [csv, dataSource, from, fromTime, liveMode, startingBalance, symbol, timeframe, to, toTime]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -380,49 +392,51 @@ export default function BacktestingTerminalPage() {
     a.click();
   }
 
-  const currentTime = currentCandle ? new Date(currentCandle.time * 1000).toLocaleString() : "—";
+  const currentTime = currentCandle ? new Intl.DateTimeFormat("en-US", { timeZone: timezone, month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(currentCandle.time * 1000)) : "—";
 
   return (
-    <AppShell title="Backtesting Terminal" subtitle="TradingView-style replay, demo execution, and edge validation.">
-      <div className="-mx-4 -my-6 flex min-h-[calc(100vh-64px)] flex-col bg-[#05050B] text-white lg:-mx-8 lg:-my-8">
-        {/* Top terminal bar */}
-        <div className="border-b border-[#1E1E38] bg-[#090911] px-3 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-3 py-2">
-              <CandlestickChart size={16} className="text-[#F0B429]" />
-              <input value={sessionName} onChange={(event) => setSessionName(event.target.value)} className="w-56 bg-transparent text-sm font-bold text-white outline-none" />
+    <ProtectedRoute>
+      <div className="flex h-screen flex-col overflow-hidden bg-[#05050B] text-white">
+        {/* ProfitPnL View top command bar */}
+        <div className="border-b border-[#1E1E38] bg-[#f7f7f8] px-3 py-2 text-[#101018]">
+          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+            <Link href="/dashboard" className="mr-1 rounded-md bg-black px-2 py-1 text-xs font-black text-white">P</Link>
+            <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 shadow-sm">
+              <CandlestickChart size={16} className="text-[#c8961e]" />
+              {dataSource === "binance" ? (
+                <select value={symbol} onChange={(event) => setSymbol(event.target.value)} className="bg-transparent text-sm font-bold outline-none">
+                  {BINANCE_SYMBOLS.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              ) : (
+                <input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} className="w-24 bg-transparent text-sm font-bold outline-none" />
+              )}
             </div>
-            <select value={dataSource} onChange={(event) => setDataSource(event.target.value as DataSource)} className={classNames(terminalInput, "w-36")}> 
-              <option value="binance">Crypto API</option>
-              <option value="csv">CSV data</option>
+            <div className="flex items-center rounded-lg bg-white p-1 shadow-sm">
+              {TIMEFRAMES.map((item) => (
+                <button key={item} onClick={() => setTimeframe(item)} className={classNames("rounded-md px-2.5 py-1 text-xs font-bold", timeframe === item ? "bg-[#101018] text-white" : "text-zinc-500 hover:text-black")}>{item}</button>
+              ))}
+            </div>
+            <button onClick={() => { setLiveMode(true); loadCandles(); }} className={classNames("rounded-lg px-3 py-1.5 text-xs font-black shadow-sm", liveMode ? "bg-[#2962ff] text-white" : "bg-white text-zinc-700")}>LIVE</button>
+            <button onClick={() => setSettingsOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#101018] px-3 py-1.5 text-xs font-black text-white shadow-sm"><Calendar size={14} /> Backtest</button>
+            <select value={timezone} onChange={(event) => setTimezone(event.target.value)} className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-sm outline-none">
+              {TIMEZONES.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
-            {dataSource === "binance" ? (
-              <select value={symbol} onChange={(event) => setSymbol(event.target.value)} className={classNames(terminalInput, "w-32")}> 
-                {BINANCE_SYMBOLS.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            ) : (
-              <input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} className={classNames(terminalInput, "w-32")} />
-            )}
-            <select value={timeframe} onChange={(event) => setTimeframe(event.target.value)} className={classNames(terminalInput, "w-24")}> 
-              {TIMEFRAMES.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-            <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className={classNames(terminalInput, "w-36")} />
-            <input type="date" value={to} onChange={(event) => setTo(event.target.value)} className={classNames(terminalInput, "w-36")} />
-            <button onClick={loadCandles} disabled={loadingData} className="inline-flex items-center gap-2 rounded-xl border border-[#1E1E38] px-3 py-2 text-xs font-bold text-zinc-300 hover:text-[#F0B429] disabled:opacity-50">
-              {loadingData ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Load
+            <button onClick={loadCandles} disabled={loadingData} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-sm disabled:opacity-50">
+              {loadingData ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Reload
             </button>
-            <button onClick={saveBacktest} disabled={saving || !trades.length} className="gold-gradient inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black text-black disabled:opacity-50">
+            <button onClick={saveBacktest} disabled={saving || !trades.length} className="inline-flex items-center gap-2 rounded-lg bg-[#f0b429] px-3 py-1.5 text-xs font-black text-black shadow-sm disabled:opacity-50">
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save
             </button>
-            <button onClick={downloadTradesCsv} disabled={!trades.length} className="inline-flex items-center gap-2 rounded-xl border border-[#1E1E38] px-3 py-2 text-xs font-bold text-zinc-300 hover:text-[#F0B429] disabled:opacity-50">
-              <Download size={14} /> Export
-            </button>
+            <button onClick={downloadTradesCsv} disabled={!trades.length} className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-sm disabled:opacity-50"><Download size={14} /> Export</button>
+            <div className="ml-auto flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-sm">
+              <Clock size={14} /> {currentTime} · {timezone}
+            </div>
           </div>
           {(dataWarning || dataError || saveMessage) && (
             <div className="mt-2 text-xs">
-              {dataWarning && <span className="mr-4 text-[#F0B429]">{dataWarning}</span>}
-              {dataError && <span className="mr-4 text-[#FF4565]">{dataError}</span>}
-              {saveMessage && <span className="text-zinc-400">{saveMessage}</span>}
+              {dataWarning && <span className="mr-4 text-[#9a6a00]">{dataWarning}</span>}
+              {dataError && <span className="mr-4 text-[#cc1f3b]">{dataError}</span>}
+              {saveMessage && <span className="text-zinc-600">{saveMessage}</span>}
             </div>
           )}
         </div>
@@ -613,7 +627,48 @@ export default function BacktestingTerminalPage() {
             )}
           </div>
         </div>
+
+        {settingsOpen && (
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-2xl rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-5 shadow-2xl">
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-mono2 text-xs uppercase tracking-widest text-[#F0B429]">Backtest settings</p>
+                  <h2 className="mt-1 text-xl font-black text-white">Select historical date, time and data source</h2>
+                </div>
+                <button onClick={() => setSettingsOpen(false)} className="rounded-xl border border-[#1E1E38] p-2 text-zinc-400 hover:text-white"><X size={18} /></button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Data source">
+                  <select value={dataSource} onChange={(event) => setDataSource(event.target.value as DataSource)} className={terminalInput}>
+                    <option value="binance">Crypto API (Binance/Coinbase)</option>
+                    <option value="csv">Custom CSV candles</option>
+                  </select>
+                </Field>
+                <Field label="Symbol">
+                  {dataSource === "binance" ? (
+                    <select value={symbol} onChange={(event) => setSymbol(event.target.value)} className={terminalInput}>{BINANCE_SYMBOLS.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+                  ) : (
+                    <input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} className={terminalInput} />
+                  )}
+                </Field>
+                <Field label="From date"><input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className={terminalInput} /></Field>
+                <Field label="From time"><input type="time" value={fromTime} onChange={(event) => setFromTime(event.target.value)} className={terminalInput} /></Field>
+                <Field label="To date"><input type="date" value={to} onChange={(event) => setTo(event.target.value)} className={terminalInput} /></Field>
+                <Field label="To time"><input type="time" value={toTime} onChange={(event) => setToTime(event.target.value)} className={terminalInput} /></Field>
+                <Field label="Timezone">
+                  <select value={timezone} onChange={(event) => setTimezone(event.target.value)} className={terminalInput}>{TIMEZONES.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+                </Field>
+                <Field label="Starting capital"><input value={startingBalance} onChange={(event) => { setStartingBalance(event.target.value); setBalance(Number(event.target.value) || 0); }} className={terminalInput} /></Field>
+              </div>
+              <div className="mt-5 flex flex-wrap justify-end gap-3">
+                <button onClick={() => setSettingsOpen(false)} className="rounded-xl border border-[#1E1E38] px-5 py-3 text-sm font-bold text-zinc-300 hover:text-white">Cancel</button>
+                <button onClick={() => { setLiveMode(false); setSettingsOpen(false); loadCandles(); }} className="gold-gradient rounded-xl px-5 py-3 text-sm font-black text-black">Start Backtest Replay</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </AppShell>
+    </ProtectedRoute>
   );
 }
