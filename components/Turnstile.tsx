@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 
 declare global {
   interface Window {
@@ -11,13 +11,15 @@ declare global {
       ) => string;
       reset: (widgetId: string) => void;
       remove: (widgetId: string) => void;
-      ready: (callback: () => void) => void;
+      ready?: (callback: () => void) => void;
     };
     __turnstileScriptLoading?: boolean;
   }
 }
 
 const SCRIPT_ID = "cf-turnstile-script";
+const SCRIPT_SRC =
+  "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
 interface TurnstileProps {
   siteKey: string;
@@ -37,6 +39,7 @@ export function Turnstile({
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const renderedRef = useRef(false);
+  const [mounted, setMounted] = useState(false);
 
   // Use refs for callbacks to avoid re-rendering the widget
   const onVerifyRef = useRef(onVerify);
@@ -87,35 +90,46 @@ export function Turnstile({
     });
   }, [siteKey, theme]);
 
+  // Only render on client — prevents SSR/hydration mismatch
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     // Load script once globally
     if (!document.getElementById(SCRIPT_ID)) {
       if (!window.__turnstileScriptLoading) {
         window.__turnstileScriptLoading = true;
         const script = document.createElement("script");
         script.id = SCRIPT_ID;
-        script.src =
-          "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-        script.async = true;
-        script.defer = true;
+        script.src = SCRIPT_SRC;
+        // NOTE: Do NOT set async/defer on dynamically injected scripts.
+        // Cloudflare forbids using turnstile.ready() with async/defer,
+        // and dynamically created scripts are already non-blocking.
         document.head.appendChild(script);
       }
     }
 
-    // Wait for turnstile to be ready, then render
-    function tryRender() {
-      if (window.turnstile?.ready) {
-        window.turnstile.ready(() => renderWidget());
-      } else {
-        // Script not loaded yet, retry
-        setTimeout(tryRender, 200);
+    // Poll for turnstile to be available, then render.
+    // We intentionally do NOT use turnstile.ready() because it conflicts
+    // with dynamically loaded scripts and throws runtime errors.
+    let attempts = 0;
+    const maxAttempts = 50; // 5 seconds
+    const interval = setInterval(() => {
+      if (window.turnstile && containerRef.current) {
+        clearInterval(interval);
+        renderWidget();
+      } else if (++attempts >= maxAttempts) {
+        clearInterval(interval);
+        console.error("[Turnstile] Script failed to load within 5 seconds");
       }
-    }
-
-    tryRender();
+    }, 100);
 
     // Cleanup on unmount
     return () => {
+      clearInterval(interval);
       if (widgetIdRef.current && window.turnstile) {
         try {
           window.turnstile.remove(widgetIdRef.current);
@@ -124,7 +138,20 @@ export function Turnstile({
       }
       renderedRef.current = false;
     };
-  }, [renderWidget]);
+  }, [mounted, renderWidget]);
+
+  // Render a placeholder during SSR to avoid layout shift
+  if (!mounted) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          minHeight: 65,
+        }}
+      />
+    );
+  }
 
   return (
     <div

@@ -96,7 +96,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080810] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#080810] flex items-center justify-center p-6" suppressHydrationWarning>
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="text-center">
