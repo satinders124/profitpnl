@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     const supabase = createServerClient();
 
     // 2. Request password reset
-    const { error } = await supabase.auth.admin.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "https://profitpnl.com"}/settings`,
     });
 
