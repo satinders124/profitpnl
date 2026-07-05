@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, ReactNode } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { ProtectedRoute}  from "@/components/providers/ProtectedRoute";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Card}  from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
@@ -543,18 +542,18 @@ function statusClass(status?: string) {
   const value = clean(status);
 
   if (value === "active") {
-    return "border-emerald-400/20 bg-emerald-400/10 text-emerald-300";
+    return "border-[#00D084]/20 bg-[#00D084]/10 text-[#00D084]";
   }
 
   if (value === "testing") {
-    return "border-amber-400/20 bg-amber-400/10 text-amber-300";
+    return "border-[#F0B429]/20 bg-[#F0B429]/10 text-[#F0B429]";
   }
 
   if (value === "archived") {
     return "border-zinc-400/20 bg-zinc-400/10 text-zinc-300";
   }
 
-  return "border-white/10 bg-white/5 text-zinc-300";
+  return "border-[#1E1E38] bg-[#14141E] text-zinc-300";
 }
 
 function edgeGrade(stats: SetupStats) {
@@ -569,10 +568,10 @@ function edgeGrade(stats: SetupStats) {
 function edgeGradeClass(stats: SetupStats) {
   const grade = edgeGrade(stats);
 
-  if (grade === "A+ Edge" || grade === "A Edge") return "text-emerald-300";
-  if (grade === "Positive") return "text-lime-300";
-  if (grade === "Leak") return "text-red-300";
-  if (grade === "Building") return "text-amber-300";
+  if (grade === "A+ Edge" || grade === "A Edge") return "text-[#00D084]";
+  if (grade === "Positive") return "text-[#00D084]";
+  if (grade === "Leak") return "text-[#FF4565]";
+  if (grade === "Building") return "text-[#F0B429]";
 
   return "text-zinc-300";
 }
@@ -594,8 +593,8 @@ function MetricCard({
   sub: string;
 }) {
   return (
-    <div className="relative min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-[#12101c] p-5 shadow-lg shadow-black/20">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/50 to-transparent" />
+    <div className="relative min-w-0 overflow-hidden rounded-3xl border border-[#1E1E38] bg-[#111120] p-5 shadow-lg shadow-black/20">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B429]/50 to-transparent" />
 
       <div className="flex min-w-0 items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -612,7 +611,7 @@ function MetricCard({
           </p>
         </div>
 
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/30 text-amber-300">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] text-[#F0B429]">
           {icon}
         </div>
       </div>
@@ -631,15 +630,15 @@ function MiniStat({
 }) {
   const toneClass =
     tone === "good"
-      ? "text-emerald-300"
+      ? "text-[#00D084]"
       : tone === "bad"
-      ? "text-red-300"
+      ? "text-[#FF4565]"
       : tone === "gold"
-      ? "text-amber-300"
+      ? "text-[#F0B429]"
       : "text-white";
 
   return (
-    <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 p-4">
+    <div className="min-w-0 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-4">
       <p className="truncate text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-500">
         {label}
       </p>
@@ -665,7 +664,7 @@ function TextPanel({
   const text = String(children || "").trim();
 
   return (
-    <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+    <div className="min-w-0 rounded-2xl border border-[#1E1E38] bg-[#161628] p-4">
       <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
         {icon}
         <span>{title}</span>
@@ -698,12 +697,12 @@ function SetupCard({
   const beWidth = stats.trades ? (stats.breakeven / stats.trades) * 100 : 0;
 
   return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0d0b16] shadow-xl shadow-black/20 transition hover:border-amber-400/30">
-      <div className="h-1 bg-gradient-to-r from-amber-400 via-yellow-200 to-transparent" />
+    <div className="overflow-hidden rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] shadow-xl shadow-black/20 transition hover:border-[#F0B429]/30">
+      <div className="h-1 bg-gradient-to-r from-[#F0B429] via-yellow-200 to-transparent" />
 
       <div className="grid gap-0 xl:grid-cols-[360px_1fr]">
         {/* LEFT PANEL */}
-        <div className="border-b border-white/10 bg-white/[0.025] p-5 xl:border-b-0 xl:border-r">
+        <div className="border-b border-[#1E1E38] bg-[#161628] p-5 xl:border-b-0 xl:border-r">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -716,7 +715,7 @@ function SetupCard({
                 </span>
 
                 <span
-                  className={`rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-xs font-semibold ${edgeGradeClass(
+                  className={`rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs font-semibold ${edgeGradeClass(
                     stats
                   )}`}
                 >
@@ -736,25 +735,25 @@ function SetupCard({
 
           <div className="mt-5 flex flex-wrap gap-2">
             {setup.market && (
-              <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-xs text-zinc-400">
+              <span className="rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs text-zinc-400">
                 {setup.market}
               </span>
             )}
 
             {setup.timeframe && (
-              <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-xs text-zinc-400">
+              <span className="rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs text-zinc-400">
                 {setup.timeframe}
               </span>
             )}
 
             {setup.directionBias && (
-              <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-xs text-zinc-400">
+              <span className="rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs text-zinc-400">
                 {setup.directionBias}
               </span>
             )}
           </div>
 
-          <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4">
+          <div className="mt-5 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
                 Trade Distribution
@@ -764,9 +763,9 @@ function SetupCard({
 </p>
             </div>
 
-            <div className="flex h-2 overflow-hidden rounded-full bg-white/10">
+            <div className="flex h-2 overflow-hidden rounded-full bg-[#1E1E38]">
               <div
-                className="bg-emerald-400"
+                className="bg-[#00D084]"
                 style={{ width: progressWidth(winWidth) }}
               />
               <div
@@ -774,19 +773,19 @@ function SetupCard({
                 style={{ width: progressWidth(beWidth) }}
               />
               <div
-                className="bg-red-400"
+                className="bg-[#FF4565]"
                 style={{ width: progressWidth(lossWidth) }}
               />
             </div>
 
             <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="rounded-xl bg-emerald-400/10 px-2 py-2 text-emerald-300">
+              <div className="rounded-xl bg-[#00D084]/10 px-2 py-2 text-[#00D084]">
                 {stats.wins}W
               </div>
-              <div className="rounded-xl bg-white/5 px-2 py-2 text-zinc-300">
+              <div className="rounded-xl bg-[#14141E] px-2 py-2 text-zinc-300">
                 {stats.breakeven}BE
               </div>
-              <div className="rounded-xl bg-red-400/10 px-2 py-2 text-red-300">
+              <div className="rounded-xl bg-[#FF4565]/10 px-2 py-2 text-[#FF4565]">
                 {stats.losses}L
               </div>
             </div>
@@ -795,7 +794,7 @@ function SetupCard({
           <div className="mt-5 flex gap-2">
             <button
               onClick={onEdit}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-medium text-zinc-300 transition hover:bg-white/7 hover:text-white"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#161628] px-4 py-3 text-sm font-medium text-zinc-300 transition hover:bg-[#1E1E38] hover:text-white"
             >
               <Pencil size={15} />
               Edit
@@ -803,7 +802,7 @@ function SetupCard({
 
             <button
               onClick={onDelete}
-              className="inline-flex items-center justify-center rounded-2xl border border-red-400/20 bg-red-400/[0.03] px-4 py-3 text-sm font-medium text-red-300 transition hover:bg-red-400/10"
+              className="inline-flex items-center justify-center rounded-2xl border border-[#FF4565]/20 bg-[#FF4565]/[0.03] px-4 py-3 text-sm font-medium text-[#FF4565] transition hover:bg-[#FF4565]/10"
             >
               <Trash2 size={15} />
             </button>
@@ -843,7 +842,7 @@ function SetupCard({
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
             <TextPanel
               title="Entry Model"
-              icon={<Crosshair size={15} className="text-amber-300" />}
+              icon={<Crosshair size={15} className="text-[#F0B429]" />}
               empty="Add your exact trigger, confirmation, and entry location."
             >
               {setup.entryModel}
@@ -851,7 +850,7 @@ function SetupCard({
 
             <TextPanel
               title="Risk Protocol"
-              icon={<ShieldCheck size={15} className="text-emerald-300" />}
+              icon={<ShieldCheck size={15} className="text-[#00D084]" />}
               empty="Add max risk, stop placement, daily loss rule, and no-trade conditions."
             >
               {setup.riskRule}
@@ -859,7 +858,7 @@ function SetupCard({
 
             <TextPanel
               title="Invalidation"
-              icon={<CircleAlert size={15} className="text-red-300" />}
+              icon={<CircleAlert size={15} className="text-[#FF4565]" />}
               empty="Add what proves the setup is wrong."
             >
               {setup.invalidation}
@@ -867,7 +866,7 @@ function SetupCard({
           </div>
 
           <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.85fr]">
-            <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="min-w-0 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <h4 className="font-semibold text-white">
@@ -878,7 +877,7 @@ function SetupCard({
                   </p>
                 </div>
 
-                <CheckCircle2 size={18} className="shrink-0 text-emerald-300" />
+                <CheckCircle2 size={18} className="shrink-0 text-[#00D084]" />
               </div>
 
               {rules.length > 0 ? (
@@ -886,10 +885,10 @@ function SetupCard({
                   {rules.slice(0, 8).map((rule, index) => (
                     <div
                       key={`${rule}-${index}`}
-                      className="min-w-0 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2"
+                      className="min-w-0 rounded-xl border border-[#1E1E38] bg-[#161628] px-3 py-2"
                     >
                       <div className="flex gap-2">
-                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#00D084]" />
                         <p className="whitespace-pre-wrap break-words text-sm leading-5 text-zinc-300">
                           {rule}
                         </p>
@@ -898,16 +897,16 @@ function SetupCard({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-4 text-sm leading-6 text-zinc-500">
+                <div className="rounded-xl border border-dashed border-[#242436] bg-[#14141E] p-4 text-sm leading-6 text-zinc-500">
                   No checklist added. Add rules like HTF aligned, minimum 2R,
                   no news, entry at planned zone, and risk set before entry.
                 </div>
               )}
             </div>
 
-            <div className="min-w-0 rounded-2xl border border-red-400/15 bg-red-400/[0.035] p-4">
+            <div className="min-w-0 rounded-2xl border border-[#FF4565]/15 bg-[#FF4565]/[0.035] p-4">
               <div className="mb-3 flex items-center gap-2">
-                <CircleAlert size={16} className="text-red-300" />
+                <CircleAlert size={16} className="text-[#FF4565]" />
                 <h4 className="font-semibold text-white">Avoid These Leaks</h4>
               </div>
 
@@ -916,7 +915,7 @@ function SetupCard({
                   {mistakes.slice(0, 5).map((mistake, index) => (
                     <div
                       key={`${mistake}-${index}`}
-                      className="rounded-xl bg-black/20 px-3 py-2"
+                      className="rounded-xl bg-[#0D0D1A] px-3 py-2"
                     >
                       <p className="whitespace-pre-wrap break-words text-sm leading-5 text-zinc-300">
                         {mistake}
@@ -938,7 +937,7 @@ function SetupCard({
               {tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-xs text-zinc-300"
+                  className="rounded-full border border-[#1E1E38] bg-[#161628] px-2.5 py-1 text-xs text-zinc-300"
                 >
                   #{tag}
                 </span>
@@ -957,7 +956,7 @@ function PlaybookSkeleton() {
       {[1, 2].map((item) => (
         <div
           key={item}
-          className="h-80 animate-pulse rounded-[1.75rem] border border-white/10 bg-white/[0.03]"
+          className="h-80 animate-pulse rounded-2xl border border-[#1E1E38] bg-[#161628]"
         />
       ))}
     </div>
@@ -971,7 +970,7 @@ function EmptyPlaybook({ onCreate }: { onCreate: () => void }) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.13),transparent_45%)]" />
 
         <div className="relative flex flex-col items-center px-6 py-16 text-center">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-400/10 text-amber-300">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F0B429]/10 text-[#F0B429]">
             <BookOpen size={30} />
           </div>
 
@@ -986,7 +985,7 @@ function EmptyPlaybook({ onCreate }: { onCreate: () => void }) {
 
           <button
             onClick={onCreate}
-            className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-amber-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-300"
+            className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-[#F0B429] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#d99f1e]"
           >
             <Plus size={17} />
             Create First Setup
@@ -1146,16 +1145,15 @@ export default function PlaybookPage() {
   }
 
   return (
-    <ProtectedRoute>
-      <AppShell title="Playbook">
+    <AppShell title="Playbook">
         <div className="space-y-6">
-          <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#0d0b16] p-6 shadow-2xl shadow-black/30 md:p-8">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.16),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_35%)]" />
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/60 to-transparent" />
+          <section className="relative overflow-hidden rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-6 shadow-2xl shadow-black/30 md:p-8">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(240,180,41,0.16),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(0,208,132,0.08),transparent_35%)]" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B429]/60 to-transparent" />
 
             <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="min-w-0">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-300">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#F0B429]/20 bg-[#F0B429]/10 px-3 py-1 text-xs font-medium text-[#F0B429]">
                   <Radar size={14} />
                   Strategy Edge Desk
                 </div>
@@ -1172,7 +1170,7 @@ export default function PlaybookPage() {
 
               <button
                 onClick={openCreate}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-300"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#F0B429] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#d99f1e]"
               >
                 <Plus size={17} />
                 New Setup
@@ -1214,11 +1212,11 @@ export default function PlaybookPage() {
             />
           </section>
 
-          <Card className="border-white/10 bg-white/[0.03]">
+          <Card className="border-[#1E1E38] bg-[#161628]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <BarChart3 size={18} className="text-amber-300" />
+                  <BarChart3 size={18} className="text-[#F0B429]" />
                   <h2 className="text-lg font-semibold text-white">
                     Strategy Library
                   </h2>
@@ -1239,7 +1237,7 @@ export default function PlaybookPage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search strategies..."
-                    className="w-full rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-amber-400/50 sm:w-72"
+                    className="w-full rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-[#F0B429]/50 sm:w-72"
                   />
                 </div>
 
@@ -1251,18 +1249,18 @@ export default function PlaybookPage() {
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-amber-400/50 sm:w-44"
+                    className="w-full rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-[#F0B429]/50 sm:w-44"
                   >
-                    <option value="all" className="bg-zinc-950">
+                    <option value="all" className="bg-[#0D0D1A]">
                       All Status
                     </option>
-                    <option value="active" className="bg-zinc-950">
+                    <option value="active" className="bg-[#0D0D1A]">
                       Active
                     </option>
-                    <option value="testing" className="bg-zinc-950">
+                    <option value="testing" className="bg-[#0D0D1A]">
                       Testing
                     </option>
-                    <option value="archived" className="bg-zinc-950">
+                    <option value="archived" className="bg-[#0D0D1A]">
                       Archived
                     </option>
                   </select>
@@ -1323,7 +1321,6 @@ export default function PlaybookPage() {
             onSave={handleSave}
           />
         </Modal>
-      </AppShell>
-    </ProtectedRoute>
+    </AppShell>
   );
 }

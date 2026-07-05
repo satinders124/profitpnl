@@ -48,7 +48,7 @@ export default function RegisterPage() {
       options: {
         shouldCreateUser: true,
         data: { full_name: name.trim() },
-        captchaToken,
+        ...(TURNSTILE_SITE_KEY && captchaToken ? { captchaToken } : {}),
       },
     });
 
