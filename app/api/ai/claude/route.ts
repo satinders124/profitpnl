@@ -79,8 +79,6 @@ export async function POST(req: Request) {
       });
     }
 
-    const finalSystem = systemPrompt || 'You are an Elite Trading Performance Coach. Your goal is to help the user identify behavioral patterns, emotional triggers, and technical leaks in their trading. Be direct, analytical, and encouraging, but hold them accountable.';
-
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
