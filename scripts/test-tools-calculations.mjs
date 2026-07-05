@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
-import { calcPipValue, calcPositionSize, calcProfitLoss, calcRiskReward } from "../lib/tools/calculations.ts";
+import {
+  calcDrawdown,
+  calcExpectancy,
+  calcPipValue,
+  calcPositionSize,
+  calcProfitLoss,
+  calcPropFirmChallenge,
+  calcRiskReward,
+  calcRMultiple,
+  calcWinRate,
+} from "../lib/tools/calculations.ts";
 import { getInstrument } from "../lib/tools/instruments.ts";
 
 function approx(actual, expected, epsilon = 1e-9) {
@@ -97,5 +107,48 @@ approx(rrLong.breakEvenWinRate, 0.25);
 const rrShort = calcRiskReward({ direction: "short", entryPrice: 100, stopLossPrice: 105, takeProfitPrice: 85 });
 approx(rrShort.ratio, 3);
 assert.throws(() => calcRiskReward({ direction: "long", entryPrice: 100, stopLossPrice: 105, takeProfitPrice: 115 }));
+
+// Expectancy
+const expectancy = calcExpectancy({ winRatePercent: 45, averageWin: 2.2, averageLoss: 1 });
+approx(expectancy.expectancy, 0.44);
+approx(expectancy.breakEvenWinRate, 1 / 3.2);
+assert.ok(expectancy.profitFactor > 1);
+
+// Win rate
+const winRate = calcWinRate({ wins: 45, losses: 55, breakEvens: 5 });
+approx(winRate.winRate, 0.45);
+approx(winRate.lossRate, 0.55);
+approx(winRate.breakEvenRate, 5 / 105);
+approx(winRate.minimumRewardRiskToBreakEven, 55 / 45);
+
+// R-multiple
+const rMultiple = calcRMultiple({ direction: "long", entryPrice: 100, stopLossPrice: 95, exitPrice: 112.5, riskAmount: 100 });
+approx(rMultiple.rMultiple, 2.5);
+approx(rMultiple.dollarResult, 250);
+const rMultipleLoss = calcRMultiple({ direction: "short", entryPrice: 100, stopLossPrice: 105, exitPrice: 106, riskAmount: 100 });
+approx(rMultipleLoss.rMultiple, -1.2);
+
+// Drawdown
+const drawdown = calcDrawdown({ startingBalance: 100000, peakBalance: 100000, currentBalance: 94000 });
+approx(drawdown.drawdownAmount, 6000);
+approx(drawdown.drawdownPercent, 0.06);
+approx(drawdown.recoveryPercent, 6000 / 94000);
+
+// Prop firm challenge
+const prop = calcPropFirmChallenge({
+  accountSize: 100000,
+  profitTargetPercent: 10,
+  maxDrawdownPercent: 10,
+  dailyLossPercent: 5,
+  currentBalance: 102500,
+  tradingDaysLeft: 20,
+});
+approx(prop.targetBalance, 110000);
+approx(prop.profitRemaining, 7500);
+approx(prop.progressPercent, 0.25);
+approx(prop.requiredAverageDailyProfit, 375);
+approx(prop.maxLossLimitBalance, 90000);
+approx(prop.totalDrawdownBuffer, 12500);
+approx(prop.dailyLossLimitAmount, 5000);
 
 console.log("All calculator math tests passed.");

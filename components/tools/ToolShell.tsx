@@ -10,6 +10,11 @@ const RELATED_TOOLS = [
   { href: "/tools/lot-size-calculator", label: "Lot Size Calculator" },
   { href: "/tools/pip-value-calculator", label: "Pip Value Calculator" },
   { href: "/tools/risk-reward-calculator", label: "Risk-Reward Calculator" },
+  { href: "/tools/expectancy-calculator", label: "Expectancy Calculator" },
+  { href: "/tools/win-rate-calculator", label: "Win Rate Calculator" },
+  { href: "/tools/r-multiple-calculator", label: "R-Multiple Calculator" },
+  { href: "/tools/drawdown-calculator", label: "Drawdown Calculator" },
+  { href: "/tools/prop-firm-challenge-calculator", label: "Prop Firm Calculator" },
 ];
 
 export function ToolShell({

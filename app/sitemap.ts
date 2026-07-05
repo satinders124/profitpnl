@@ -11,6 +11,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/tools/lot-size-calculator", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/tools/pip-value-calculator", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/tools/risk-reward-calculator", priority: 0.9, changeFrequency: "weekly" as const },
+    { path: "/tools/expectancy-calculator", priority: 0.9, changeFrequency: "weekly" as const },
+    { path: "/tools/win-rate-calculator", priority: 0.9, changeFrequency: "weekly" as const },
+    { path: "/tools/r-multiple-calculator", priority: 0.9, changeFrequency: "weekly" as const },
+    { path: "/tools/drawdown-calculator", priority: 0.9, changeFrequency: "weekly" as const },
+    { path: "/tools/prop-firm-challenge-calculator", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/login", priority: 0.3, changeFrequency: "monthly" as const },
     { path: "/register", priority: 0.5, changeFrequency: "monthly" as const },
   ];

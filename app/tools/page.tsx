@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Calculator, Layers, Scale, TrendingUp } from "lucide-react";
+import { Activity, ArrowRight, BarChart3, Calculator, Layers, Percent, Scale, ShieldAlert, TrendingUp } from "lucide-react";
 
-const TITLE = "Free Trading Calculators — Profit, Lot Size, Pip Value & Risk-Reward | ProfitPnL";
+const TITLE = "Free Trading Calculators — Profit, Lot Size, Pip Value, Expectancy & Prop Firm Tools | ProfitPnL";
 const DESCRIPTION =
-  "Free trading calculators for forex, gold, crypto, indices, and futures traders. Calculate profit, lot size, pip value, and risk-reward ratio with no sign-up.";
+  "Free trading calculators for forex, gold, crypto, indices, futures, and prop firm traders. Calculate profit, lot size, pip value, risk-reward, expectancy, win rate, R-multiple, and drawdown with no sign-up.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -50,7 +50,42 @@ const tools = [
     icon: Scale,
     title: "Risk-Reward Calculator",
     description: "Check your setup's R:R ratio and the break-even win rate needed before taking the trade.",
-    keywords: "risk reward ratio calculator, R multiple calculator, trading win rate calculator",
+    keywords: "risk reward ratio calculator, trade setup calculator, break-even win rate calculator",
+  },
+  {
+    href: "/tools/expectancy-calculator",
+    icon: BarChart3,
+    title: "Expectancy Calculator",
+    description: "Find whether your strategy has a positive edge from win rate, average win, and average loss.",
+    keywords: "trading expectancy calculator, expectancy formula trading, trading edge calculator",
+  },
+  {
+    href: "/tools/win-rate-calculator",
+    icon: Percent,
+    title: "Win Rate Calculator",
+    description: "Calculate trading win rate, loss rate, break-even trades, and minimum R:R needed to break even.",
+    keywords: "trading win rate calculator, forex win rate calculator, win percentage calculator",
+  },
+  {
+    href: "/tools/r-multiple-calculator",
+    icon: Activity,
+    title: "R-Multiple Calculator",
+    description: "Convert any trade result into R so you can review execution independent of account size.",
+    keywords: "R multiple calculator, R multiple trading, trade R calculator",
+  },
+  {
+    href: "/tools/drawdown-calculator",
+    icon: ShieldAlert,
+    title: "Drawdown Calculator",
+    description: "Calculate account drawdown, recovery required, and net change from starting balance.",
+    keywords: "trading drawdown calculator, forex drawdown calculator, drawdown recovery calculator",
+  },
+  {
+    href: "/tools/prop-firm-challenge-calculator",
+    icon: TrendingUp,
+    title: "Prop Firm Challenge Calculator",
+    description: "Track challenge target progress, remaining profit, drawdown buffer, and required daily pace.",
+    keywords: "prop firm challenge calculator, prop firm drawdown calculator, funded account calculator",
   },
 ];
 
@@ -97,11 +132,11 @@ export default function ToolsIndexPage() {
             Trading calculators for every setup, before you risk a cent.
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted2 sm:text-lg">
-            Built for traders who need fast position sizing, P&L, pip value, tick value, and risk-reward math across forex, gold, crypto, indices, and futures — no login required.
+            Built for traders who need fast position sizing, P&L, pip value, tick value, risk-reward, expectancy, drawdown, and prop-firm math across forex, gold, crypto, indices, and futures — no login required.
           </p>
         </section>
 
-        <section className="grid gap-5 sm:grid-cols-2" aria-label="Trading calculators">
+        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Trading calculators">
           {tools.map((tool) => {
             const Icon = tool.icon;
             return (
