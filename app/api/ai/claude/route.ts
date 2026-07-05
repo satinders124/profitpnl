@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const { messages, systemPrompt } = await req.json();
+    const { messages } = await req.json();
 
     // 3. Check if ANTHROPIC_API_KEY is configured
     if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY.startsWith("your_")) {
@@ -131,7 +131,7 @@ export async function POST(req: Request) {
             const anthropicStream = anthropic.messages.stream({
               model,
               max_tokens: 1500,
-              system: finalSystem,
+              system: 'You are an Elite Trading Performance Coach. Your goal is to help the user identify behavioral patterns, emotional triggers, and technical leaks in their trading. Be direct, analytical, and encouraging, but hold them accountable.',
               messages: cleanMessages,
             });
 
