@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import {
@@ -23,6 +23,16 @@ export default function UpgradePage() {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("upgrade") === "cancelled") {
+        showToast("Checkout cancelled. You can upgrade anytime when you are ready.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, []);
 
   const isProPaid = plan === "Pro Plan" && planSource === "paid";
   const isOnTrial = plan === "Pro Plan" && planSource === "trial";

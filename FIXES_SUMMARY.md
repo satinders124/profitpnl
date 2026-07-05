@@ -82,6 +82,16 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 
 **Fix:** Removed the unused variable.
 
+### 13. 🔴 FIXED: Pro Plan not updating after Stripe test card checkout
+**Files:** `app/api/payments/checkout/route.ts`, `app/api/payments/verify/route.ts` (new), `components/providers/AuthProvider.tsx`, `app/settings/page.tsx`, `app/upgrade/page.tsx`
+**Problem:** When a user upgraded to Pro using a Stripe test card and returned to `/settings` or `/dashboard`, the UI still displayed "Free trial" or "Upgrade to Pro". This happened because webhooks (`checkout.session.completed`) often arrive after the browser redirect or fail to reach local/preview servers during testing. When the browser returned to `success_url`, the app did not verify the session or update user state.
+
+**Fix:**
+- Updated `app/api/payments/checkout/route.ts` to include `&session_id={CHECKOUT_SESSION_ID}` in `success_url`.
+- Created `app/api/payments/verify/route.ts` to retrieve checkout sessions or query active subscriptions directly from Stripe and update Supabase `profiles` (`plan: "Pro Plan"`, `plan_source: "paid"`).
+- Updated `AuthProvider.tsx` to automatically trigger payment verification when returning with `?upgrade=success` or `?session_id=...`, immediately refreshing React state and user profile data.
+- Added visual upgrade confirmations on `/settings` and `/upgrade`.
+
 ## Files Changed
 
 | File | Change |
@@ -98,6 +108,10 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `components/loader/Loader.tsx` | Merged intervals, fixed ref sync |
 | `components/Turnstile.tsx` | Moved ref updates into effect, removed dead var |
 | `components/layout/Sidebar.tsx` | Fixed Date.now() purity with effect |
+| `app/api/payments/checkout/route.ts` | Added `session_id` template param to checkout return URL |
+| `app/api/payments/verify/route.ts` | **New** — endpoint to verify checkout session & active subscriptions directly |
+| `components/providers/AuthProvider.tsx` | Auto-verify checkout completion on return & sync state immediately |
+| `app/settings/page.tsx` | Added upgrade notification popup when returning from checkout |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result

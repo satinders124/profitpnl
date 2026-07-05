@@ -76,6 +76,19 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [comingSoonBroker, setComingSoonBroker] = useState<string | null>(null);
+  const [upgradeToast, setUpgradeToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("upgrade") === "success") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setUpgradeToast("🎉 Upgrade successful! You are now subscribed to ProfitPnL Pro.");
+        refreshPlan();
+        setTimeout(() => setUpgradeToast(null), 7000);
+      }
+    }
+  }, [refreshPlan]);
 
   // Custom tag state
   const [newSetupTag, setNewSetupTag] = useState("");
@@ -1838,6 +1851,27 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+
+        {/* ─── UPGRADE TOAST ─── */}
+        {upgradeToast && (
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center gap-3 px-5 py-3.5 bg-[#12121A] border border-[#F0B429] rounded-xl shadow-2xl shadow-[#F0B429]/20 max-w-md">
+              <div className="w-8 h-8 rounded-lg bg-[#F0B429]/20 flex items-center justify-center shrink-0">
+                <Crown size={16} className="text-[#F0B429]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-white text-sm font-bold">Pro Plan Active</p>
+                <p className="text-zinc-300 text-xs">{upgradeToast}</p>
+              </div>
+              <button
+                onClick={() => setUpgradeToast(null)}
+                className="text-zinc-500 hover:text-white transition-colors ml-2 shrink-0"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ─── COMING SOON / ERROR TOAST ─── */}
         {comingSoonBroker && (

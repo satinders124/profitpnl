@@ -69,7 +69,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshPlan = useCallback(async () => {
     if (user) {
+      try {
+        const res = await fetch("/api/payments/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: user.id }),
+        });
+        const data = await res.json();
+        if (data && data.plan === "Pro Plan" && data.planSource === "paid") {
+          setPlan("Pro Plan");
+          setPlanSource("paid");
+        }
+      } catch {
+        // ignore verify errors during refresh
+      }
       await fetchPlanData(user.id);
+    }
+  }, [user, fetchPlanData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !user) return;
+    const params = new URLSearchParams(window.location.search);
+    const upgrade = params.get("upgrade");
+    const sessionId = params.get("session_id");
+
+    if (upgrade === "success" || sessionId) {
+      fetch("/api/payments/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, uid: user.id }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && (data.success || data.plan === "Pro Plan")) {
+            setPlan("Pro Plan");
+            setPlanSource("paid");
+            fetchPlanData(user.id);
+          }
+        })
+        .catch((e) => console.error("Verify payment error:", e));
     }
   }, [user, fetchPlanData]);
 
