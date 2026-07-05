@@ -702,7 +702,7 @@ function SetupCard({
     <div className="overflow-hidden rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] shadow-xl shadow-black/20 transition hover:border-[#F0B429]/30">
       <div className="h-1 bg-gradient-to-r from-[#F0B429] via-yellow-200 to-transparent" />
 
-      <div className="grid gap-0 xl:grid-cols-[360px_1fr]">
+      <div className="grid gap-0 overflow-hidden xl:grid-cols-[360px_1fr]">
         {/* LEFT PANEL */}
         <div className="min-w-0 overflow-hidden border-b border-[#1E1E38] bg-[#161628] p-5 xl:border-b-0 xl:border-r">
           <div className="flex items-start justify-between gap-3">
@@ -812,7 +812,7 @@ function SetupCard({
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="min-w-0 p-5">
+        <div className="min-w-0 overflow-hidden p-5">
           <div className="grid gap-3 *:min-w-0 sm:grid-cols-2 lg:grid-cols-5">
             <MiniStat
               label="Total R"
@@ -1192,17 +1192,17 @@ export default function PlaybookPage() {
           />
         </section>
 
-          <Card className="overflow-hidden border-[#1E1E38] bg-[#161628]">
+          <Card className="overflow-hidden border-[#1E1E38] bg-[#161628] p-4 sm:p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <BarChart3 size={18} className="shrink-0 text-[#F0B429]" />
-                  <h2 className="text-lg font-semibold text-white">
+                  <h2 className="truncate text-lg font-semibold text-white">
                     Strategy Library
                   </h2>
                 </div>
 
-                <p className="mt-1 text-sm text-[#8080A0]">
+                <p className="mt-1 break-all text-sm text-[#8080A0]">
                   Performance is matched from Trade Log strategy/setup/tags.
                 </p>
               </div>
