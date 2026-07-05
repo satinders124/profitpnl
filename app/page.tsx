@@ -1566,8 +1566,8 @@ const plansData = [
   },
   {
     name: "Pro ⭐",
-    price: "$19",
-    period: "/mo · AUD · 7-day free trial",
+    price: "$19 USD",
+    period: "/mo · 7-day free trial",
     tag: "MOST POPULAR" as string | null,
     features: [
       { t: "Unlimited trades", ok: true, bold: true },

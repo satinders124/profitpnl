@@ -128,11 +128,11 @@ export default function UpgradePage() {
                 <Zap size={20} className="text-[#F0B429]" /> ProfitPnL Pro
               </h3>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-white">$19</span>
+                <span className="text-4xl font-black text-white">$19 USD</span>
                 <span className="text-[#A0A0C0] text-sm">/month</span>
               </div>
               <p className="text-[#5A5A80] text-xs mt-1">
-                or <span className="text-[#A0A0C0]">$190/year</span> (save 17%)
+                or <span className="text-[#A0A0C0]">$190 USD/year</span> (save 17%)
               </p>
             </div>
             <div className="flex-1 space-y-4 mb-8">
@@ -157,7 +157,7 @@ export default function UpgradePage() {
                 ) : (
                   <Rocket size={18} />
                 )}
-                {isProPaid ? "Already Pro" : isOnTrial ? "Upgrade to Keep Pro — $19/mo" : "Upgrade to Pro — $19/mo"}
+                {isProPaid ? "Already Pro" : isOnTrial ? "Upgrade to Keep Pro — $19 USD/mo" : "Upgrade to Pro — $19 USD/mo"}
               </button>
 
               {/* Annual button */}
@@ -167,7 +167,7 @@ export default function UpgradePage() {
                 className="w-full py-3 rounded-xl border border-[#F0B429]/40 text-[#F0B429] font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#F0B429]/10 disabled:opacity-50 transition-all"
               >
                 <Clock size={14} />
-                {isProPaid ? "Already Pro" : isOnTrial ? "Annual — Keep Pro $190/yr" : "Annual — $190/yr (Save 17%)"}
+                {isProPaid ? "Already Pro" : isOnTrial ? "Annual — Keep Pro $190 USD/yr" : "Annual — $190 USD/yr (Save 17%)"}
               </button>
             </div>
           </Card>

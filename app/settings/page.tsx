@@ -1533,7 +1533,7 @@ export default function SettingsPage() {
                           className="px-5 py-2.5 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] text-black font-bold text-xs transition-colors flex items-center gap-2 shadow-lg shadow-[#F0B429]/20"
                         >
                           <Crown size={14} />
-                          Upgrade to Pro — $19/mo
+                          Upgrade to Pro — $19 USD/mo
                         </button>
                       )}
                       {isOnTrial && (
