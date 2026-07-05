@@ -672,7 +672,7 @@ function TextPanel({
         <span>{title}</span>
       </div>
 
-      <p className="max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-[#8080A0]">
+      <p className="max-h-28 overflow-y-auto whitespace-pre-wrap break-all text-sm leading-6 text-[#8080A0]">
         {text || empty}
       </p>
     </div>
@@ -704,7 +704,7 @@ function SetupCard({
 
       <div className="grid gap-0 xl:grid-cols-[360px_1fr]">
         {/* LEFT PANEL */}
-        <div className="border-b border-[#1E1E38] bg-[#161628] p-5 xl:border-b-0 xl:border-r">
+        <div className="min-w-0 overflow-hidden border-b border-[#1E1E38] bg-[#161628] p-5 xl:border-b-0 xl:border-r">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -725,11 +725,11 @@ function SetupCard({
                 </span>
               </div>
 
-              <h3 className="mt-4 break-words text-2xl font-semibold tracking-tight text-white">
+              <h3 className="mt-4 break-all text-2xl font-semibold tracking-tight text-white">
                 {setup.name}
               </h3>
 
-              <p className="mt-2 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-[#8080A0]">
+              <p className="mt-2 max-h-28 overflow-y-auto whitespace-pre-wrap break-all text-sm leading-6 text-[#8080A0]">
                 {setup.description || "No setup thesis added yet."}
               </p>
             </div>
@@ -813,7 +813,7 @@ function SetupCard({
 
         {/* RIGHT PANEL */}
         <div className="min-w-0 p-5">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 *:min-w-0 sm:grid-cols-2 lg:grid-cols-5">
             <MiniStat
               label="Total R"
               value={formatR(stats.totalR)}
@@ -841,7 +841,7 @@ function SetupCard({
             />
           </div>
 
-          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          <div className="mt-4 grid gap-3 *:min-w-0 lg:grid-cols-3">
             <TextPanel
               title="Entry Model"
               icon={<Crosshair size={15} className="text-[#F0B429]" />}
@@ -867,7 +867,7 @@ function SetupCard({
             </TextPanel>
           </div>
 
-          <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.85fr]">
+          <div className="mt-4 grid gap-3 *:min-w-0 lg:grid-cols-[1fr_0.85fr]">
             <div className="min-w-0 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
@@ -883,15 +883,15 @@ function SetupCard({
               </div>
 
               {rules.length > 0 ? (
-                <div className="grid gap-2 md:grid-cols-2">
+                <div className="grid gap-2 *:min-w-0 md:grid-cols-2">
                   {rules.slice(0, 8).map((rule, index) => (
                     <div
                       key={`${rule}-${index}`}
-                      className="min-w-0 rounded-xl border border-[#1E1E38] bg-[#161628] px-3 py-2"
+                      className="min-w-0 overflow-hidden rounded-xl border border-[#1E1E38] bg-[#161628] px-3 py-2"
                     >
                       <div className="flex gap-2">
                         <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#00D084]" />
-                        <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#A0A0C0]">
+                        <p className="whitespace-pre-wrap break-all text-sm leading-5 text-[#A0A0C0]">
                           {rule}
                         </p>
                       </div>
@@ -919,7 +919,7 @@ function SetupCard({
                       key={`${mistake}-${index}`}
                       className="rounded-xl bg-[#0D0D1A] px-3 py-2"
                     >
-                      <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#A0A0C0]">
+                      <p className="whitespace-pre-wrap break-all text-sm leading-5 text-[#A0A0C0]">
                         {mistake}
                       </p>
                     </div>
@@ -1192,11 +1192,11 @@ export default function PlaybookPage() {
           />
         </section>
 
-          <Card className="border-[#1E1E38] bg-[#161628]">
+          <Card className="overflow-hidden border-[#1E1E38] bg-[#161628]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <BarChart3 size={18} className="text-[#F0B429]" />
+                  <BarChart3 size={18} className="shrink-0 text-[#F0B429]" />
                   <h2 className="text-lg font-semibold text-white">
                     Strategy Library
                   </h2>
@@ -1208,7 +1208,7 @@ export default function PlaybookPage() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <div className="relative">
+                <div className="relative min-w-0">
                   <Search
                     size={16}
                     className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5A5A80]"
@@ -1221,7 +1221,7 @@ export default function PlaybookPage() {
                   />
                 </div>
 
-                <div className="relative">
+                <div className="relative min-w-0">
                   <Filter
                     size={16}
                     className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5A5A80]"
