@@ -15,7 +15,6 @@ import {
 import { PlaybookSetup } from "@/types/playbook";
 import { Trade } from "@/types/trade";
 import {
-  Activity,
   BarChart3,
   BookOpen,
   CheckCircle2,
@@ -26,7 +25,6 @@ import {
   Layers3,
   Pencil,
   Plus,
-  Radar,
   Search,
   ShieldCheck,
   Target,
@@ -550,10 +548,10 @@ function statusClass(status?: string) {
   }
 
   if (value === "archived") {
-    return "border-zinc-400/20 bg-zinc-400/10 text-zinc-300";
+    return "border-zinc-400/20 bg-zinc-400/10 text-[#A0A0C0]";
   }
 
-  return "border-[#1E1E38] bg-[#14141E] text-zinc-300";
+  return "border-[#1E1E38] bg-[#14141E] text-[#A0A0C0]";
 }
 
 function edgeGrade(stats: SetupStats) {
@@ -573,7 +571,7 @@ function edgeGradeClass(stats: SetupStats) {
   if (grade === "Leak") return "text-[#FF4565]";
   if (grade === "Building") return "text-[#F0B429]";
 
-  return "text-zinc-300";
+  return "text-[#A0A0C0]";
 }
 
 function progressWidth(value: number) {
@@ -586,36 +584,40 @@ function MetricCard({
   label,
   value,
   sub,
+  tone = "gold",
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   sub: string;
+  tone?: "green" | "red" | "gold";
 }) {
+  const color =
+    tone === "green" ? "#00D084" : tone === "red" ? "#FF4565" : "#F0B429";
+
   return (
-    <div className="relative min-w-0 overflow-hidden rounded-3xl border border-[#1E1E38] bg-[#111120] p-5 shadow-lg shadow-black/20">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B429]/50 to-transparent" />
-
-      <div className="flex min-w-0 items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium uppercase tracking-[0.12em] text-zinc-500">
-            {label}
-          </p>
-
-          <p className="mt-2 truncate text-2xl font-semibold leading-tight text-white">
-            {value}
-          </p>
-
-          <p className="mt-2 truncate text-xs leading-5 text-zinc-500">
-            {sub}
-          </p>
+    <Card className="min-w-0 border-[#1E1E38] p-5 shadow-md transition-all hover:border-white/20">
+      <div className="flex items-center justify-between gap-2">
+        <div className="truncate text-xs font-semibold uppercase tracking-wider text-[#8080A0]">
+          {label}
         </div>
-
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] text-[#F0B429]">
+        <div className="shrink-0" style={{ color }}>
           {icon}
         </div>
       </div>
-    </div>
+
+      <div
+        className="mt-3 truncate text-2xl font-bold tabular-nums tracking-tight md:text-3xl"
+        style={{ color }}
+        title={value}
+      >
+        {value}
+      </div>
+
+      <div className="mt-1 truncate text-xs font-medium text-[#8080A0]" title={sub}>
+        {sub}
+      </div>
+    </Card>
   );
 }
 
@@ -639,11 +641,11 @@ function MiniStat({
 
   return (
     <div className="min-w-0 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-4">
-      <p className="truncate text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-500">
+      <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">
         {label}
       </p>
 
-      <p className={`mt-2 truncate text-xl font-semibold leading-tight ${toneClass}`}>
+      <p className={`mt-2 truncate text-xl font-black tracking-tight ${toneClass}`}>
         {value}
       </p>
     </div>
@@ -670,7 +672,7 @@ function TextPanel({
         <span>{title}</span>
       </div>
 
-      <p className="max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-zinc-400">
+      <p className="max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-[#8080A0]">
         {text || empty}
       </p>
     </div>
@@ -727,7 +729,7 @@ function SetupCard({
                 {setup.name}
               </h3>
 
-              <p className="mt-2 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-zinc-400">
+              <p className="mt-2 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-[#8080A0]">
                 {setup.description || "No setup thesis added yet."}
               </p>
             </div>
@@ -735,19 +737,19 @@ function SetupCard({
 
           <div className="mt-5 flex flex-wrap gap-2">
             {setup.market && (
-              <span className="rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs text-zinc-400">
+              <span className="rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs text-[#8080A0]">
                 {setup.market}
               </span>
             )}
 
             {setup.timeframe && (
-              <span className="rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs text-zinc-400">
+              <span className="rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs text-[#8080A0]">
                 {setup.timeframe}
               </span>
             )}
 
             {setup.directionBias && (
-              <span className="rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs text-zinc-400">
+              <span className="rounded-full border border-[#1E1E38] bg-[#0D0D1A] px-2.5 py-1 text-xs text-[#8080A0]">
                 {setup.directionBias}
               </span>
             )}
@@ -755,10 +757,10 @@ function SetupCard({
 
           <div className="mt-5 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+              <p className="text-xs uppercase tracking-[0.18em] text-[#5A5A80]">
                 Trade Distribution
               </p>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-[#8080A0]">
   {stats.wins + stats.losses + stats.breakeven}/{stats.trades} classified
 </p>
             </div>
@@ -782,7 +784,7 @@ function SetupCard({
               <div className="rounded-xl bg-[#00D084]/10 px-2 py-2 text-[#00D084]">
                 {stats.wins}W
               </div>
-              <div className="rounded-xl bg-[#14141E] px-2 py-2 text-zinc-300">
+              <div className="rounded-xl bg-[#14141E] px-2 py-2 text-[#A0A0C0]">
                 {stats.breakeven}BE
               </div>
               <div className="rounded-xl bg-[#FF4565]/10 px-2 py-2 text-[#FF4565]">
@@ -794,7 +796,7 @@ function SetupCard({
           <div className="mt-5 flex gap-2">
             <button
               onClick={onEdit}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#161628] px-4 py-3 text-sm font-medium text-zinc-300 transition hover:bg-[#1E1E38] hover:text-white"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#161628] px-4 py-3 text-sm font-medium text-[#A0A0C0] transition hover:bg-[#1E1E38] hover:text-white"
             >
               <Pencil size={15} />
               Edit
@@ -872,7 +874,7 @@ function SetupCard({
                   <h4 className="font-semibold text-white">
                     Execution Checklist
                   </h4>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-[#5A5A80]">
                     Pre-entry rules for this setup.
                   </p>
                 </div>
@@ -889,7 +891,7 @@ function SetupCard({
                     >
                       <div className="flex gap-2">
                         <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#00D084]" />
-                        <p className="whitespace-pre-wrap break-words text-sm leading-5 text-zinc-300">
+                        <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#A0A0C0]">
                           {rule}
                         </p>
                       </div>
@@ -897,7 +899,7 @@ function SetupCard({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-[#242436] bg-[#14141E] p-4 text-sm leading-6 text-zinc-500">
+                <div className="rounded-xl border border-dashed border-[#242436] bg-[#14141E] p-4 text-sm leading-6 text-[#5A5A80]">
                   No checklist added. Add rules like HTF aligned, minimum 2R,
                   no news, entry at planned zone, and risk set before entry.
                 </div>
@@ -917,14 +919,14 @@ function SetupCard({
                       key={`${mistake}-${index}`}
                       className="rounded-xl bg-[#0D0D1A] px-3 py-2"
                     >
-                      <p className="whitespace-pre-wrap break-words text-sm leading-5 text-zinc-300">
+                      <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#A0A0C0]">
                         {mistake}
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm leading-6 text-zinc-500">
+                <p className="text-sm leading-6 text-[#5A5A80]">
                   Add common mistakes like chasing entries, moving stops, taking
                   late signals, or trading during news.
                 </p>
@@ -937,7 +939,7 @@ function SetupCard({
               {tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-[#1E1E38] bg-[#161628] px-2.5 py-1 text-xs text-zinc-300"
+                  className="rounded-full border border-[#1E1E38] bg-[#161628] px-2.5 py-1 text-xs text-[#A0A0C0]"
                 >
                   #{tag}
                 </span>
@@ -978,7 +980,7 @@ function EmptyPlaybook({ onCreate }: { onCreate: () => void }) {
             Build your first strategy model
           </h2>
 
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#8080A0]">
             Define your setup, rules, invalidation, and risk protocol. Then tag
             trades with the same strategy name to measure real edge.
           </p>
@@ -1145,72 +1147,50 @@ export default function PlaybookPage() {
   }
 
   return (
-    <AppShell title="Playbook">
-        <div className="space-y-6">
-          <section className="relative overflow-hidden rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-6 shadow-2xl shadow-black/30 md:p-8">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(240,180,41,0.16),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(0,208,132,0.08),transparent_35%)]" />
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B429]/60 to-transparent" />
+    <AppShell
+      title="Playbook"
+      subtitle={`${setups.length} strategy models · ${globalStats.active} active`}
+      actionLabel="+ New Setup"
+      onAction={openCreate}
+    >
+      <div className="space-y-5">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            icon={<Layers3 size={18} />}
+            label="Total Models"
+            value={String(setups.length)}
+            sub="Strategies in your playbook"
+            tone="gold"
+          />
 
-            <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="min-w-0">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#F0B429]/20 bg-[#F0B429]/10 px-3 py-1 text-xs font-medium text-[#F0B429]">
-                  <Radar size={14} />
-                  Strategy Edge Desk
-                </div>
+          <MetricCard
+            icon={<Flame size={18} />}
+            label="Active Models"
+            value={String(globalStats.active)}
+            sub="Approved for live execution"
+            tone="gold"
+          />
 
-                <h1 className="break-words text-3xl font-semibold tracking-tight text-white md:text-5xl">
-                  Playbook
-                </h1>
+          <MetricCard
+            icon={<TrendingUp size={18} />}
+            label="Strategy R"
+            value={formatR(globalStats.totalR)}
+            sub={`${globalStats.totalStrategyTrades} matched trades`}
+            tone={globalStats.totalR >= 0 ? "green" : "red"}
+          />
 
-                <p className="mt-4 max-w-3xl text-sm leading-6 text-zinc-400 md:text-base">
-                  Build repeatable setups, connect them to your trade log, and
-                  measure which strategies deserve more size.
-                </p>
-              </div>
-
-              <button
-                onClick={openCreate}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#F0B429] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#d99f1e]"
-              >
-                <Plus size={17} />
-                New Setup
-              </button>
-            </div>
-          </section>
-
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              icon={<Layers3 size={20} />}
-              label="Total Models"
-              value={String(setups.length)}
-              sub="Strategies in your playbook"
-            />
-
-            <MetricCard
-              icon={<Flame size={20} />}
-              label="Active Models"
-              value={String(globalStats.active)}
-              sub="Approved for live execution"
-            />
-
-            <MetricCard
-              icon={<TrendingUp size={20} />}
-              label="Strategy R"
-              value={formatR(globalStats.totalR)}
-              sub={`${globalStats.totalStrategyTrades} matched trades`}
-            />
-
-            <MetricCard
-              icon={<Target size={20} />}
-              label="Best Edge"
-              value={globalStats.bestSetup?.name || "No data"}
-              sub={
-                globalStats.bestStats
-                  ? `${formatR(globalStats.bestStats.expectancy)} expectancy`
-                  : "Tag trades with strategy name"
-              }
-            />
-          </section>
+          <MetricCard
+            icon={<Target size={18} />}
+            label="Best Edge"
+            value={globalStats.bestSetup?.name || "No data"}
+            sub={
+              globalStats.bestStats
+                ? `${formatR(globalStats.bestStats.expectancy)} expectancy`
+                : "Tag trades with strategy name"
+            }
+            tone="gold"
+          />
+        </section>
 
           <Card className="border-[#1E1E38] bg-[#161628]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1222,7 +1202,7 @@ export default function PlaybookPage() {
                   </h2>
                 </div>
 
-                <p className="mt-1 text-sm text-zinc-400">
+                <p className="mt-1 text-sm text-[#8080A0]">
                   Performance is matched from Trade Log strategy/setup/tags.
                 </p>
               </div>
@@ -1231,7 +1211,7 @@ export default function PlaybookPage() {
                 <div className="relative">
                   <Search
                     size={16}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5A5A80]"
                   />
                   <input
                     value={search}
@@ -1244,7 +1224,7 @@ export default function PlaybookPage() {
                 <div className="relative">
                   <Filter
                     size={16}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5A5A80]"
                   />
                   <select
                     value={statusFilter}
@@ -1279,7 +1259,7 @@ export default function PlaybookPage() {
                 <p className="text-lg font-semibold text-white">
                   No strategies match your filters.
                 </p>
-                <p className="mt-2 text-sm text-zinc-400">
+                <p className="mt-2 text-sm text-[#8080A0]">
                   Try clearing search or changing the status filter.
                 </p>
               </div>
