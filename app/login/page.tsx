@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
+import { Turnstile } from "@/components/Turnstile";
+
+// Replace with your Cloudflare Turnstile Site Key
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 export default function LoginPage() {
   const supabase = createClient();
@@ -13,20 +17,41 @@ export default function LoginPage() {
   const [step, setStep] = useState<"email" | "otp">("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
+  const handleCaptchaVerify = useCallback((token: string) => {
+    setCaptchaToken(token);
+    setError("");
+  }, []);
+
+  const handleCaptchaExpire = useCallback(() => {
+    setCaptchaToken(null);
+  }, []);
 
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
+
+    // Check CAPTCHA is completed
+    if (!captchaToken) {
+      setError("Please complete the verification below.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error: authError } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: false },
+      options: {
+        shouldCreateUser: false,
+        captchaToken,
+      },
     });
 
-    if (error) {
-      setError(error.message);
+    if (authError) {
+      setError(authError.message);
+      setCaptchaToken(null); // Reset CAPTCHA on error
     } else {
       setStep("otp");
     }
@@ -39,14 +64,14 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: otp.trim(),
       type: "email",
     });
 
-    if (error) {
-      setError(error.message);
+    if (verifyError) {
+      setError(verifyError.message);
     } else {
       router.push("/dashboard");
     }
@@ -80,10 +105,25 @@ export default function LoginPage() {
                   className="w-full bg-[#14141E] border border-[#242436] rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-[#F0B429] transition-all"
                 />
               </div>
+
+              {/* Turnstile CAPTCHA */}
+              {TURNSTILE_SITE_KEY && (
+                <div className="flex justify-center py-2">
+                  <Turnstile
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onVerify={handleCaptchaVerify}
+                    onExpire={handleCaptchaExpire}
+                    onError={() => setCaptchaToken(null)}
+                    theme="dark"
+                  />
+                </div>
+              )}
+
               {error && <p className="text-red-400 text-xs">{error}</p>}
+
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (TURNSTILE_SITE_KEY ? !captchaToken : false)}
                 className="w-full py-3 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] text-black font-bold text-sm transition-colors disabled:opacity-50"
               >
                 {loading ? "Sending..." : "Send Login Code"}
@@ -116,7 +156,7 @@ export default function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { setStep("email"); setOtp(""); setError(""); }}
+                onClick={() => { setStep("email"); setOtp(""); setError(""); setCaptchaToken(null); }}
                 className="w-full text-zinc-500 text-xs hover:text-zinc-300 transition-colors"
               >
                 ← Use a different email
