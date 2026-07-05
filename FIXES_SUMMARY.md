@@ -92,6 +92,20 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - Updated `AuthProvider.tsx` to automatically trigger payment verification when returning with `?upgrade=success` or `?session_id=...`, immediately refreshing React state and user profile data.
 - Added visual upgrade confirmations on `/settings` and `/upgrade`.
 
+### 14. 🔴 FIXED: React Error #418 (Hydration Mismatch) in AppLoader
+**File:** `components/loader/AppLoader.tsx`
+**Problem:** `getInitialVisible()` inspected `sessionStorage` directly during initial render state declaration. On SSR, `typeof window === "undefined"` returned `null` (rendering `<div style="visibility: hidden">`), while initial browser hydration rendered `<Loader />` or children directly. React 19 threw Error #418 because initial client DOM didn't match server HTML.
+
+**Fix:** Initialized `visible` strictly to `null` during both SSR and initial client hydration so HTML always matches. Immediately post-hydration, a `useEffect` checks `sessionStorage` and reveals either the loader or application.
+
+### 15. 🔴 FIXED: 401 Unauthorized on Checkout, AI Coach, and Verify Endpoints
+**Files:** `app/upgrade/page.tsx`, `app/ai-coach/page.tsx`, `components/providers/AuthProvider.tsx`, `app/api/payments/verify/route.ts`
+**Problem:** Backend API routes were hardened with `getAuthenticatedUser(req)`, requiring an `Authorization: Bearer <access_token>` header. Frontend client calls on `/upgrade` and `/ai-coach` omitted this header, causing `401 Unauthorized`.
+
+**Fix:**
+- Updated frontend fetch requests (`/upgrade`, `/ai-coach`, `AuthProvider`) to retrieve the user session (`await createClient().auth.getSession()`) and attach `Authorization: Bearer ${session.access_token}`.
+- Hardened `/api/payments/verify` to require JWT authentication (`getAuthenticatedUser(req)`) and enforce strict ownership (`targetUid === authUser.id`), preventing cross-user session checks.
+
 ## Files Changed
 
 | File | Change |
@@ -112,6 +126,10 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `app/api/payments/verify/route.ts` | **New** — endpoint to verify checkout session & active subscriptions directly |
 | `components/providers/AuthProvider.tsx` | Auto-verify checkout completion on return & sync state immediately |
 | `app/settings/page.tsx` | Added upgrade notification popup when returning from checkout |
+| `components/loader/AppLoader.tsx` | Fixed React Error #418 SSR/hydration mismatch |
+| `app/upgrade/page.tsx` | Added Bearer authorization header to checkout API calls |
+| `app/ai-coach/page.tsx` | Added Bearer authorization header to Claude AI API calls |
+| `app/api/payments/verify/route.ts` | Enforced strict JWT authentication and user ownership guards |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result
