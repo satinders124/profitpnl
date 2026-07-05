@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServerClient } from "@/lib/supabase-server";
+import { getAuthenticatedUser } from "@/lib/auth-utils";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe | null {
@@ -9,11 +10,15 @@ function getStripe(): Stripe | null {
   return _stripe;
 }
 
-async function handleVerify(sessionId?: string | null, uid?: string | null) {
-  if (!sessionId && !uid) {
-    return NextResponse.json({ error: "Missing session_id or uid" }, { status: 400 });
+async function handleVerify(req: Request, sessionId?: string | null) {
+  let authUser;
+  try {
+    authUser = await getAuthenticatedUser(req);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const uid = authUser.id;
   const supabase = createServerClient();
   const stripe = getStripe();
 
@@ -26,7 +31,8 @@ async function handleVerify(sessionId?: string | null, uid?: string | null) {
         const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
         const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
 
-        if (targetUid) {
+        // Ensure user only verifies their own session
+        if (targetUid === uid) {
           await supabase
             .from("profiles")
             .update({
@@ -37,7 +43,7 @@ async function handleVerify(sessionId?: string | null, uid?: string | null) {
               trial_ended_email_sent_at: null,
               trial_reminder_sent_at: null,
             })
-            .eq("id", targetUid);
+            .eq("id", uid);
 
           return NextResponse.json({ success: true, plan: "Pro Plan", planSource: "paid" });
         }
@@ -47,57 +53,53 @@ async function handleVerify(sessionId?: string | null, uid?: string | null) {
     }
   }
 
-  // 2. If no session_id or session check failed, check active subscriptions by user profile
-  if (uid) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("stripe_customer_id, plan, plan_source")
-      .eq("id", uid)
-      .single();
+  // 2. Check active subscriptions by authenticated user profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("stripe_customer_id, plan, plan_source")
+    .eq("id", uid)
+    .single();
 
-    if (profile?.stripe_customer_id && stripe) {
-      try {
-        const subs = await stripe.subscriptions.list({
-          customer: profile.stripe_customer_id,
-          status: "active",
-          limit: 1,
-        });
+  if (profile?.stripe_customer_id && stripe) {
+    try {
+      const subs = await stripe.subscriptions.list({
+        customer: profile.stripe_customer_id,
+        status: "active",
+        limit: 1,
+      });
 
-        if (subs && subs.data && subs.data.length > 0) {
-          await supabase
-            .from("profiles")
-            .update({
-              plan: "Pro Plan",
-              plan_source: "paid",
-              stripe_subscription_id: subs.data[0].id,
-              trial_ended_email_sent_at: null,
-              trial_reminder_sent_at: null,
-            })
-            .eq("id", uid);
+      if (subs && subs.data && subs.data.length > 0) {
+        await supabase
+          .from("profiles")
+          .update({
+            plan: "Pro Plan",
+            plan_source: "paid",
+            stripe_subscription_id: subs.data[0].id,
+            trial_ended_email_sent_at: null,
+            trial_reminder_sent_at: null,
+          })
+          .eq("id", uid);
 
-          return NextResponse.json({ success: true, plan: "Pro Plan", planSource: "paid" });
-        }
-      } catch (err) {
-        console.error("Error checking active subscriptions:", err);
+        return NextResponse.json({ success: true, plan: "Pro Plan", planSource: "paid" });
       }
+    } catch (err) {
+      console.error("Error checking active subscriptions:", err);
     }
-
-    // Return current profile status if no active subscription update occurred
-    return NextResponse.json({
-      success: true,
-      plan: profile?.plan || "Free Plan",
-      planSource: profile?.plan_source || "",
-    });
   }
 
-  return NextResponse.json({ error: "Could not verify payment" }, { status: 400 });
+  // Return current profile status if no active subscription update occurred
+  return NextResponse.json({
+    success: true,
+    plan: profile?.plan || "Free Plan",
+    planSource: profile?.plan_source || "",
+  });
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => null);
-    const { session_id, uid } = body || {};
-    return await handleVerify(session_id, uid);
+    const { session_id } = body || {};
+    return await handleVerify(req, session_id);
   } catch (err) {
     console.error("Verify endpoint error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -108,8 +110,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const session_id = searchParams.get("session_id");
-    const uid = searchParams.get("uid");
-    return await handleVerify(session_id, uid);
+    return await handleVerify(req, session_id);
   } catch (err) {
     console.error("Verify endpoint error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
