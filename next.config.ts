@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.tradingview.com https://s3.tradingview.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tradingview.com https://s3.tradingview.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.sendgrid.com https://challenges.cloudflare.com https://api.anthropic.com https://*.tradingview.com https://s3.tradingview.com wss://*.tradingview.com; frame-src 'self' https://challenges.cloudflare.com https://*.tradingview.com https://s3.tradingview.com;",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.tradingview.com https://s3.tradingview.com https://*.tradingview-widget.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tradingview.com https://s3.tradingview.com https://*.tradingview-widget.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.sendgrid.com https://challenges.cloudflare.com https://api.anthropic.com https://*.tradingview.com https://s3.tradingview.com wss://*.tradingview.com https://*.tradingview-widget.com; frame-src 'self' https://challenges.cloudflare.com https://*.tradingview.com https://s3.tradingview.com https://*.tradingview-widget.com https://tradingview-widget.com;",
           },
         ],
       },

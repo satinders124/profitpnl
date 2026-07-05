@@ -30,6 +30,11 @@ function TradingViewChartComponent({
     const forexPairs = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY"];
     const basePair = s.replace("/", "");
 
+    // XAUUSD mapping for gold futures or spot
+    if (basePair === "XAUUSD" || basePair === "GOLD") {
+      return "FOREXCOM:XAUUSD";
+    }
+
     if (forexPairs.includes(basePair)) {
       return `FX_IDC:${basePair}`;
     }
