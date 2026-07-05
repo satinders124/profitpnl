@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServerClient } from "@/lib/supabase-server";
 import { getAuthenticatedUser } from "@/lib/auth-utils";
+import {
+  COUPON_COOKIE,
+  REF_COOKIE,
+  createAttributionIfMissing,
+  getAffiliateForCheckout,
+  parseCookieHeader,
+} from "@/lib/affiliates";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe {
@@ -17,7 +24,7 @@ export async function POST(req: Request) {
     const uid = user.id;
 
     const body = await req.json().catch(() => null);
-    const { email, billing } = body || {};
+    const { email, billing, couponCode } = body || {};
 
     if (!email || !billing) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -43,6 +50,27 @@ export async function POST(req: Request) {
 
     const stripe = getStripe();
     const supabase = createServerClient();
+    const cookies = parseCookieHeader(req.headers.get("cookie"));
+
+    const affiliateResult = await getAffiliateForCheckout({
+      userId: uid,
+      couponCode: couponCode || cookies[COUPON_COOKIE],
+      refSlug: cookies[REF_COOKIE],
+    });
+
+    // If the user typed a coupon manually and it is unknown, fail clearly.
+    if (couponCode && !affiliateResult.affiliate) {
+      return NextResponse.json({ error: "Coupon code not found or inactive." }, { status: 400 });
+    }
+
+    if (affiliateResult.affiliate) {
+      await createAttributionIfMissing({
+        userId: uid,
+        affiliate: affiliateResult.affiliate,
+        source: affiliateResult.source,
+        couponCode: affiliateResult.couponCode,
+      }).catch((error) => console.error("Checkout attribution error:", error));
+    }
 
     // Get or create Stripe customer
     const { data: profile } = await supabase
@@ -76,16 +104,33 @@ export async function POST(req: Request) {
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://profitpnl.com";
+    const promotionCodeId = affiliateResult.affiliate?.stripe_promotion_code_id || undefined;
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
+      allow_promotion_codes: promotionCodeId ? undefined : true,
+      discounts: promotionCodeId ? [{ promotion_code: promotionCodeId }] : undefined,
       success_url: `${appUrl}/settings?upgrade=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/upgrade?upgrade=cancelled`,
-      metadata: { supabase_uid: uid },
-      subscription_data: { metadata: { supabase_uid: uid } },
+      metadata: {
+        supabase_uid: uid,
+        affiliate_id: affiliateResult.affiliate?.id || "",
+        affiliate_slug: affiliateResult.affiliate?.slug || "",
+        coupon_code: affiliateResult.couponCode || "",
+        referral_source: affiliateResult.source,
+      },
+      subscription_data: {
+        metadata: {
+          supabase_uid: uid,
+          affiliate_id: affiliateResult.affiliate?.id || "",
+          affiliate_slug: affiliateResult.affiliate?.slug || "",
+          coupon_code: affiliateResult.couponCode || "",
+          referral_source: affiliateResult.source,
+        },
+      },
     });
 
     return NextResponse.json({ url: session.url });

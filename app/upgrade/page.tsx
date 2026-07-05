@@ -11,14 +11,37 @@ import {
   Rocket,
   Clock,
   Loader2,
+  Percent,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { createClient } from "@/lib/supabase-client";
+
+type CouponInfo = {
+  name: string;
+  slug: string;
+  couponCode: string;
+  discountPercent: number;
+  discountDurationMonths: number;
+};
+
+function getCookie(name: string) {
+  if (typeof document === "undefined") return "";
+  return document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.split("=")
+    .slice(1)
+    .join("=") || "";
+}
 
 export default function UpgradePage() {
   const { user, plan, planSource } = useAuth();
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponInfo | null>(null);
+  const [checkingCoupon, setCheckingCoupon] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -29,10 +52,47 @@ export default function UpgradePage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("upgrade") === "cancelled") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         showToast("Checkout cancelled. You can upgrade anytime when you are ready.");
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
+  }, []);
+
+  async function validateCoupon(code: string, silent = false) {
+    const clean = code.trim().toUpperCase();
+    if (!clean) return;
+    setCheckingCoupon(true);
+    try {
+      const res = await fetch(`/api/coupons/validate?code=${encodeURIComponent(clean)}`);
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setAppliedCoupon(null);
+        if (!silent) showToast(data.error || "Coupon code not found.");
+        return;
+      }
+      setCouponCode(data.affiliate.couponCode);
+      setAppliedCoupon(data.affiliate);
+      if (!silent) showToast(`${data.affiliate.couponCode} applied — ${data.affiliate.discountPercent}% off`);
+    } catch {
+      if (!silent) showToast("Could not validate coupon. Try again.");
+    } finally {
+      setCheckingCoupon(false);
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const queryCoupon = params.get("coupon");
+    const cookieCoupon = decodeURIComponent(getCookie("ppnl_coupon"));
+    const initialCoupon = queryCoupon || cookieCoupon;
+    if (initialCoupon) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCouponCode(initialCoupon.toUpperCase());
+      validateCoupon(initialCoupon, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isProPaid = plan === "Pro Plan" && planSource === "paid";
@@ -56,6 +116,7 @@ export default function UpgradePage() {
           uid: user.id,
           email: user.email,
           billing: planType,
+          couponCode: appliedCoupon?.couponCode || couponCode.trim() || undefined,
         }),
       });
 
@@ -143,6 +204,37 @@ export default function UpgradePage() {
               <FeatureItem text="Advanced Analytics" active />
               <FeatureItem text="Prop Firm Auto-Sync" active />
               <FeatureItem text="Verified P&L Certificates" active />
+            </div>
+
+            <div className="mb-5 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white">
+                <Percent size={16} className="text-[#F0B429]" /> Partner coupon
+              </div>
+              {appliedCoupon ? (
+                <div className="rounded-xl border border-[#00D084]/25 bg-[#00D084]/10 p-3 text-sm text-[#00D084]">
+                  <strong>{appliedCoupon.couponCode}</strong> applied — {appliedCoupon.discountPercent}% off for {appliedCoupon.discountDurationMonths} months. Stripe will show this discount at checkout.
+                </div>
+              ) : (
+                <p className="mb-3 text-xs leading-relaxed text-[#8080A0]">
+                  Have an influencer coupon? Apply it here or enter it securely inside Stripe checkout.
+                </p>
+              )}
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={couponCode}
+                  onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setAppliedCoupon(null); }}
+                  placeholder="TOM20"
+                  className="min-w-0 flex-1 rounded-xl border border-[#1E1E38] bg-[#111120] px-3 py-2.5 font-mono2 text-sm text-white outline-none focus:border-[#F0B429]"
+                />
+                <button
+                  type="button"
+                  onClick={() => validateCoupon(couponCode)}
+                  disabled={checkingCoupon || !couponCode.trim()}
+                  className="rounded-xl border border-[#F0B429]/35 px-4 py-2.5 text-xs font-bold text-[#F0B429] disabled:opacity-50"
+                >
+                  {checkingCoupon ? "Checking" : "Apply"}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">

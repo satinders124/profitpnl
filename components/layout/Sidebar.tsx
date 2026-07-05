@@ -11,7 +11,6 @@ import {
   Crown,
   Home,
   ListChecks,
-  MoreHorizontal,
   Settings,
   Shield,
   Sparkles,
@@ -77,6 +76,11 @@ const navGroups = [
         label: "Accounts",
         href: "/accounts",
         icon: CreditCard,
+      },
+      {
+        label: "Affiliate",
+        href: "/affiliate",
+        icon: Award,
       },
       {
         label: "Settings",

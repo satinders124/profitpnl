@@ -21,7 +21,7 @@ const ALLOWED_PATHS = [
   "/google-sheets-trading-journal-template",
   "/reports/trader-benchmark-report",
 ];
-const ALLOWED_PREFIXES = ["/tools", "/cert", "/prop-firm-rules", "/playbooks", "/trading-metrics", "/reports", "/embed"];
+const ALLOWED_PREFIXES = ["/tools", "/cert", "/r", "/prop-firm-rules", "/playbooks", "/trading-metrics", "/reports", "/embed"];
 
 export function proxy(req: NextRequest) {
   const comingSoonEnabled = process.env.COMING_SOON_MODE === "true";
