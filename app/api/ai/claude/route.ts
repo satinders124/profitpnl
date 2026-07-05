@@ -91,9 +91,36 @@ export async function POST(req: Request) {
         let success = false;
         let lastErrMessage = "Unknown error";
 
-        // Try stable Claude 3.5 Sonnet releases with automatic fallback to Haiku if model tier is restricted
+        // Dynamically query Anthropic /v1/models to see which exact model IDs are authorized on this API key
+        let availableIds: string[] = [];
+        try {
+          const modelsRes = await fetch("https://api.anthropic.com/v1/models", {
+            headers: {
+              "x-api-key": process.env.ANTHROPIC_API_KEY || "",
+              "anthropic-version": "2023-06-01",
+            },
+          });
+          if (modelsRes.ok) {
+            const modelsData = await modelsRes.json();
+            if (Array.isArray(modelsData?.data)) {
+              availableIds = modelsData.data.map((m: any) => m.id);
+            }
+          }
+        } catch (e) {
+          console.warn("Could not query /v1/models:", e);
+        }
+
+        // Prioritize:
+        // 1. User specified environment override or user requested 'claude-sonnet-5'
+        // 2. Models dynamically fetched from Anthropic /v1/models authorized for this exact API key
+        // 3. Known fallback model identifiers
         const modelsToTry = Array.from(new Set([
           process.env.ANTHROPIC_MODEL,
+          'claude-sonnet-5',
+          ...availableIds.filter((id) => id.includes("sonnet")),
+          ...availableIds,
+          'claude-3-7-sonnet-20250219',
+          'claude-3-7-sonnet-latest',
           'claude-3-5-sonnet-20241022',
           'claude-3-5-sonnet-latest',
           'claude-3-haiku-20240307',
@@ -118,7 +145,7 @@ export async function POST(req: Request) {
           } catch (err: any) {
             lastErrMessage = err?.message || String(err);
             console.warn(`Model ${model} failed:`, lastErrMessage);
-            // If model is not found (404), fallback to next model in list
+            // If model is not found (404), continue loop to next model fallback
             if (lastErrMessage.includes("404") || lastErrMessage.includes("not_found")) {
               continue;
             }
@@ -127,7 +154,10 @@ export async function POST(req: Request) {
         }
 
         if (!success) {
-          controller.enqueue(encoder.encode(`\n\n[AI Coach Error: ${lastErrMessage}. Tried models: ${modelsToTry.join(", ")}. Please verify your ANTHROPIC_API_KEY and credits.]`));
+          const authorizedInfo = availableIds.length
+            ? `Models authorized on your API key: ${availableIds.join(", ")}.`
+            : `Could not retrieve authorized models list from /v1/models.`;
+          controller.enqueue(encoder.encode(`\n\n[AI Coach Error: ${lastErrMessage}. ${authorizedInfo} Please check your ANTHROPIC_API_KEY credits/permissions.]`));
         }
         controller.close();
       },
