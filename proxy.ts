@@ -5,8 +5,9 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 // Paths that should always be reachable, even in Coming Soon mode.
 const ALLOWED_PATHS = ["/coming-soon"];
+const ALLOWED_PREFIXES = ["/tools"];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const comingSoonEnabled = process.env.COMING_SOON_MODE === "true";
 
   if (!comingSoonEnabled) {
@@ -23,7 +24,8 @@ export function middleware(req: NextRequest) {
     /\.(?:png|jpg|jpeg|svg|ico|webp|gif|css|js|txt|xml|json|woff2?)$/.test(
       pathname
     ) ||
-    ALLOWED_PATHS.includes(pathname)
+    ALLOWED_PATHS.includes(pathname) ||
+    ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
   ) {
     return NextResponse.next();
   }

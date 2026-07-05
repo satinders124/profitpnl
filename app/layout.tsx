@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "@/components/providers/AuthProvider";
-import { AppLoader } from "@/components/loader/AppLoader";
+import { RootProviders } from "@/components/providers/RootProviders";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "ProfitPnL — AI Trading Journal",
   description:
     "Professional AI-powered trading journal for serious prop traders.",
@@ -21,9 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AppLoader>
-          <AuthProvider>{children}</AuthProvider>
-        </AppLoader>
+        <RootProviders>{children}</RootProviders>
       </body>
     </html>
   );

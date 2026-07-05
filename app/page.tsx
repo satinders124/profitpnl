@@ -28,7 +28,14 @@ const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
    1. NAVBAR
    ===================================================================== */
 
-const navLinks = ["Features", "How it works", "Reviews", "Pricing", "FAQ"];
+const navLinks = [
+  { label: "Tools", href: "/tools" },
+  { label: "Features", href: "#features" },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Reviews", href: "#reviews" },
+  { label: "Pricing", href: "#pricing" },
+  { label: "FAQ", href: "#faq" },
+];
 
 const REMEMBERED_EMAIL_KEY = "ppnl_remembered_email";
 
@@ -273,16 +280,16 @@ function Navbar() {
         </a>
 
         <div className="hidden items-center gap-7 md:flex">
-          {navLinks.map((l, i) => (
+          {navLinks.map((link, i) => (
             <motion.a
-              key={l}
-              href={`#${l.toLowerCase().replace(/\s/g, "-")}`}
+              key={link.label}
+              href={link.href}
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 + i * 0.08 }}
               className="relative text-sm text-muted2 transition-colors hover:text-gold after:absolute after:-bottom-1 after:left-0 after:h-px after:w-0 after:bg-gold after:transition-all after:duration-300 hover:after:w-full"
             >
-              {l}
+              {link.label}
             </motion.a>
           ))}
           <LoginDropdown align="right" />
@@ -331,17 +338,17 @@ function Navbar() {
             }`}
           >
             <div className="flex flex-col gap-1 px-4 py-4">
-              {navLinks.map((l, i) => (
+              {navLinks.map((link, i) => (
                 <motion.a
-                  key={l}
-                  href={`#${l.toLowerCase().replace(/\s/g, "-")}`}
+                  key={link.label}
+                  href={link.href}
                   initial={{ x: -24, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: i * 0.06 }}
                   onClick={() => setOpen(false)}
                   className="rounded-lg px-3 py-3 text-txt transition-colors hover:bg-panel hover:text-gold"
                 >
-                  {l}
+                  {link.label}
                 </motion.a>
               ))}
               <motion.div
@@ -894,6 +901,106 @@ function Stats() {
             <p className="mt-2 text-xs tracking-wider text-muted2 uppercase sm:text-sm">{s.label}</p>
           </motion.div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+
+/* =====================================================================
+   6. FREE TOOLS PREVIEW
+   ===================================================================== */
+
+const toolCards = [
+  {
+    icon: "📈",
+    title: "Profit Calculator",
+    desc: "Calculate exact forex, crypto, index, and futures P&L from entry, exit, direction, and size.",
+    href: "/tools/profit-calculator",
+    stat: "P&L in seconds",
+  },
+  {
+    icon: "📐",
+    title: "Lot Size Calculator",
+    desc: "Size every trade from account balance, risk %, and stop-loss distance before you enter.",
+    href: "/tools/lot-size-calculator",
+    stat: "Risk-first sizing",
+  },
+  {
+    icon: "🧮",
+    title: "Pip Value Calculator",
+    desc: "See what one pip or futures tick is worth in your account currency.",
+    href: "/tools/pip-value-calculator",
+    stat: "Forex + ES/NQ ticks",
+  },
+  {
+    icon: "⚖️",
+    title: "Risk-Reward Calculator",
+    desc: "Check your R:R and break-even win rate before taking the setup.",
+    href: "/tools/risk-reward-calculator",
+    stat: "1:R + win rate",
+  },
+];
+
+function ToolsPreview() {
+  return (
+    <section id="tools" className="relative overflow-hidden py-20 sm:py-28">
+      <div className="animate-pulse-glow absolute right-[-180px] top-10 h-96 w-96 rounded-full bg-gold/8 blur-[130px]" />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7 }}
+          className="mx-auto mb-14 max-w-2xl text-center"
+        >
+          <p className="mb-3 font-mono2 text-xs tracking-[0.3em] text-gold uppercase">{"//"} Free Trading Tools</p>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+            Free calculators that bring <span className="text-shimmer">organic traders</span> to ProfitPnL
+          </h2>
+          <p className="mt-4 text-muted2">
+            No login, no paywall. Built for the exact searches traders make before they journal: profit, lot size, pip value, tick value, and risk-reward.
+          </p>
+        </motion.div>
+
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {toolCards.map((tool, i) => (
+            <motion.a
+              key={tool.title}
+              href={tool.href}
+              initial={{ opacity: 0, y: 36, scale: 0.96 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.55, delay: i * 0.08 }}
+              whileHover={{ y: -8 }}
+              className="group relative overflow-hidden rounded-2xl border border-line bg-panel/70 p-5 backdrop-blur transition-all duration-300 hover:border-gold/50 hover:shadow-[0_0_45px_-16px_rgba(240,180,41,0.55)]"
+            >
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-gold/12 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+              <div className="relative">
+                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-line bg-ink text-2xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6">
+                  {tool.icon}
+                </div>
+                <h3 className="mb-2 text-lg font-bold">{tool.title}</h3>
+                <p className="text-sm leading-relaxed text-muted2">{tool.desc}</p>
+                <div className="mt-5 flex items-center justify-between border-t border-line/60 pt-4">
+                  <span className="font-mono2 text-[11px] text-dim">{tool.stat}</span>
+                  <span className="text-sm font-bold text-gold transition-transform group-hover:translate-x-1">Open →</span>
+                </div>
+              </div>
+            </motion.a>
+          ))}
+        </div>
+
+        <div className="mt-8 text-center">
+          <motion.a
+            href="/tools"
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            className="inline-flex rounded-xl border border-gold/40 px-6 py-3 text-sm font-bold text-gold transition-colors hover:bg-gold/10"
+          >
+            View all free calculators →
+          </motion.a>
+        </div>
       </div>
     </section>
   );
@@ -1717,9 +1824,34 @@ function CTA() {
    ===================================================================== */
 
 const footerCols = [
-  { h: "Product", items: ["Features", "Pricing", "AI Coach", "Prop Tracker"] },
-  { h: "Resources", items: ["Blog", "Journaling Guides", "CSV Templates", "Community"] },
-  { h: "Company", items: ["About", "Contact", "Privacy", "Terms"] },
+  {
+    h: "Product",
+    items: [
+      { label: "Features", href: "#features" },
+      { label: "Pricing", href: "#pricing" },
+      { label: "Free Tools", href: "/tools" },
+      { label: "AI Coach", href: "#features" },
+      { label: "Prop Tracker", href: "#features" },
+    ],
+  },
+  {
+    h: "Resources",
+    items: [
+      { label: "Blog", href: "#" },
+      { label: "Journaling Guides", href: "#" },
+      { label: "CSV Templates", href: "#" },
+      { label: "Community", href: "#" },
+    ],
+  },
+  {
+    h: "Company",
+    items: [
+      { label: "About", href: "#" },
+      { label: "Contact", href: "#" },
+      { label: "Privacy", href: "#" },
+      { label: "Terms", href: "#" },
+    ],
+  },
 ];
 
 function Footer() {
@@ -1768,10 +1900,10 @@ function Footer() {
             >
               <h4 className="mb-4 font-mono2 text-xs font-bold tracking-widest text-txt/80 uppercase">{c.h}</h4>
               <ul className="space-y-2.5">
-                {c.items.map((it) => (
-                  <li key={it}>
-                    <a href="#" className="text-sm text-dim transition-all hover:pl-1 hover:text-gold">
-                      {it}
+                {c.items.map((item) => (
+                  <li key={item.label}>
+                    <a href={item.href} className="text-sm text-dim transition-all hover:pl-1 hover:text-gold">
+                      {item.label}
                     </a>
                   </li>
                 ))}
@@ -1803,6 +1935,7 @@ export default function Home() {
         <TickerTape />
         <Hero />
         <Stats />
+        <ToolsPreview />
         <Features />
         <Playbook />
         <Integrations />
