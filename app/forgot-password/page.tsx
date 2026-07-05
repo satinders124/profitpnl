@@ -1,36 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase-client";
+import { Turnstile } from "@/components/Turnstile";
+
+// Replace with your Cloudflare Turnstile Site Key
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 export default function ForgotPasswordPage() {
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
+  const handleCaptchaVerify = useCallback((token: string) => {
+    setCaptchaToken(token);
+    setError("");
+  }, []);
+
+  const handleCaptchaExpire = useCallback(() => {
+    setCaptchaToken(null);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
 
+    if (!captchaToken) {
+      setError("Please complete the verification below.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-      email.trim(),
-      {
-        redirectTo: `${window.location.origin}/settings`,
-      }
-    );
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), token: captchaToken }),
+      });
 
-    if (resetError) {
-      setError(resetError.message);
-    } else {
-      setSent(true);
+      if (res.ok) {
+        setSent(true);
+      } else {
+        const data = await res.json();
+        setError(data.error || "Failed to send reset link.");
+      }
+    } catch (err) {
+      setError("A connection error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
@@ -40,7 +62,7 @@ export default function ForgotPasswordPage() {
           <img
             src="/favicon.png"
             alt="ProfitPnL"
-            className="h-14 w-14 rounded-2xl shadow-lg shadow-[#F0B429]/20 mb-4"
+            className="h-14 w-14 rounded-2xl shadow-lg shadow-[#F0B429]/20 mb-4 mx-auto"
           />
           <h1 className="text-2xl font-black text-white">Reset Password</h1>
           <p className="text-zinc-500 text-sm mt-1">
@@ -83,11 +105,23 @@ export default function ForgotPasswordPage() {
                 />
               </div>
 
+              {TURNSTILE_SITE_KEY && (
+                <div className="flex justify-center py-2">
+                  <Turnstile
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onVerify={handleCaptchaVerify}
+                    onExpire={handleCaptchaExpire}
+                    onError={() => setCaptchaToken(null)}
+                    theme="dark"
+                  />
+                </div>
+              )}
+
               {error && <p className="text-red-400 text-xs">{error}</p>}
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (TURNSTILE_SITE_KEY ? !captchaToken : false)}
                 className="w-full py-3 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] text-black font-bold text-sm transition-colors disabled:opacity-50"
               >
                 {loading ? "Sending…" : "Send Reset Link"}

@@ -22,9 +22,44 @@ export async function getProfile(uid: string) {
 
 export async function updateProfile(uid: string, updates: Record<string, unknown>) {
   const supabase = createClient();
+  
+  // 🛡️ SECURITY: Whitelist fields that can be updated via the browser client.
+  // Never allow updating plan, plan_source, or payment-related fields here.
+  const allowedFields = [
+    "display_name",
+    "bio",
+    "currency",
+    "timezone",
+    "notifications",
+    "sound_effects",
+    "initial_account_size",
+    "default_risk_percentage",
+    "default_commission",
+    "auto_calculate_r",
+    "daily_loss_limit",
+    "max_drawdown_limit",
+    "daily_profit_target",
+    "max_consecutive_losses",
+    "enforce_review",
+    "active_broker",
+    "connected_brokers",
+    "webhook_url",
+    "api_key",
+    "setup_tags",
+    "mistake_tags",
+    "psychology_tags",
+  ];
+
+  const filteredUpdates: Record<string, unknown> = {};
+  for (const key of allowedFields) {
+    if (key in updates) {
+      filteredUpdates[key] = updates[key];
+    }
+  }
+
   const { error } = await supabase
     .from("profiles")
-    .update(updates)
+    .update(filteredUpdates)
     .eq("id", uid);
 
   if (error) throw error;

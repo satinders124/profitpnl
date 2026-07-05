@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { getAuthenticatedUser } from "@/lib/auth-utils";
 import sgMail from "@sendgrid/mail";
 import { trialStartedEmailHtml } from "@/lib/email-templates";
 
@@ -8,18 +9,16 @@ const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 /**
  * POST /api/trial/start
  *
- * Starts a 7-day no-card-required Pro trial for the given user.
+ * Starts a 7-day no-card-required Pro trial for the authenticated user.
  * Each account may only start a trial once (tracked via has_used_trial).
  *
- * Accepts: { uid } (from authenticated user)
  * Returns: { ok: true, trialEndsAtMs }
  */
 export async function POST(req: Request) {
   try {
-    const { uid } = await req.json();
-    if (!uid) {
-      return NextResponse.json({ error: "Missing uid" }, { status: 400 });
-    }
+    // 1. Authenticate User - ignore uid in body, use authenticated ID
+    const user = await getAuthenticatedUser(req);
+    const uid = user.id;
 
     const supabase = createServerClient();
 
@@ -92,9 +91,15 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, trialEndsAtMs });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Trial start error:", error);
+    
+    if (message.includes("authorization header") || message.includes("session")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: message },
       { status: 500 }
     );
   }

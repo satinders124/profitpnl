@@ -1,25 +1,26 @@
 /* ═══════════════════════════════════════════════════════════════
    ProfitPnL — Waitlist API route (SendGrid)
-
-   📍 COPY THIS FILE TO:  app/api/waitlist/route.ts   (Next.js App Router)
-
-   🔑 ENV SETUP — add to .env.local (and your host's env vars):
-      SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxx
-
-   ⚠️  Make sure hello@profitpnl.com is a VERIFIED SENDER in SendGrid
-      (Settings → Sender Authentication → verify the profitpnl.com
-      domain, or at minimum single-sender-verify hello@profitpnl.com),
-      otherwise SendGrid returns 403 Forbidden.
-
-   No npm package needed — calls SendGrid's v3 REST API directly.
    ═══════════════════════════════════════════════════════════════ */
 
 import { NextResponse } from "next/server";
 
 const FROM_EMAIL = "hello@profitpnl.com";
 const FROM_NAME = "ProfitPnL";
+const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY;
+
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
 
 function welcomeHtml(email: string): string {
+  const safeEmail = escapeHtml(email);
   return `
 <!doctype html>
 <html>
@@ -77,7 +78,7 @@ function welcomeHtml(email: string): string {
             <tr>
               <td style="padding:32px 40px 32px 40px;" align="center">
                 <p style="margin:0;border-top:1px solid #1e1e38;padding-top:24px;font-size:12px;line-height:1.6;color:#5a5a80;">
-                  You received this email because ${email} joined the waitlist at profitpnl.com.<br/>
+                  You received this email because ${safeEmail} joined the waitlist at profitpnl.com.<br/>
                   © 2026 ProfitPnL · Built for prop traders
                 </p>
               </td>
@@ -93,10 +94,30 @@ function welcomeHtml(email: string): string {
 
 export async function POST(req: Request) {
   try {
-    const { email } = (await req.json()) as { email?: string };
+    const { email, token } = (await req.json()) as { email?: string; token?: string };
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+    }
+
+    // 1. Verify Turnstile CAPTCHA
+    if (!token) {
+      return NextResponse.json({ error: "CAPTCHA token missing" }, { status: 400 });
+    }
+
+    if (TURNSTILE_SECRET_KEY) {
+      const formData = new FormData();
+      formData.append("secret", TURNSTILE_SECRET_KEY);
+      formData.append("response", token);
+
+      const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+        method: "POST",
+        body: formData,
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) {
+        return NextResponse.json({ error: "CAPTCHA verification failed" }, { status: 400 });
+      }
     }
 
     const apiKey = process.env.SENDGRID_API_KEY;
@@ -130,7 +151,6 @@ export async function POST(req: Request) {
       }),
     });
 
-    // SendGrid returns 202 Accepted on success with an empty body
     if (res.status !== 202) {
       const detail = await res.text();
       console.error("SendGrid error", res.status, detail);

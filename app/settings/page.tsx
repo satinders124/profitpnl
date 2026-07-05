@@ -216,12 +216,10 @@ export default function SettingsPage() {
   }
 
   function handleRegenerateKey() {
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let rand = "";
-    for (let i = 0; i < 16; i++) {
-      rand += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    const newKey = `ppnl_live_${rand}`;
+    const array = new Uint8Array(16);
+    window.crypto.getRandomValues(array);
+    const rand = Array.from(array, (byte) => byte.toString(36)).join("");
+    const newKey = `ppnl_live_${rand.slice(0, 16)}`;
     setSettings((prev) => ({ ...prev, apiKey: newKey }));
   }
 
@@ -324,38 +322,25 @@ export default function SettingsPage() {
 
     setDeletingAccount(true);
     try {
-      const supabase = createClient();
+      const { data: { session } } = await createClient().auth.getSession();
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`
+        },
+      });
 
-      // 1. Delete all user data from Supabase tables
-      const tables = ["trades", "journals", "playbook", "accounts"];
-      for (const table of tables) {
-        try {
-          await supabase.from(table).delete().eq("user_id", user.id);
-        } catch {
-          // table may not have data — that's fine
-        }
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete account");
       }
 
-      // 2. Delete the profile
-      await supabase.from("profiles").delete().eq("id", user.id);
-
-      // 3. Sign out
+      // Sign out locally
       await logout();
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error("Account deletion error:", err);
-      // Re-auth required for deleteAccount — redirect to login
-      if (
-        err &&
-        typeof err === "object" &&
-        "code" in err &&
-        String((err as { code: string }).code).includes("requires-recent-login")
-      ) {
-        alert(
-          "For security, please log out and log back in, then try deletion again within 5 minutes."
-        );
-      } else {
-        alert("Failed to delete account. Some data may have been removed. Please contact support.");
-      }
+      alert(err.message || "Failed to delete account. Please contact support.");
       setShowDeleteConfirm(false);
       setDeleteConfirmText("");
     } finally {
@@ -1494,9 +1479,13 @@ export default function SettingsPage() {
                         <button
                           onClick={async () => {
                             try {
+                              const { data: { session } } = await createClient().auth.getSession();
                               const res = await fetch("/api/trial/start", {
                                 method: "POST",
-                                headers: { "Content-Type": "application/json" },
+                                headers: { 
+                                  "Content-Type": "application/json",
+                                  "Authorization": `Bearer ${session?.access_token}`
+                                },
                                 body: JSON.stringify({ uid: user?.id }),
                               });
                               const data = await res.json();
@@ -1544,12 +1533,14 @@ export default function SettingsPage() {
                         <button
                           onClick={async () => {
                             try {
+                              const { data: { session } } = await createClient().auth.getSession();
                               const res = await fetch(
                                 "/api/payments/manage",
                                 {
                                   method: "POST",
                                   headers: {
                                     "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${session?.access_token}`
                                   },
                                   body: JSON.stringify({ uid: user?.id }),
                                 }
@@ -1649,12 +1640,14 @@ export default function SettingsPage() {
                       <button
                         onClick={async () => {
                           try {
+                            const { data: { session } } = await createClient().auth.getSession();
                             const res = await fetch(
                               "/api/payments/manage",
                               {
                                 method: "POST",
                                 headers: {
                                   "Content-Type": "application/json",
+                                  "Authorization": `Bearer ${session?.access_token}`
                                 },
                                 body: JSON.stringify({ uid: user?.id }),
                               }

@@ -53,7 +53,7 @@ export default function RegisterClient() {
       const checkRes = await fetch("/api/auth/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), token: captchaToken }),
       });
       const checkData = await checkRes.json();
       if (checkData.exists) {
@@ -115,9 +115,13 @@ export default function RegisterClient() {
       // Auto-start trial if user came from "Start Trial" CTA
       if (startTrial) {
         try {
+          const { data: { session } } = await supabase.auth.getSession();
           const res = await fetch("/api/trial/start", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session?.access_token}`
+            },
             body: JSON.stringify({ uid: data.user.id }),
           });
           if (res.ok) {

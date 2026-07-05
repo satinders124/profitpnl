@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServerClient } from "@/lib/supabase-server";
+import { getAuthenticatedUser } from "@/lib/auth-utils";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe {
@@ -11,10 +12,14 @@ function getStripe(): Stripe {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => null);
-    const { uid, email, billing } = body || {};
+    // 1. Authenticate User
+    const user = await getAuthenticatedUser(req);
+    const uid = user.id;
 
-    if (!uid || !email || !billing) {
+    const body = await req.json().catch(() => null);
+    const { email, billing } = body || {};
+
+    if (!email || !billing) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -87,6 +92,11 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Checkout error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
+    
+    if (message.includes("authorization header") || message.includes("session")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     if (message.includes("STRIPE_NOT_CONFIGURED")) {
       return NextResponse.json(
         { error: "Payments are not available yet." },
