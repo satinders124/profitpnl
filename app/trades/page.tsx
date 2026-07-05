@@ -33,6 +33,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { TradingViewChart } from "@/components/trades/TradingViewChart";
 
 type ResultFilter = "" | "win" | "loss" | "open" | "needs-review";
 
@@ -53,6 +54,7 @@ export default function TradesPage() {
 
   const [modalTrade, setModalTrade] = useState<Trade | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [selectedChartTrade, setSelectedChartTrade] = useState<Trade | null>(null);
 
   async function load() {
     if (!user) return;
@@ -283,6 +285,31 @@ export default function TradesPage() {
           </div>
 
           {/* --- SLEEK QUICK FILTER HUD --- */}
+          {selectedChartTrade && (
+            <Card className="p-4 relative border border-[#F0B429]/30 bg-[#0D0D1A] overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#F0B429] animate-pulse" />
+                  <span className="text-xs font-black uppercase tracking-[0.12em] text-[#F0B429]">
+                    Interactive Live Chart — {selectedChartTrade.instrument}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setSelectedChartTrade(null)}
+                  className="text-xs font-bold text-zinc-400 hover:text-white transition"
+                >
+                  Close Chart ×
+                </button>
+              </div>
+              <div className="rounded-xl overflow-hidden border border-[#24243C]">
+                <TradingViewChart symbol={selectedChartTrade.instrument} theme="dark" />
+              </div>
+              <div className="mt-2 text-[10px] text-zinc-500 text-center">
+                Visualizing market feed for {selectedChartTrade.instrument} synced with your trade log context.
+              </div>
+            </Card>
+          )}
+
           <div className="rounded-2xl border border-[#1E1E38] bg-[#111124]/80 p-4 shadow-xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -388,6 +415,7 @@ export default function TradesPage() {
                   trade={trade}
                   onEdit={() => openEditTrade(trade)}
                   onDelete={() => handleDelete(trade.id)}
+                  onViewChart={() => setSelectedChartTrade(trade)}
                 />
               ))
             ) : (
@@ -608,10 +636,12 @@ function TradeReviewCard({
   trade,
   onEdit,
   onDelete,
+  onViewChart,
 }: {
   trade: Trade;
   onEdit: () => void;
   onDelete: () => void;
+  onViewChart: () => void;
 }) {
   const open = !hasResult(trade);
   const result = Number(trade.result || 0);
@@ -651,6 +681,14 @@ function TradeReviewCard({
                 Needs Review
               </span>
             )}
+            
+            <button
+              onClick={onViewChart}
+              className="inline-flex items-center gap-1 rounded-full bg-[#F0B429]/10 hover:bg-[#F0B429]/25 px-2 py-0.5 text-[10px] font-black text-[#F0B429] transition-all"
+            >
+              <TrendingUp size={12} />
+              View Chart
+            </button>
           </div>
 
           <div className="mt-1 text-xs text-[#5A5A80]">
