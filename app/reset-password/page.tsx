@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase-client";
 import { useRouter } from "next/navigation";
 import { KeyRound, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
@@ -9,26 +9,77 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingLink, setCheckingLink] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    // Check if recovery token or hash exists in URL or if session is established
-    if (typeof window !== "undefined") {
-      const hash = window.location.hash;
-      const search = window.location.search;
-      if (!hash.includes("type=recovery") && !search.includes("type=recovery")) {
-        // Verify if session exists
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (!session) {
-            setError("Invalid or expired password reset link. Please request a new link.");
+    let mounted = true;
+
+    async function initialiseRecoverySession() {
+      setCheckingLink(true);
+      setError(null);
+
+      try {
+        const url = new URL(window.location.href);
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const searchParams = url.searchParams;
+
+        const linkError = hashParams.get("error_description") || searchParams.get("error_description");
+        if (linkError) {
+          throw new Error(linkError.replace(/\+/g, " "));
+        }
+
+        // Supabase recovery links may arrive in either PKCE form (?code=...)
+        // or implicit/hash form (#access_token=...&refresh_token=...&type=recovery).
+        // updateUser() requires an active Supabase session, so we establish it
+        // explicitly before letting the user submit a new password.
+        const code = searchParams.get("code");
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
+          window.history.replaceState({}, document.title, "/reset-password");
+        } else {
+          const accessToken = hashParams.get("access_token") || searchParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token") || searchParams.get("refresh_token");
+
+          if (accessToken && refreshToken) {
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (sessionError) throw sessionError;
+            window.history.replaceState({}, document.title, "/reset-password");
           }
-        });
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+        if (session) {
+          setSessionReady(true);
+        } else {
+          setSessionReady(false);
+          setError("Invalid or expired password reset link. Please request a new link.");
+        }
+      } catch (err) {
+        if (!mounted) return;
+        setSessionReady(false);
+        setError(err instanceof Error ? err.message : "Invalid or expired password reset link. Please request a new link.");
+      } finally {
+        if (mounted) setCheckingLink(false);
       }
     }
+
+    initialiseRecoverySession();
+
+    return () => {
+      mounted = false;
+    };
   }, [supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -46,6 +97,11 @@ export default function ResetPasswordPage() {
     setError(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session && !sessionReady) {
+        throw new Error("Password reset session is missing. Please request a new reset link.");
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({
         password,
       });
@@ -58,8 +114,8 @@ export default function ResetPasswordPage() {
       setTimeout(() => {
         router.push("/dashboard");
       }, 2500);
-    } catch (err: any) {
-      setError(err?.message || "Could not reset password. Please try requesting a new link.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not reset password. Please try requesting a new link.");
     } finally {
       setLoading(false);
     }
@@ -97,6 +153,11 @@ export default function ResetPasswordPage() {
                 Go to Dashboard Now
               </button>
             </div>
+          ) : checkingLink ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-10 text-zinc-400">
+              <Loader2 className="animate-spin text-[#F0B429]" size={24} />
+              <p className="text-sm">Verifying reset link…</p>
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
@@ -109,7 +170,8 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 8 characters"
                   required
-                  className="w-full bg-[#14141E] border border-[#242436] rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#F0B429] transition-all"
+                  disabled={!sessionReady}
+                  className="w-full bg-[#14141E] border border-[#242436] rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#F0B429] transition-all disabled:opacity-50"
                 />
               </div>
 
@@ -121,7 +183,8 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter your new password"
                   required
-                  className="w-full bg-[#14141E] border border-[#242436] rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#F0B429] transition-all"
+                  disabled={!sessionReady}
+                  className="w-full bg-[#14141E] border border-[#242436] rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#F0B429] transition-all disabled:opacity-50"
                 />
               </div>
 
@@ -132,9 +195,19 @@ export default function ResetPasswordPage() {
                 </div>
               )}
 
+              {!sessionReady && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/forgot-password")}
+                  className="w-full py-3 rounded-xl border border-[#F0B429]/40 text-[#F0B429] font-bold text-sm transition-colors hover:bg-[#F0B429]/10"
+                >
+                  Request New Reset Link
+                </button>
+              )}
+
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !sessionReady}
                 className="w-full py-3.5 rounded-xl bg-[#F0B429] hover:bg-[#d99f1e] text-black font-black text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-[#F0B429]/20"
               >
                 {loading && <Loader2 className="animate-spin" size={16} />}
