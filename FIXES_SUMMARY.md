@@ -173,6 +173,14 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 - Updated all database getters (`getTrades`, `getPlaybook`, `getAccounts`, `getJournals`, `getProfile`) and `buildTradingContext` to accept an optional `customClient` injection parameter.
 - Updated `/api/ai/claude/route.ts` to execute `buildTradingContext(user.id, createServerClient())` directly on the backend server for every incoming request. Using the service role client on the backend guarantees 100% complete visibility into all trades, playbook strategies, accounts, and journals on every prompt without client race conditions or RLS delays.
 
+### 24. 💳 FIXED: Annual Checkout Failure (Promotion Code Conflict & Diagnostic Reporting)
+**File:** `app/api/payments/checkout/route.ts`
+**Problem:** Annual checkout failed when affiliate promotion codes restricted solely to monthly subscriptions caused Stripe API to reject session creation (`400 Bad Request`). Furthermore, if `STRIPE_PRICE_ID_ANNUAL` was missing or invalid, generic 500 errors obscured the configuration issue.
+
+**Fix:**
+- Added automatic retry fallback during checkout session creation: if an attached promotion code causes Stripe to reject the annual subscription, the route automatically retries without the promotion lock.
+- Added explicit Stripe configuration diagnostics informing administrators immediately if `STRIPE_PRICE_ID_ANNUAL` is missing or invalid.
+
 ## Files Changed
 
 | File | Change |
@@ -214,6 +222,7 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `lib/db.ts` | Added custom client injection parameter to all database queries |
 | `lib/ai-context.ts` | Enabled server-side Supabase client injection |
 | `app/api/ai/claude/route.ts` | Built 100% live server-side trading context on every request using service role bypass |
+| `app/api/payments/checkout/route.ts` | Added promotion code compatibility retry and detailed Stripe error feedback |
 | `package.json` | Relaxed Node engine to >=18 |
 
 ## Build Result

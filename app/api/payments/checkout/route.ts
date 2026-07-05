@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
     if (!priceId) {
       return NextResponse.json(
-        { error: `${billing === "annual" ? "Annual" : "Monthly"} plan is not available yet.` },
+        { error: `${billing === "annual" ? "Annual" : "Monthly"} plan price ID (STRIPE_PRICE_ID_${billing === "annual" ? "ANNUAL" : "MONTHLY"}) is not configured in server environment variables.` },
         { status: 503 }
       );
     }
@@ -106,23 +106,17 @@ export async function POST(req: Request) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://profitpnl.com";
     const promotionCodeId = affiliateResult.affiliate?.stripe_promotion_code_id || undefined;
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      payment_method_types: ["card"],
-      line_items: [{ price: priceId, quantity: 1 }],
-      mode: "subscription",
-      allow_promotion_codes: promotionCodeId ? undefined : true,
-      discounts: promotionCodeId ? [{ promotion_code: promotionCodeId }] : undefined,
-      success_url: `${appUrl}/settings?upgrade=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/upgrade?upgrade=cancelled`,
-      metadata: {
-        supabase_uid: uid,
-        affiliate_id: affiliateResult.affiliate?.id || "",
-        affiliate_slug: affiliateResult.affiliate?.slug || "",
-        coupon_code: affiliateResult.couponCode || "",
-        referral_source: affiliateResult.source,
-      },
-      subscription_data: {
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: "subscription",
+        allow_promotion_codes: promotionCodeId ? undefined : true,
+        discounts: promotionCodeId ? [{ promotion_code: promotionCodeId }] : undefined,
+        success_url: `${appUrl}/settings?upgrade=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl}/upgrade?upgrade=cancelled`,
         metadata: {
           supabase_uid: uid,
           affiliate_id: affiliateResult.affiliate?.id || "",
@@ -130,8 +124,50 @@ export async function POST(req: Request) {
           coupon_code: affiliateResult.couponCode || "",
           referral_source: affiliateResult.source,
         },
-      },
-    });
+        subscription_data: {
+          metadata: {
+            supabase_uid: uid,
+            affiliate_id: affiliateResult.affiliate?.id || "",
+            affiliate_slug: affiliateResult.affiliate?.slug || "",
+            coupon_code: affiliateResult.couponCode || "",
+            referral_source: affiliateResult.source,
+          },
+        },
+      });
+    } catch (promoErr: any) {
+      const promoMsg = promoErr?.message || "";
+      // If Stripe rejected because the promotion code or coupon cannot be applied to the annual price ID
+      if (promotionCodeId && (promoMsg.toLowerCase().includes("promotion") || promoMsg.toLowerCase().includes("discount") || promoMsg.toLowerCase().includes("coupon"))) {
+        console.warn("Promotion code failed on annual checkout, retrying without promotion restriction:", promoMsg);
+        session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          payment_method_types: ["card"],
+          line_items: [{ price: priceId, quantity: 1 }],
+          mode: "subscription",
+          allow_promotion_codes: true,
+          success_url: `${appUrl}/settings?upgrade=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${appUrl}/upgrade?upgrade=cancelled`,
+          metadata: {
+            supabase_uid: uid,
+            affiliate_id: affiliateResult.affiliate?.id || "",
+            affiliate_slug: affiliateResult.affiliate?.slug || "",
+            coupon_code: affiliateResult.couponCode || "",
+            referral_source: affiliateResult.source,
+          },
+          subscription_data: {
+            metadata: {
+              supabase_uid: uid,
+              affiliate_id: affiliateResult.affiliate?.id || "",
+              affiliate_slug: affiliateResult.affiliate?.slug || "",
+              coupon_code: affiliateResult.couponCode || "",
+              referral_source: affiliateResult.source,
+            },
+          },
+        });
+      } else {
+        throw promoErr;
+      }
+    }
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
@@ -148,8 +184,16 @@ export async function POST(req: Request) {
         { status: 503 }
       );
     }
+
+    if (message.toLowerCase().includes("price") || message.toLowerCase().includes("no such")) {
+      return NextResponse.json(
+        { error: `Stripe Configuration Error: ${message}. Please check STRIPE_PRICE_ID in Vercel settings.` },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Could not start checkout. Please try again or contact support." },
+      { error: `Checkout failed (${message}). Please try again or contact support.` },
       { status: 500 }
     );
   }
