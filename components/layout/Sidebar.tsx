@@ -91,23 +91,28 @@ function ModeSwitch({ isBacktest }: { isBacktest: boolean }) {
   return (
     <button
       onClick={() => {
-        if (isBacktest) {
-          setMode("live");
-          router.push("/dashboard");
-        } else {
-          setMode("backtest");
-          router.push("/dashboard");
-        }
+        setMode(isBacktest ? "live" : "backtest");
+        router.push("/dashboard");
       }}
-      className="group flex w-full items-center gap-3 rounded-xl border border-[#1F1F2C] bg-[#0E0E14] px-3 py-3 text-xs font-medium text-zinc-400 transition-all hover:border-[#F0B429]/40 hover:text-[#F0B429]"
+      className="group flex w-full items-center justify-between gap-2 rounded-xl border border-[#262636] bg-[#0E0E14] px-3 py-2.5 text-xs font-semibold transition-all hover:border-[#F0B429]/40"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#282838] bg-[#181824] text-[#F0B429]">
-        <FlaskConical size={17} />
+      <span className="flex min-w-0 items-center gap-2">
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+            isBacktest
+              ? "bg-[#F0B429]/15 text-[#F0B429]"
+              : "bg-[#181824] text-zinc-400"
+          }`}
+        >
+          <FlaskConical size={14} />
+        </span>
+        <span className="truncate text-zinc-200">
+          {isBacktest ? "Backtesting Mode" : "Live Journal"}
+        </span>
       </span>
-      <span className="flex-1 text-left">
-        {isBacktest ? "Shift to Live Journal" : "Switch to Backtesting mode"}
+      <span className="shrink-0 rounded-md bg-[#181824] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-300 group-hover:text-[#F0B429]">
+        {isBacktest ? "Live" : "BT"}
       </span>
-      <ArrowUpRight size={15} className="shrink-0 opacity-60" />
     </button>
   );
 }

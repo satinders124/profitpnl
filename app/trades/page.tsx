@@ -16,6 +16,7 @@ import {
 import {
   getModels,
   getTrades as getBtTrades,
+  createTrade,
   updateTrade,
   deleteTrade as deleteBtTrade,
   toTrade,
@@ -36,6 +37,7 @@ import {
   CheckCircle2,
   FileText,
   Maximize2,
+  Plus,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -68,6 +70,8 @@ export default function TradesPage() {
   const [editingBtTrade, setEditingBtTrade] = useState<BacktestJournalTrade | null>(
     null
   );
+  const [btTradeModel, setBtTradeModel] = useState<BacktestModel | null>(null);
+  const [btAddOpen, setBtAddOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
@@ -218,6 +222,7 @@ export default function TradesPage() {
       const model = bt ? btModels.find((m) => m.id === bt.session_id) : undefined;
       if (bt && model) {
         setEditingBtTrade(bt);
+        setBtTradeModel(model);
         setBtTradeModal(true);
       }
       return;
@@ -238,6 +243,30 @@ export default function TradesPage() {
     await load();
   }
 
+  // Opens the "log a backtested trade" flow: if there's exactly one model we
+  // go straight to its trade form; otherwise we let the user pick the model.
+  function openLogTrade() {
+    if (btModels.length === 0 || btModels.length > 1) {
+      setBtAddOpen(true);
+      return;
+    }
+    setBtTradeModel(btModels[0]);
+    setEditingBtTrade(null);
+    setBtTradeModal(true);
+  }
+
+  async function handleSaveBtTrade(payload: Record<string, unknown>) {
+    if (editingBtTrade) {
+      await updateTrade(editingBtTrade.id, payload);
+    } else if (btTradeModel) {
+      await createTrade(btTradeModel.id, payload);
+    }
+    setBtTradeModal(false);
+    setEditingBtTrade(null);
+    setBtTradeModel(null);
+    await load();
+  }
+
   function clearFilters() {
     setSearch("");
     setAccountFilter("");
@@ -249,12 +278,18 @@ export default function TradesPage() {
   const hasFilters =
     search || accountFilter || strategyFilter || directionFilter || resultFilter;
 
+  const btModalModel = btTradeModal
+    ? editingBtTrade
+      ? btModels.find((m) => m.id === editingBtTrade.session_id)
+      : btTradeModel
+    : null;
+
   return (
     <AppShell
       title={isBacktest ? "Backtesting — Trade Review" : "Trade Review Desk"}
       subtitle={`${trades.length} total trades · ${reviewedCount} reviewed`}
-      actionLabel={isBacktest ? "+ New Model" : "Log Trade"}
-      onAction={isBacktest ? () => router.push("/playbook") : openNewTrade}
+      actionLabel="Log Trade"
+      onAction={isBacktest ? openLogTrade : openNewTrade}
     >
       {loading ? (
         <div className="flex min-h-[360px] items-center justify-center text-sm text-[#5A5A80]">
@@ -513,10 +548,20 @@ export default function TradesPage() {
                 </p>
 
                 <button
-                  onClick={hasFilters ? clearFilters : openNewTrade}
+                  onClick={
+                    hasFilters
+                      ? clearFilters
+                      : isBacktest
+                        ? openLogTrade
+                        : openNewTrade
+                  }
                   className="gold-gradient mt-5 rounded-xl px-5 py-3 text-sm font-black text-[#080810]"
                 >
-                  {hasFilters ? "Clear Filters" : "Log First Trade"}
+                  {hasFilters
+                    ? "Clear Filters"
+                    : isBacktest
+                      ? "Add First Trade"
+                      : "Log First Trade"}
                 </button>
               </Card>
             )}
@@ -578,35 +623,70 @@ export default function TradesPage() {
         </Modal>
       )}
 
-      {btTradeModal && editingBtTrade && (
+      {btModalModel && (
         <Modal
-          title="Edit Backtest Trade"
+          title={editingBtTrade ? "Edit Backtest Trade" : "Add Backtest Trade"}
           size="lg"
           onClose={() => {
             setBtTradeModal(false);
             setEditingBtTrade(null);
+            setBtTradeModel(null);
           }}
         >
-          {(() => {
-            const model = btModels.find((m) => m.id === editingBtTrade.session_id);
-            if (!model) return null;
-            return (
-              <BacktestTradeForm
-                model={model}
-                existing={editingBtTrade}
-                onCancel={() => {
-                  setBtTradeModal(false);
-                  setEditingBtTrade(null);
+          <BacktestTradeForm
+            model={btModalModel}
+            existing={editingBtTrade}
+            onCancel={() => {
+              setBtTradeModal(false);
+              setEditingBtTrade(null);
+              setBtTradeModel(null);
+            }}
+            onSave={handleSaveBtTrade}
+          />
+        </Modal>
+      )}
+
+      {btAddOpen && (
+        <Modal title="Log Backtest Trade" onClose={() => setBtAddOpen(false)}>
+          {btModels.length === 0 ? (
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-[#8080A0]">
+                You need a strategy model before you can log a backtested trade.
+              </p>
+              <button
+                onClick={() => {
+                  setBtAddOpen(false);
+                  router.push("/playbook");
                 }}
-                onSave={async (payload) => {
-                  await updateTrade(editingBtTrade.id, payload);
-                  setBtTradeModal(false);
-                  setEditingBtTrade(null);
-                  await load();
-                }}
-              />
-            );
-          })()}
+                className="gold-gradient inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-black text-[#080810]"
+              >
+                <Plus size={15} /> Create a Model
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="mb-1 text-xs text-[#8080A0]">
+                Select the model this trade belongs to:
+              </p>
+              {btModels.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setBtTradeModel(m);
+                    setBtAddOpen(false);
+                    setEditingBtTrade(null);
+                    setBtTradeModal(true);
+                  }}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#1E1E38] bg-[#161628] px-4 py-3 text-left text-sm font-semibold text-white transition hover:border-[#F0B429]/40"
+                >
+                  <span className="truncate">{m.name}</span>
+                  <span className="shrink-0 text-[11px] text-[#8080A0]">
+                    {[m.market, m.timeframe].filter(Boolean).join(" · ")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </Modal>
       )}
     </AppShell>
