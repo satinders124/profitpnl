@@ -41,23 +41,39 @@ export async function POST(req: Request) {
 
     const supabase = createServerClient();
 
-    // Query auth.users via admin API to check if email exists
-    const { data, error } = await supabase.auth.admin.listUsers({
-      perPage: 1,
-    });
-
-    if (error) {
-      console.error("Check email error:", error);
-      return NextResponse.json(
-        { error: "Unable to verify email" },
-        { status: 500 }
-      );
-    }
-
+    // Check whether this email already exists in auth.users.
+    // NOTE: this SDK version's listUsers() only accepts { page, perPage } — it
+    // has no server-side `search` filter and no getUserByIdentifier(). A naive
+    // `listUsers({ perPage: 1 })` only inspected the *first* user and gave
+    // wrong answers, so we page through (bounded) and do an exact,
+    // case-insensitive match ourselves. For very large user bases, swap this
+    // for a `user_email_exists(p_email)` Postgres RPC called with the service
+    // role — see recommendation in the PR notes.
     const normalized = email.trim().toLowerCase();
-    const exists = (data.users || []).some(
-      (u) => u.email?.toLowerCase() === normalized
-    );
+    let exists = false;
+
+    const PER_PAGE = 200;
+    const MAX_PAGES = 25; // up to 5,000 users — ample for this guard
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const { data, error } = await supabase.auth.admin.listUsers({
+        page,
+        perPage: PER_PAGE,
+      });
+
+      if (error) {
+        console.error("Check email listUsers error:", error);
+        break;
+      }
+
+      const users = data.users || [];
+      if (users.some((u) => u.email?.toLowerCase() === normalized)) {
+        exists = true;
+        break;
+      }
+
+      // Stop once we've read the final page.
+      if (users.length < PER_PAGE) break;
+    }
 
     return NextResponse.json({ exists });
   } catch (err) {

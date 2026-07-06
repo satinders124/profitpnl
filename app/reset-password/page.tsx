@@ -11,11 +11,21 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [checkingLink, setCheckingLink] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
+  // Scanner-proof flow: a recovery `token_hash` from the email that we only
+  // exchange into a session on explicit submit (so link scanners / pre-fetchers
+  // that merely visit the URL can't burn the single-use token).
+  const [recoveryTokenHash, setRecoveryTokenHash] = useState<string | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
 
   const supabase = useMemo(() => createClient(), []);
+
+  // The form can be submitted once we either already have a session OR we are
+  // holding an un-exchanged recovery token_hash.
+  const canSubmit = sessionReady || !!recoveryTokenHash;
 
   useEffect(() => {
     let mounted = true;
@@ -26,50 +36,85 @@ export default function ResetPasswordPage() {
 
       try {
         const url = new URL(window.location.href);
-        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const hashParams = new URLSearchParams(
+          window.location.hash.replace(/^#/, "")
+        );
         const searchParams = url.searchParams;
 
-        const linkError = hashParams.get("error_description") || searchParams.get("error_description");
-        if (linkError) {
-          throw new Error(linkError.replace(/\+/g, " "));
+        // 1. Surface any error Supabase appended to the URL, e.g.
+        //    #error=access_denied&error_code=403&error_description=Email+link+is+invalid+or+has+expired
+        //    This is the exact "error access in URL" symptom reported.
+        const errorDescription =
+          hashParams.get("error_description") ||
+          searchParams.get("error_description");
+        if (errorDescription) {
+          throw new Error(
+            decodeURIComponent(errorDescription.replace(/\+/g, " "))
+          );
+        }
+        const errorOnly =
+          hashParams.get("error") || searchParams.get("error");
+        if (errorOnly) {
+          throw new Error(
+            "This password reset link is invalid or has expired. Please request a new one."
+          );
         }
 
-        // Supabase recovery links may arrive in either PKCE form (?code=...)
-        // or implicit/hash form (#access_token=...&refresh_token=...&type=recovery).
-        // updateUser() requires an active Supabase session, so we establish it
-        // explicitly before letting the user submit a new password.
+        // 2. PKCE flow (?code=...) — Exchange the code for a session on mount.
         const code = searchParams.get("code");
         if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          const { error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
           window.history.replaceState({}, document.title, "/reset-password");
-        } else {
-          const accessToken = hashParams.get("access_token") || searchParams.get("access_token");
-          const refreshToken = hashParams.get("refresh_token") || searchParams.get("refresh_token");
-
-          if (accessToken && refreshToken) {
-            const { error: sessionError } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            if (sessionError) throw sessionError;
-            window.history.replaceState({}, document.title, "/reset-password");
-          }
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
+        // 3. Implicit flow (#access_token=...&refresh_token=...) — Restore the
+        //    session on mount.
+        const accessToken =
+          hashParams.get("access_token") || searchParams.get("access_token");
+        const refreshToken =
+          hashParams.get("refresh_token") ||
+          searchParams.get("refresh_token");
 
+        if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessionError) throw sessionError;
+          window.history.replaceState({}, document.title, "/reset-password");
+        }
+
+        // 4. Scanner-proof flow (?token_hash=...&type=recovery) — DO NOT
+        //    exchange on mount. We wait for the user to submit the new password
+        //    so email scanners visiting the link can't consume the token.
+        const tokenHash = searchParams.get("token_hash");
+        const type = searchParams.get("type");
+        if (tokenHash && type === "recovery") {
+          if (!mounted) return;
+          setRecoveryTokenHash(tokenHash);
+          setCheckingLink(false);
+          return;
+        }
+
+        // 5. Otherwise, see if we already have a usable session.
+        const { data: sessionData } = await supabase.auth.getSession();
         if (!mounted) return;
-        if (session) {
+        if (sessionData.session) {
           setSessionReady(true);
-        } else {
-          setSessionReady(false);
-          setError("Invalid or expired password reset link. Please request a new link.");
+        } else if (!code && !(accessToken && refreshToken)) {
+          setError(
+            "Invalid or expired password reset link. Please request a new link."
+          );
         }
       } catch (err) {
         if (!mounted) return;
-        setSessionReady(false);
-        setError(err instanceof Error ? err.message : "Invalid or expired password reset link. Please request a new link.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Invalid or expired password reset link. Please request a new link."
+        );
       } finally {
         if (mounted) setCheckingLink(false);
       }
@@ -97,9 +142,25 @@ export default function ResetPasswordPage() {
     setError(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session && !sessionReady) {
-        throw new Error("Password reset session is missing. Please request a new reset link.");
+      // Scanner-proof path: exchange the recovery token_hash into a session
+      // right before updating the password. This is the only place the
+      // single-use token is spent, so a pre-fetched email link stays valid
+      // for the real user.
+      if (recoveryTokenHash) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: recoveryTokenHash,
+          type: "recovery",
+        });
+        if (verifyError) throw verifyError;
+        window.history.replaceState({}, document.title, "/reset-password");
+        setRecoveryTokenHash(null);
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error(
+          "Password reset session is missing. Please request a new reset link."
+        );
       }
 
       const { error: updateError } = await supabase.auth.updateUser({
@@ -115,7 +176,11 @@ export default function ResetPasswordPage() {
         router.push("/dashboard");
       }, 2500);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not reset password. Please try requesting a new link.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not reset password. Please try requesting a new link."
+      );
     } finally {
       setLoading(false);
     }
@@ -142,9 +207,12 @@ export default function ResetPasswordPage() {
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#00D084]/15 text-[#00D084]">
                 <CheckCircle2 size={32} />
               </div>
-              <h3 className="text-lg font-bold text-white">Password Reset Complete!</h3>
+              <h3 className="text-lg font-bold text-white">
+                Password Reset Complete!
+              </h3>
               <p className="text-zinc-400 text-sm">
-                Your account password has been updated. Redirecting you to the dashboard...
+                Your account password has been updated. Redirecting you to the
+                dashboard...
               </p>
               <button
                 onClick={() => router.push("/dashboard")}
@@ -170,20 +238,22 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 8 characters"
                   required
-                  disabled={!sessionReady}
+                  disabled={!canSubmit}
                   className="w-full bg-[#14141E] border border-[#242436] rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#F0B429] transition-all disabled:opacity-50"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-zinc-300 text-xs font-semibold">Confirm Password</label>
+                <label className="text-zinc-300 text-xs font-semibold">
+                  Confirm Password
+                </label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter your new password"
                   required
-                  disabled={!sessionReady}
+                  disabled={!canSubmit}
                   className="w-full bg-[#14141E] border border-[#242436] rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#F0B429] transition-all disabled:opacity-50"
                 />
               </div>
@@ -195,7 +265,7 @@ export default function ResetPasswordPage() {
                 </div>
               )}
 
-              {!sessionReady && (
+              {!canSubmit && (
                 <button
                   type="button"
                   onClick={() => router.push("/forgot-password")}
@@ -207,7 +277,7 @@ export default function ResetPasswordPage() {
 
               <button
                 type="submit"
-                disabled={loading || !sessionReady}
+                disabled={loading || !canSubmit}
                 className="w-full py-3.5 rounded-xl bg-[#F0B429] hover:bg-[#d99f1e] text-black font-black text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-[#F0B429]/20"
               >
                 {loading && <Loader2 className="animate-spin" size={16} />}
