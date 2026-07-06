@@ -741,13 +741,14 @@ function TradeReviewCard({
               </span>
             )}
             
-            <button
+            {/* TradingView / Chart button hidden for now */}
+            {/* <button
               onClick={onViewChart}
               className="inline-flex items-center gap-1 rounded-full bg-[#F0B429]/10 hover:bg-[#F0B429]/25 px-2 py-0.5 text-[10px] font-black text-[#F0B429] transition-all"
             >
               <TrendingUp size={12} />
               View Chart
-            </button>
+            </button> */}
           </div>
 
           <div className="mt-1 text-xs text-[#5A5A80]">
