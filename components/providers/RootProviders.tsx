@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { AppLoader } from "@/components/loader/AppLoader";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { RecoveryLinkHandler } from "@/components/providers/RecoveryLinkHandler";
 
 const PUBLIC_NO_AUTH_PATHS = new Set([
   "/about",
@@ -38,19 +39,35 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
   const isPublicNoAuthPage = PUBLIC_NO_AUTH_PATHS.has(pathname);
 
   if (isPublicTool || isPublicCertificate || isPublicGrowthPage || isPublicNoAuthPage) {
-    return <>{children}</>;
+    // Still forward any password-reset deep link that lands here.
+    return (
+      <>
+        <RecoveryLinkHandler />
+        {children}
+      </>
+    );
   }
 
   // Keep the branded loader on the homepage, but avoid booting Supabase/AuthProvider
   // for anonymous landing-page visitors. This preserves the requested loader UX
-  // while keeping the public homepage lighter.
+  // while keeping the public homepage lighter. RecoveryLinkHandler still runs
+  // (it performs no Supabase calls) so a reset email opened on "/" is forwarded
+  // to /reset-password instead of dead-ending on the homepage.
   if (pathname === "/") {
-    return <AppLoader>{children}</AppLoader>;
+    return (
+      <AppLoader>
+        <RecoveryLinkHandler />
+        {children}
+      </AppLoader>
+    );
   }
 
   return (
     <AppLoader>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        <RecoveryLinkHandler />
+        {children}
+      </AuthProvider>
     </AppLoader>
   );
 }

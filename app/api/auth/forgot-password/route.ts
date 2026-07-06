@@ -10,6 +10,14 @@ const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY;
  * configured APP_URL, then to the request URL itself.
  */
 function getRequestOrigin(req: Request): string {
+  // Prefer an explicitly configured canonical URL. Setting NEXT_PUBLIC_APP_URL
+  // (or NEXT_PUBLIC_SITE_URL) in the hosting env makes the reset link
+  // deterministic and trivial to whitelist in Supabase Auth → Redirect URLs.
+  const configured =
+    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (configured) return configured.replace(/\/$/, "");
+
+  // Else derive from the request (localhost / Vercel preview).
   const forwardedProto = req.headers.get("x-forwarded-proto");
   const forwardedHost = req.headers.get("x-forwarded-host");
   const host = req.headers.get("host");
@@ -21,11 +29,8 @@ function getRequestOrigin(req: Request): string {
   try {
     return new URL(req.url).origin;
   } catch {
-    return (
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://profitpnl.com"
-    );
+    // Must match the Supabase Site URL (www) so it can be whitelisted.
+    return "https://www.profitpnl.com";
   }
 }
 
