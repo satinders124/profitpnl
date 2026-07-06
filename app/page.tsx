@@ -17,11 +17,7 @@ import {
   useTransform,
   animate,
 } from "framer-motion";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase-client";
-import { Turnstile } from "@/components/Turnstile";
 
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 
 /* =====================================================================
@@ -37,213 +33,21 @@ const navLinks = [
   { label: "FAQ", href: "#faq" },
 ];
 
-const REMEMBERED_EMAIL_KEY = "ppnl_remembered_email";
 
-function LoginDropdown({
-  align = "right",
-  onLoggedIn,
-}: {
-  align?: "left" | "right";
-  onLoggedIn?: () => void;
-}) {
-  const router = useRouter();
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    try {
-      const savedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY);
-      if (savedEmail) {
-        setEmail(savedEmail);
-        setRememberMe(true);
-      }
-    } catch {
-      // localStorage unavailable — ignore.
-    }
-  }, []);
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    if (TURNSTILE_SITE_KEY && !captchaToken) {
-      setError("Please complete the verification below.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const supabase = createClient();
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-        options: TURNSTILE_SITE_KEY && captchaToken ? { captchaToken } : undefined,
-      });
-
-      if (authError || !data.user) {
-        // Show the actual Supabase error message for clarity
-        const msg = authError?.message || "Login failed. Please try again.";
-        setError(msg);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        if (rememberMe) {
-          localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
-        } else {
-          localStorage.removeItem(REMEMBERED_EMAIL_KEY);
-        }
-      } catch {
-        // localStorage unavailable — non-critical, ignore.
-      }
-
-      onLoggedIn?.();
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err?.message || "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+function LoginLink({ variant = "nav" }: { variant?: "nav" | "mobile" }) {
+  const base =
+    "rounded-lg border border-line font-semibold text-txt transition-colors hover:border-gold hover:text-gold";
+  const cls = variant === "nav" ? `${base} px-4 py-2 text-sm` : `${base} px-3 py-3 text-center`;
   return (
-    <div ref={wrapRef} className="relative">
-      <motion.button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-        className="text-sm font-semibold text-muted2 transition-colors hover:text-gold"
-      >
-        Login
-      </motion.button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.97 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className={`absolute top-[calc(100%+14px)] z-50 w-72 rounded-2xl border border-line bg-panel/95 p-5 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-xl ${
-              align === "right" ? "right-0" : "left-0"
-            }`}
-          >
-            <p className="mb-3 text-sm font-bold text-txt">Welcome back</p>
-
-            <form onSubmit={handleLogin} className="space-y-3">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-                className="w-full rounded-lg border border-line bg-ink2 px-3 py-2.5 text-sm text-txt outline-none focus:border-gold"
-              />
-
-              <div className="relative">
-                <input
-                  type={showPass ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  required
-                  className="w-full rounded-lg border border-line bg-ink2 px-3 py-2.5 pr-14 text-sm text-txt outline-none focus:border-gold"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gold"
-                >
-                  {showPass ? "Hide" : "Show"}
-                </button>
-              </div>
-
-              <label className="flex cursor-pointer items-center gap-2 select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="peer sr-only"
-                />
-                <span
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-                    rememberMe ? "border-gold bg-gold" : "border-line bg-ink2"
-                  }`}
-                >
-                  {rememberMe && (
-                    <svg
-                      viewBox="0 0 16 16"
-                      className="h-2.5 w-2.5 text-ink"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M3 8.5l3 3 7-7" />
-                    </svg>
-                  )}
-                </span>
-                <span className="text-xs text-dim">Remember me</span>
-              </label>
-
-              {TURNSTILE_SITE_KEY && (
-                <div className="flex justify-center py-1">
-                  <Turnstile
-                    siteKey={TURNSTILE_SITE_KEY}
-                    onVerify={(token) => { setCaptchaToken(token); setError(""); }}
-                    onExpire={() => setCaptchaToken(null)}
-                    onError={() => setCaptchaToken(null)}
-                    theme="dark"
-                  />
-                </div>
-              )}
-
-              {error && <p className="text-xs text-bear">{error}</p>}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="gold-gradient w-full rounded-lg py-2.5 text-sm font-bold text-ink disabled:opacity-50"
-              >
-                {loading ? "Logging in..." : "Login"}
-              </button>
-            </form>
-
-            <p className="mt-4 text-center text-xs text-dim">
-              No account?{" "}
-              <a href="/register" className="font-bold text-gold">
-                Create one free
-              </a>
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    <motion.a
+      href="/login"
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.55 }}
+      className={cls}
+    >
+      Log In
+    </motion.a>
   );
 }
 
@@ -292,7 +96,7 @@ function Navbar() {
               {link.label}
             </motion.a>
           ))}
-          <LoginDropdown align="right" />
+          <LoginLink />
           <motion.a
             href="#cta"
             initial={{ opacity: 0, scale: 0.85 }}
@@ -357,7 +161,7 @@ function Navbar() {
                 transition={{ delay: navLinks.length * 0.06 }}
                 className="mt-1 border-t border-line/60 pt-3"
               >
-                <LoginDropdown align="left" onLoggedIn={() => setOpen(false)} />
+                <LoginLink variant="mobile" />
               </motion.div>
               <motion.a
                 href="#cta"
