@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const { messages, systemPrompt: clientSystemPrompt } = await req.json();
+    const { messages, systemPrompt: clientSystemPrompt, mode } = await req.json();
 
     // Query 100% live neural trading context directly on the backend server using service role bypass
     let liveSummary = "";
@@ -90,7 +90,14 @@ export async function POST(req: Request) {
     }
 
     const baseSystem = 'You are an Elite Trading Performance Coach embedded inside ProfitPnL, a trading journal app. Use Markdown formatting. Be direct, concise, analytical, and hold the trader accountable.';
-    const contextToUse = liveSummary || clientSystemPrompt || '';
+    // For the live journal, prefer the server-built context (authoritative,
+    // pulled straight from the DB). For the Backtesting journal the context is
+    // assembled on the client (it already includes the user's backtested
+    // trades), so prefer that instead and only fall back to live data.
+    const contextToUse =
+      mode === "backtest"
+        ? clientSystemPrompt || liveSummary || ""
+        : liveSummary || clientSystemPrompt || "";
     const finalSystem = contextToUse ? `${baseSystem}\n\n${contextToUse}` : baseSystem;
 
     const anthropic = new Anthropic({
@@ -143,7 +150,7 @@ export async function POST(req: Request) {
             const anthropicStream = anthropic.messages.stream({
               model,
               max_tokens: 1500,
-              system: 'You are an Elite Trading Performance Coach. Your goal is to help the user identify behavioral patterns, emotional triggers, and technical leaks in their trading. Be direct, analytical, and encouraging, but hold them accountable.',
+              system: finalSystem,
               messages: cleanMessages,
             });
 

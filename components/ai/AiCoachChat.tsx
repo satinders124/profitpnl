@@ -242,6 +242,7 @@ export function AiCoachChat({
         body: JSON.stringify({
           messages: history.map((m) => ({ role: m.role, content: m.content })),
           systemPrompt,
+          mode: backtest ? "backtest" : "live",
         }),
       });
 
