@@ -17,6 +17,8 @@ type SaveBody = {
   commissionPerTrade?: number;
   slippageTicks?: number;
   notes?: string;
+  rules?: string[];
+  kind?: "lab" | "journal";
   trades?: BacktestTrade[];
 };
 
@@ -24,16 +26,26 @@ export async function GET(req: Request) {
   try {
     const user = await getAuthenticatedUser(req);
     const supabase = createServerClient();
-    const { data, error } = await supabase
+    const url = new URL(req.url);
+    const kind = url.searchParams.get("kind");
+
+    let query = supabase
       .from("backtest_sessions")
       .select("*, backtest_trades(count)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50);
 
+    if (kind) query = query.eq("kind", kind);
+
+    const { data, error } = await query;
+
     if (error) {
       console.error("Backtest sessions list error:", error);
-      return NextResponse.json({ error: "Could not load backtest sessions. Run the backtesting migration first." }, { status: 500 });
+      return NextResponse.json(
+        { error: "Could not load backtest sessions." },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ sessions: data || [] });
@@ -43,7 +55,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("Backtest sessions GET error:", error);
-    return NextResponse.json({ error: "Could not load backtest sessions." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not load backtest sessions." },
+      { status: 500 }
+    );
   }
 }
 
@@ -52,49 +67,60 @@ export async function POST(req: Request) {
     const user = await getAuthenticatedUser(req);
     const body = (await req.json().catch(() => ({}))) as SaveBody;
 
-    const name = (body.name || `${body.symbol || "Backtest"} Replay`).trim().slice(0, 120);
-    const symbol = (body.symbol || "BTCUSDT").trim().toUpperCase();
-    const timeframe = (body.timeframe || "5m").trim();
-    const startingBalance = Number(body.startingBalance || 0);
-    const currentBalance = Number(body.currentBalance || startingBalance);
-
-    if (!name || !symbol || !timeframe || !Number.isFinite(startingBalance) || startingBalance <= 0) {
-      return NextResponse.json({ error: "Name, symbol, timeframe, and starting balance are required." }, { status: 400 });
+    const kind = body.kind === "journal" ? "journal" : "lab";
+    const name = (body.name || "").trim();
+    if (!name) {
+      return NextResponse.json({ error: "Name is required." }, { status: 400 });
     }
 
     const supabase = createServerClient();
+
+    const insertRow: Record<string, unknown> = {
+      user_id: user.id,
+      name: name.slice(0, 120),
+      kind,
+      market: body.market || null,
+      notes: body.notes || null,
+      status: "active",
+      rules: Array.isArray(body.rules) ? body.rules : [],
+      starting_balance: Number(body.startingBalance || 0),
+    };
+
+    if (kind === "lab") {
+      insertRow.symbol = (body.symbol || "BTCUSDT").trim().toUpperCase();
+      insertRow.timeframe = (body.timeframe || "5m").trim();
+      insertRow.current_balance = Number(
+        body.currentBalance || body.startingBalance || 0
+      );
+      insertRow.commission_per_trade = Number(body.commissionPerTrade || 0);
+      insertRow.slippage_ticks = Number(body.slippageTicks || 0);
+    } else {
+      insertRow.symbol = body.symbol ? body.symbol.trim().toUpperCase() : null;
+      insertRow.timeframe = body.timeframe ? body.timeframe.trim() : null;
+      insertRow.current_balance = null;
+    }
+
     const { data: session, error: sessionError } = await supabase
       .from("backtest_sessions")
-      .insert({
-        user_id: user.id,
-        name,
-        symbol,
-        market: body.market || "Crypto",
-        timeframe,
-        start_date: body.startDate || null,
-        end_date: body.endDate || null,
-        starting_balance: startingBalance,
-        current_balance: currentBalance,
-        commission_per_trade: Number(body.commissionPerTrade || 0),
-        slippage_ticks: Number(body.slippageTicks || 0),
-        notes: body.notes || null,
-        status: "completed",
-      })
+      .insert(insertRow)
       .select("id")
       .single();
 
     if (sessionError || !session?.id) {
       console.error("Backtest session create error:", sessionError);
-      return NextResponse.json({ error: "Could not save backtest. Run the backtesting migration first." }, { status: 500 });
+      return NextResponse.json(
+        { error: "Could not save backtest. Run the backtesting migration first." },
+        { status: 500 }
+      );
     }
 
     const trades = body.trades || [];
-    if (trades.length) {
+    if (kind === "lab" && trades.length) {
       const { error: tradeError } = await supabase.from("backtest_trades").insert(
         trades.map((trade) => ({
           session_id: session.id,
           user_id: user.id,
-          symbol,
+          symbol: insertRow.symbol as string,
           side: trade.side,
           entry_time: new Date(trade.entryTime * 1000).toISOString(),
           exit_time: new Date(trade.exitTime * 1000).toISOString(),

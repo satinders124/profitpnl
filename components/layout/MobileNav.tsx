@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useMode } from "@/components/providers/ModeProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3,
@@ -17,16 +18,25 @@ import {
   Sparkles,
   X,
   Award,
+  ArrowUpRight,
+  FlaskConical,
 } from "lucide-react";
 
-const mainItems = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: typeof Home;
+  switch?: boolean;
+};
+
+const liveMainItems: NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: Home },
   { label: "Trades", href: "/trades", icon: ListChecks },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "AI Desk", href: "/ai-coach", icon: Sparkles },
 ];
 
-const baseMoreItems = [
+const liveMoreItemsBase: NavItem[] = [
   { label: "Certificates", href: "/certificates", icon: Award },
   { label: "Playbook", href: "/playbook", icon: BookOpen },
   { label: "Psychology", href: "/psychology", icon: Brain },
@@ -34,24 +44,70 @@ const baseMoreItems = [
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
+const backtestMainItems: NavItem[] = [
+  { label: "Dashboard", href: "/bt", icon: Home },
+  { label: "Trades", href: "/bt/trades", icon: ListChecks },
+  { label: "Analytics", href: "/bt/analytics", icon: BarChart3 },
+  { label: "AI Bot", href: "/bt/ai-coach", icon: Sparkles },
+];
+
+const backtestMoreItems: NavItem[] = [
+  { label: "Playbook", href: "/bt/playbook", icon: BookOpen },
+  { label: "Accounts", href: "/accounts", icon: CreditCard },
+  { label: "Settings", href: "/settings", icon: Settings },
+  {
+    label: "Shift to Live Journal",
+    href: "/dashboard",
+    icon: ArrowUpRight,
+    switch: true,
+  },
+];
+
+const switchItem: NavItem = {
+  label: "Switch to Backtesting mode",
+  href: "/bt",
+  icon: FlaskConical,
+  switch: true,
+};
+
 export function MobileNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isAffiliate } = useAuth();
+  const { mode, setMode } = useMode();
+  const isBacktest = mode === "backtest";
   const [moreOpen, setMoreOpen] = useState(false);
-  const moreItems = isAffiliate
-    ? [
-        baseMoreItems[0],
-        baseMoreItems[1],
-        baseMoreItems[2],
-        baseMoreItems[3],
-        { label: "Affiliate", href: "/affiliate", icon: Award },
-        ...baseMoreItems.slice(4),
-      ]
-    : baseMoreItems;
+
+  const mainItems = isBacktest ? backtestMainItems : liveMainItems;
+
+  const moreItems = isBacktest
+    ? backtestMoreItems
+    : isAffiliate
+      ? [
+          liveMoreItemsBase[0],
+          liveMoreItemsBase[1],
+          liveMoreItemsBase[2],
+          liveMoreItemsBase[3],
+          { label: "Affiliate", href: "/affiliate", icon: Award },
+          ...liveMoreItemsBase.slice(4),
+          switchItem,
+        ]
+      : [...liveMoreItemsBase, switchItem];
 
   const isMoreActive = moreItems.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
   );
+
+  function handleSwitch() {
+    setMoreOpen(false);
+    if (isBacktest) {
+      setMode("live");
+      router.push("/dashboard");
+    } else {
+      setMode("backtest");
+      router.push("/bt");
+    }
+  }
 
   return (
     <>
@@ -67,7 +123,9 @@ export function MobileNav() {
               href={item.href}
               className={[
                 "relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium tracking-tight transition-colors",
-                active ? "text-[#F0B429] font-semibold" : "text-zinc-500 hover:text-zinc-300",
+                active
+                  ? "text-[#F0B429] font-semibold"
+                  : "text-zinc-500 hover:text-zinc-300",
               ].join(" ")}
             >
               {active && (
@@ -96,7 +154,9 @@ export function MobileNav() {
           onClick={() => setMoreOpen(true)}
           className={[
             "relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium tracking-tight transition-colors",
-            isMoreActive ? "text-[#F0B429] font-semibold" : "text-zinc-500 hover:text-zinc-300",
+            isMoreActive
+              ? "text-[#F0B429] font-semibold"
+              : "text-zinc-500 hover:text-zinc-300",
           ].join(" ")}
         >
           {isMoreActive && (
@@ -157,15 +217,27 @@ export function MobileNav() {
               <div className="grid grid-cols-2 gap-3 p-4">
                 {moreItems.map((item) => {
                   const active =
-                    pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    pathname === item.href ||
+                    pathname.startsWith(`${item.href}/`);
                   const Icon = item.icon;
+
+                  if (item.switch) {
+                    return (
+                      <button
+                        key={item.label}
+                        onClick={handleSwitch}
+                        className="flex items-center gap-3 rounded-xl border border-[#F0B429]/30 bg-[#F0B429]/[0.06] px-4 py-3.5 text-sm font-semibold text-[#F0B429] transition-all hover:bg-[#F0B429]/10"
+                      >
+                        <Icon size={18} strokeWidth={2.2} />
+                        {item.label}
+                      </button>
+                    );
+                  }
 
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      target={item.href.startsWith("/backtesting") ? "_blank" : undefined}
-                      rel={item.href.startsWith("/backtesting") ? "noopener noreferrer" : undefined}
                       onClick={() => setMoreOpen(false)}
                       className={[
                         "flex items-center gap-3 rounded-xl border px-4 py-3.5 text-sm font-medium transition-all",

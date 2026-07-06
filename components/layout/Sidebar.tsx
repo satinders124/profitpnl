@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
@@ -9,79 +9,67 @@ import {
   Brain,
   CreditCard,
   Crown,
+  FlaskConical,
   Home,
   ListChecks,
+  ArrowUpRight,
   Settings,
   Shield,
   Sparkles,
   Timer,
   Zap,
-  ArrowUpRight,
-  Award,
   LogOut,
+  Award,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useMode } from "@/components/providers/ModeProvider";
 
-const navGroups = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: typeof Home;
+  badge?: string;
+};
+
+type NavGroup = {
+  label: string;
+  items: NavItem[];
+};
+
+const liveNavGroups: NavGroup[] = [
   {
     label: "Overview",
-    items: [
-      {
-        label: "Dashboard",
-        href: "/dashboard",
-        icon: Home,
-      },
-    ],
+    items: [{ label: "Dashboard", href: "/dashboard", icon: Home }],
   },
   {
     label: "Journal & Analytics",
     items: [
-      {
-        label: "Trade Log",
-        href: "/trades",
-        icon: ListChecks,
-      },
-      {
-        label: "Performance",
-        href: "/analytics",
-        icon: BarChart3,
-      },
-      {
-        label: "Certificates",
-        href: "/certificates",
-        icon: Award,
-      },
-      {
-        label: "AI Coach",
-        href: "/ai-coach",
-        icon: Sparkles,
-        badge: "Pro",
-      },
-      {
-        label: "Psychology",
-        href: "/psychology",
-        icon: Brain,
-      },
-      {
-        label: "Playbook",
-        href: "/playbook",
-        icon: BookOpen,
-      },
+      { label: "Trade Log", href: "/trades", icon: ListChecks },
+      { label: "Performance", href: "/analytics", icon: BarChart3 },
+      { label: "Certificates", href: "/certificates", icon: Award },
+      { label: "AI Coach", href: "/ai-coach", icon: Sparkles, badge: "Pro" },
+      { label: "Psychology", href: "/psychology", icon: Brain },
+      { label: "Playbook", href: "/playbook", icon: BookOpen },
     ],
   },
   {
     label: "Management",
     items: [
-      {
-        label: "Accounts",
-        href: "/accounts",
-        icon: CreditCard,
-      },
-      {
-        label: "Settings",
-        href: "/settings",
-        icon: Settings,
-      },
+      { label: "Accounts", href: "/accounts", icon: CreditCard },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
+];
+
+const backtestNavGroups: NavGroup[] = [
+  {
+    label: "Backtesting Journal",
+    items: [
+      { label: "Dashboard", href: "/bt", icon: Home },
+      { label: "Trade Log", href: "/bt/trades", icon: ListChecks },
+      { label: "Analytics", href: "/bt/analytics", icon: BarChart3 },
+      { label: "AI Bot", href: "/bt/ai-coach", icon: Sparkles, badge: "Pro" },
+      { label: "Playbook", href: "/bt/playbook", icon: BookOpen },
     ],
   },
 ];
@@ -96,9 +84,49 @@ function initials(email?: string | null, name?: string | null) {
     .slice(0, 2);
 }
 
+function ModeSwitch({ isBacktest }: { isBacktest: boolean }) {
+  const router = useRouter();
+  const { setMode } = useMode();
+
+  return (
+    <button
+      onClick={() => {
+        if (isBacktest) {
+          setMode("live");
+          router.push("/dashboard");
+        } else {
+          setMode("backtest");
+          router.push("/bt");
+        }
+      }}
+      className="group flex w-full items-center gap-3 rounded-xl border border-[#1F1F2C] bg-[#0E0E14] px-3 py-3 text-xs font-medium text-zinc-400 transition-all hover:border-[#F0B429]/40 hover:text-[#F0B429]"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#282838] bg-[#181824] text-[#F0B429]">
+        <FlaskConical size={17} />
+      </span>
+      <span className="flex-1 text-left">
+        {isBacktest ? "Shift to Live Journal" : "Switch to Backtesting mode"}
+      </span>
+      <ArrowUpRight size={15} className="shrink-0 opacity-60" />
+    </button>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, plan, planSource, trialEndsAtMs, hasUsedTrial, displayName, isAffiliate, logout } = useAuth();
+  const router = useRouter();
+  const { mode } = useMode();
+  const isBacktest = mode === "backtest";
+  const {
+    user,
+    plan,
+    planSource,
+    trialEndsAtMs,
+    hasUsedTrial,
+    displayName,
+    isAffiliate,
+    logout,
+  } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const isPro = plan === "Pro Plan";
@@ -112,7 +140,10 @@ export function Sidebar() {
     if (isOnTrial && trialEndsAtMs) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTrialDaysRemaining(
-        Math.max(0, Math.ceil((trialEndsAtMs - Date.now()) / (1000 * 60 * 60 * 24)))
+        Math.max(
+          0,
+          Math.ceil((trialEndsAtMs - Date.now()) / (1000 * 60 * 60 * 24))
+        )
       );
     } else {
       setTrialDaysRemaining(0);
@@ -120,7 +151,7 @@ export function Sidebar() {
   }, [isOnTrial, trialEndsAtMs]);
 
   const navGroupsForUser = isAffiliate
-    ? navGroups.map((group) =>
+    ? liveNavGroups.map((group) =>
         group.label === "Management"
           ? {
               ...group,
@@ -132,11 +163,15 @@ export function Sidebar() {
             }
           : group
       )
-    : navGroups;
+    : liveNavGroups;
 
-  // Plan badge text and style
+  const groups = isBacktest ? backtestNavGroups : navGroupsForUser;
+
   const planBadge = isOnTrial
-    ? { text: `Trial — ${trialDaysRemaining}d`, color: "text-[#F0B429] bg-[#F0B429]/10 border-[#F0B429]/25" }
+    ? {
+        text: `Trial — ${trialDaysRemaining}d`,
+        color: "text-[#F0B429] bg-[#F0B429]/10 border-[#F0B429]/25",
+      }
     : isProPaid
       ? { text: "Pro", color: "text-[#F0B429] bg-[#F0B429]/10 border-[#F0B429]/25" }
       : { text: "Free", color: "text-zinc-400 bg-[#181824] border-[#282838]" };
@@ -167,14 +202,14 @@ export function Sidebar() {
             </span>
           </div>
           <div className="text-[11px] text-zinc-400 font-normal">
-            Trading Journal
+            {isBacktest ? "Backtesting Journal" : "Trading Journal"}
           </div>
         </div>
       </Link>
 
       {/* ─── NAV ─── */}
       <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6 no-scrollbar">
-        {navGroupsForUser.map((group) => (
+        {groups.map((group) => (
           <div key={group.label}>
             <div className="mb-2 px-3 text-xs font-semibold text-zinc-500">
               {group.label}
@@ -192,8 +227,6 @@ export function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    target={item.href.startsWith("/backtesting") ? "_blank" : undefined}
-                    rel={item.href.startsWith("/backtesting") ? "noopener noreferrer" : undefined}
                     className={[
                       "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition-all",
                       active
@@ -207,7 +240,11 @@ export function Sidebar() {
                     <Icon
                       size={17}
                       strokeWidth={active ? 2.1 : 1.8}
-                      className={active ? "text-[#F0B429]" : "text-zinc-500 group-hover:text-zinc-300 transition-colors"}
+                      className={
+                        active
+                          ? "text-[#F0B429]"
+                          : "text-zinc-500 group-hover:text-zinc-300 transition-colors"
+                      }
                     />
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.badge && (
@@ -221,6 +258,11 @@ export function Sidebar() {
             </div>
           </div>
         ))}
+
+        {/* ─── MODE SWITCH ─── */}
+        <div className="px-0 pt-1">
+          <ModeSwitch isBacktest={isBacktest} />
+        </div>
       </nav>
 
       {/* ─── UPGRADE BANNER (Free users only) ─── */}
@@ -282,7 +324,10 @@ export function Sidebar() {
               <div
                 className="h-full bg-gradient-to-r from-[#F0B429] to-[#d99f1e] rounded-full transition-all"
                 style={{
-                  width: `${Math.max(5, Math.min(100, (trialDaysRemaining / 7) * 100))}%`,
+                  width: `${Math.max(
+                    5,
+                    Math.min(100, (trialDaysRemaining / 7) * 100)
+                  )}%`,
                 }}
               />
             </div>
@@ -347,8 +392,12 @@ export function Sidebar() {
                 <LogOut size={20} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-base">Sign out of ProfitPnL?</h3>
-                <p className="text-zinc-400 text-xs mt-0.5">Are you sure you want to end your current session?</p>
+                <h3 className="text-white font-bold text-base">
+                  Sign out of ProfitPnL?
+                </h3>
+                <p className="text-zinc-400 text-xs mt-0.5">
+                  Are you sure you want to end your current session?
+                </p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 pt-2">
