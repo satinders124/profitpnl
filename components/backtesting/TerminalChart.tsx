@@ -8,7 +8,6 @@ import {
   createChart,
   createSeriesMarkers,
   type CandlestickData,
-  type ChartOptions,
   type HistogramData,
   type IChartApi,
   type ISeriesApi,
@@ -82,7 +81,12 @@ export function TerminalChart({
   const rsiRef = useRef<ISeriesApi<"Line"> | null>(null);
   const volRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const [draft, setDraft] = useState<{ type: DrawingType; point?: { time: number; price: number } } | null>(null);
-  const [, forceTick] = useState(0);
+  const [tick, forceTick] = useState(0);
+  const [geometry, setGeometry] = useState<Array<
+    | { id: string; kind: "hline"; y: number }
+    | { id: string; kind: "line"; x1: number; y1: number; x2: number; y2: number }
+    | { id: string; kind: "rect"; x1: number; y1: number; x2: number; y2: number }
+  >>([]);
 
   // ---- Create chart + base series (once) ----
   useEffect(() => {
@@ -235,9 +239,41 @@ export function TerminalChart({
     markersApi.setMarkers(markers);
   }, [trades]);
 
-  // ---- Drawing overlay helpers ----
-  const priceToY = (price: number) => seriesRef.current?.priceToCoordinate(price) ?? null;
-  const timeToX = (time: number) => chartRef.current?.timeScale().timeToCoordinate(time as UTCTimestamp) ?? null;
+  // ---- Drawing overlay geometry (computed in an effect, never during render) ----
+  useEffect(() => {
+    const series = seriesRef.current;
+    const chart = chartRef.current;
+    if (!series || !chart) {
+      setGeometry([]);
+      return;
+    }
+    const timeScale = chart.timeScale();
+    const items: Array<
+      | { id: string; kind: "hline"; y: number }
+      | { id: string; kind: "line"; x1: number; y1: number; x2: number; y2: number }
+      | { id: string; kind: "rect"; x1: number; y1: number; x2: number; y2: number }
+    > = [];
+    const source = draft
+      ? [...drawings, { id: "draft", type: draft.type, color: "#38bdf8", points: draft.point ? [draft.point, draft.point] : undefined, price: draft.point?.price } as Drawing]
+      : drawings;
+    for (const d of source) {
+      if (d.type === "level" && d.price != null) {
+        const y = series.priceToCoordinate(d.price);
+        if (y != null) items.push({ id: d.id, kind: "hline", y });
+      } else if ((d.type === "trendline" || d.type === "rectangle") && d.points && d.points.length === 2) {
+        const p1x = timeScale.timeToCoordinate(d.points[0].time as UTCTimestamp);
+        const p1y = series.priceToCoordinate(d.points[0].price);
+        const p2x = timeScale.timeToCoordinate(d.points[1].time as UTCTimestamp);
+        const p2y = series.priceToCoordinate(d.points[1].price);
+        if (p1x != null && p1y != null && p2x != null && p2y != null) {
+          items.push({ id: d.id, kind: d.type === "trendline" ? "line" : "rect", x1: p1x, y1: p1y, x2: p2x, y2: p2y });
+        }
+      }
+    }
+    setGeometry(items);
+  }, [drawings, draft, candles, tick]);
+
+  // ---- Drawing overlay helpers (used by pointer handlers) ----
   const yToPrice = (y: number) => seriesRef.current?.coordinateToPrice(y) ?? null;
   const xToTime = (x: number): number | null => {
     const t = chartRef.current?.timeScale().coordinateToTime(x);
@@ -282,8 +318,6 @@ export function TerminalChart({
     }
   }
 
-  const allDrawings = draft ? [...drawings, { id: "draft", type: draft.type, color: "#38bdf8", points: draft.point ? [draft.point, draft.point] : undefined, price: draft.point?.price } as Drawing] : drawings;
-
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="absolute inset-0" />
@@ -293,35 +327,25 @@ export function TerminalChart({
         style={{ pointerEvents: activeTool ? "auto" : "none", cursor: activeTool ? "crosshair" : "default" }}
         onPointerDown={handlePointerDown}
       >
-        {allDrawings.map((d) => {
-          if (d.type === "level" && d.price != null) {
-            const y = priceToY(d.price);
-            if (y == null) return null;
-            return <line key={d.id} x1={0} x2="100%" y1={y} y2={y} stroke={d.color} strokeWidth={1.5} strokeDasharray="4 3" />;
+        {geometry.map((d) => {
+          if (d.kind === "hline") {
+            return <line key={d.id} x1={0} x2="100%" y1={d.y} y2={d.y} stroke="#38bdf8" strokeWidth={1.5} strokeDasharray="4 3" />;
           }
-          if ((d.type === "trendline" || d.type === "rectangle") && d.points && d.points.length === 2) {
-            const p1x = timeToX(d.points[0].time);
-            const p1y = priceToY(d.points[0].price);
-            const p2x = timeToX(d.points[1].time);
-            const p2y = priceToY(d.points[1].price);
-            if (p1x == null || p1y == null || p2x == null || p2y == null) return null;
-            if (d.type === "trendline") {
-              return <line key={d.id} x1={p1x} y1={p1y} x2={p2x} y2={p2y} stroke={d.color} strokeWidth={1.5} />;
-            }
-            return (
-              <rect
-                key={d.id}
-                x={Math.min(p1x, p2x)}
-                y={Math.min(p1y, p2y)}
-                width={Math.abs(p2x - p1x)}
-                height={Math.abs(p2y - p1y)}
-                fill={`${d.color}22`}
-                stroke={d.color}
-                strokeWidth={1.5}
-              />
-            );
+          if (d.kind === "line") {
+            return <line key={d.id} x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke="#38bdf8" strokeWidth={1.5} />;
           }
-          return null;
+          return (
+            <rect
+              key={d.id}
+              x={Math.min(d.x1, d.x2)}
+              y={Math.min(d.y1, d.y2)}
+              width={Math.abs(d.x2 - d.x1)}
+              height={Math.abs(d.y2 - d.y1)}
+              fill="#38bdf822"
+              stroke="#38bdf8"
+              strokeWidth={1.5}
+            />
+          );
         })}
       </svg>
       {activeTool && (

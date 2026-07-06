@@ -312,7 +312,7 @@ export default function BacktestingTerminalPage() {
       setBottomTab("strategy");
       return;
     }
-    const result = runStrategy(candles, strategyConfig);
+    const result = runStrategy(candles, { ...strategyConfig, symbol, initialCapital: numericStartingBalance || 100000 });
     setStrategyResult(result);
     const s = result.stats;
     setStrategySummary(
@@ -320,11 +320,6 @@ export default function BacktestingTerminalPage() {
     );
     setBottomTab("strategy");
   }
-
-  // Keep the automated strategy params in sync with the active market + capital.
-  useEffect(() => {
-    setStrategyConfig((c) => ({ ...c, symbol, initialCapital: numericStartingBalance || 100000 }));
-  }, [symbol, numericStartingBalance]);
 
   function defaultStop(side: BacktestSide, entry: number) {
     return side === "long" ? entry * 0.99 : entry * 1.01;
@@ -749,6 +744,42 @@ export default function BacktestingTerminalPage() {
                 <TerminalMetric label="Wins" value={String(stats.wins)} tone="green" />
                 <TerminalMetric label="Losses" value={String(stats.losses)} tone="red" />
               </div>
+            )}
+
+            {bottomTab === "strategy" && (
+              strategyResult ? (
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <TerminalMetric label="Trades" value={String(strategyResult.stats.trades)} />
+                    <TerminalMetric label="Win Rate" value={`${(strategyResult.stats.winRate * 100).toFixed(1)}%`} tone="gold" />
+                    <TerminalMetric label="Net P&L" value={signedMoney(strategyResult.stats.netPnl)} tone={strategyResult.stats.netPnl >= 0 ? "green" : "red"} />
+                    <TerminalMetric label="Return" value={pct(strategyResult.stats.returnPercent)} tone={strategyResult.stats.returnPercent >= 0 ? "green" : "red"} />
+                    <TerminalMetric label="Profit Factor" value={strategyResult.stats.profitFactor >= 99 ? "∞" : strategyResult.stats.profitFactor.toFixed(2)} tone={strategyResult.stats.profitFactor >= 1 ? "green" : "red"} />
+                    <TerminalMetric label="Expectancy" value={`${strategyResult.stats.expectancyR >= 0 ? "+" : ""}${strategyResult.stats.expectancyR.toFixed(2)}R`} tone={strategyResult.stats.expectancyR >= 0 ? "green" : "red"} />
+                    <TerminalMetric label="Max DD" value={money(strategyResult.stats.maxDrawdown)} tone="red" />
+                    <TerminalMetric label="Wins/Loss" value={`${strategyResult.stats.wins}/${strategyResult.stats.losses}`} />
+                  </div>
+                  <div>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-zinc-600">Strategy summary</p>
+                    <p className="rounded-xl border border-[#1E1E38] bg-[#0D0D1A] p-3 text-xs leading-relaxed text-zinc-300">{strategySummary}</p>
+                  </div>
+                  {strategyResult.trades.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-[#2A2A3C] p-6 text-center text-sm text-zinc-500">No trades generated. Try a different symbol, timeframe, or MA period.</p>
+                  ) : (
+                    <div className="max-h-64 overflow-auto">
+                      <table className="w-full min-w-[980px] text-left text-xs">
+                        <thead className="uppercase tracking-widest text-zinc-600"><tr><th className="py-2">#</th><th>Side</th><th>Entry</th><th>Exit</th><th>Qty</th><th>P&L</th><th>R</th><th>Reason</th></tr></thead>
+                        <tbody>{strategyResult.trades.map((trade, index) => <tr key={trade.id} className="border-t border-[#1E1E38]"><td className="py-2 text-zinc-500">{index + 1}</td><td className={trade.side === "long" ? "text-[#00D084]" : "text-[#FF4565]"}>{trade.side.toUpperCase()}</td><td>{trade.entryPrice.toFixed(2)}</td><td>{trade.exitPrice.toFixed(2)}</td><td>{trade.quantity.toFixed(5)}</td><td className={trade.pnl >= 0 ? "text-[#00D084]" : "text-[#FF4565]"}>{signedMoney(trade.pnl)}</td><td>{trade.rMultiple >= 0 ? "+" : ""}{trade.rMultiple.toFixed(2)}R</td><td className="text-zinc-400">{trade.exitReason}</td></tr>)}</tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#2A2A3C] p-6 text-center">
+                  <p className="text-sm text-zinc-500">Run the Strategy Tester to auto-generate trades with the configured MA-cross / mean-reversion rules.</p>
+                  <button onClick={runStrategyBacktest} disabled={!candles.length} className="mt-4 rounded-xl bg-[#2962ff] px-4 py-3 text-sm font-black text-white disabled:opacity-50">Run Strategy</button>
+                </div>
+              )
             )}
 
             {bottomTab === "journal" && (
