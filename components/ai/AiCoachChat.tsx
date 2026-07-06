@@ -419,7 +419,7 @@ export function AiCoachChat({
           <div className="pointer-events-none absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-[#F0B429]/5 blur-[120px]" />
           <div className="pointer-events-none absolute bottom-[-10%] right-[-10%] h-[40%] w-[40%] rounded-full bg-blue-500/5 blur-[120px]" />
 
-          <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto px-4 py-6 space-y-6 scroll-smooth sm:px-6 lg:px-10">
+          <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 space-y-6 scroll-smooth sm:px-6 lg:px-10">
             {messages.length === 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
@@ -498,7 +498,7 @@ export function AiCoachChat({
                     initial={{ opacity: 0, y: 14, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                    className={`group mx-auto flex max-w-3xl gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+                    className={`group mx-auto flex w-full min-w-0 max-w-3xl gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}
                   >
                     <div
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
@@ -510,9 +510,9 @@ export function AiCoachChat({
                       {isUser ? <User size={18} /> : <BrandMark size={17} />}
                     </div>
 
-                    <div className={`flex max-w-[85%] flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
+                    <div className={`flex min-w-0 max-w-[85%] flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
                       <div
-                        className={`rounded-2xl p-4 text-sm leading-relaxed shadow-sm ${
+                        className={`min-w-0 break-words rounded-2xl p-4 text-sm leading-relaxed shadow-sm ${
                           isUser
                             ? "rounded-tr-none bg-[#F0B429] font-semibold text-[#080810]"
                             : "rounded-tl-none border border-[#1E1E38] bg-[#16162A] text-[#F0F0FF]"
@@ -529,12 +529,52 @@ export function AiCoachChat({
                                   <span className="text-[#F0B429] font-black" {...props} />
                                 ),
                                 p: ({ ...props }) => (
-                                  <p className="mb-3 last:mb-0" {...props} />
+                                  <p className="mb-3 last:mb-0 break-words" {...props} />
                                 ),
                                 ul: ({ ...props }) => (
                                   <ul className="list-disc ml-4 mb-3 space-y-2" {...props} />
                                 ),
-                                li: ({ ...props }) => <li className="pl-1" {...props} />,
+                                li: ({ ...props }) => <li className="pl-1 break-words" {...props} />,
+                                a: ({ ...props }) => (
+                                  <a
+                                    className="break-words text-[#F0B429] underline underline-offset-2"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    {...props}
+                                  />
+                                ),
+                                code: ({ ...props }) => (
+                                  <code
+                                    className="break-words rounded bg-[#0D0D1A] px-1 py-0.5 text-[12px]"
+                                    {...props}
+                                  />
+                                ),
+                                pre: ({ ...props }) => (
+                                  <pre
+                                    className="my-3 max-w-full overflow-x-auto rounded-lg bg-[#0D0D1A] p-3 text-[12px]"
+                                    {...props}
+                                  />
+                                ),
+                                table: ({ ...props }) => (
+                                  <div className="my-3 max-w-full overflow-x-auto">
+                                    <table
+                                      className="w-full border-collapse text-left text-[12px]"
+                                      {...props}
+                                    />
+                                  </div>
+                                ),
+                                th: ({ ...props }) => (
+                                  <th
+                                    className="border border-[#2E2E4D] bg-[#1E1E38] px-2 py-1 font-bold"
+                                    {...props}
+                                  />
+                                ),
+                                td: ({ ...props }) => (
+                                  <td
+                                    className="break-words border border-[#2E2E4D] px-2 py-1"
+                                    {...props}
+                                  />
+                                ),
                               }}
                             >
                               {msg.content}
