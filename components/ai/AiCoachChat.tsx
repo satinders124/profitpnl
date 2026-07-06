@@ -21,8 +21,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
-import { buildTradingContext, TradingContext } from "@/lib/ai-context";
+import { buildTradingContext, buildBacktestContext, TradingContext } from "@/lib/ai-context";
 import { createClient } from "@/lib/supabase-client";
+import { Trade } from "@/types/trade";
 
 type ChatMessage = {
   id: string;
@@ -64,9 +65,11 @@ const BACKTEST_SYSTEM =
 export function AiCoachChat({
   title = "AI Coach",
   backtest = false,
+  backtestTrades,
 }: {
   title?: string;
   backtest?: boolean;
+  backtestTrades?: Trade[];
 }) {
   const { user, plan, planSource } = useAuth();
   const { playSend, playReceive, playError } = useSoundEffects();
@@ -117,7 +120,20 @@ export function AiCoachChat({
 
   // ── Load trading context once ──
   useEffect(() => {
-    if (isFreePlan || !user) {
+    if (isFreePlan) {
+      setLoadingContext(false);
+      return;
+    }
+    // In backtesting mode, feed the coach the user's backtested trades so it
+    // reviews the backtesting journal instead of the (possibly empty) live one.
+    if (backtest && backtestTrades && backtestTrades.length > 0) {
+      const ctx = buildBacktestContext(backtestTrades);
+      setTradingContext(ctx);
+      contextRef.current = ctx.summary;
+      setLoadingContext(false);
+      return;
+    }
+    if (!user) {
       setLoadingContext(false);
       return;
     }
@@ -137,7 +153,7 @@ export function AiCoachChat({
     return () => {
       cancelled = true;
     };
-  }, [isFreePlan, user]);
+  }, [isFreePlan, user, backtest, backtestTrades]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = scrollRef.current;

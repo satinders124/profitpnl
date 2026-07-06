@@ -29,7 +29,7 @@ export function Header({
       router.push("/dashboard");
     } else {
       setMode("backtest");
-      router.push("/bt");
+      router.push("/dashboard");
     }
   }
 

@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-client";
+import { Trade } from "@/types/trade";
+import { PlaybookSetup } from "@/types/playbook";
 
 async function authHeaders(): Promise<Record<string, string>> {
   try {
@@ -176,4 +178,82 @@ export async function saveProfile(accountSize: number, currency: string) {
     body: JSON.stringify({ accountSize, currency }),
   });
   return jsonOrThrow(res);
+}
+
+/**
+ * Maps a backtested journal trade into the live `Trade` shape so every
+ * existing chart / stat / breakdown (calcStats, directionStats,
+ * buildEquityPoints, getSetupPerformance, TradeReviewCard, SetupCard…)
+ * works unchanged. `result` is expressed as an R-multiple so the whole
+ * analytics engine treats backtest trades exactly like live ones.
+ */
+export function toTrade(
+  bt: BacktestJournalTrade,
+  model: BacktestModel
+): Trade {
+  const result = outcomeToR(bt.result);
+  const ticks = bt.rule_ticks || [];
+  const followed = ticks.filter(Boolean).length;
+  const adherence = ticks.length > 0 ? Math.round((followed / ticks.length) * 5) : 0;
+
+  const entry = bt.entry_price;
+  const sl = bt.stop_loss;
+  const tp = bt.take_profit;
+  let rr: number | undefined;
+  if (entry && sl && tp && entry !== sl) {
+    const risk = Math.abs(entry - sl);
+    const reward = bt.side === "long" ? tp - entry : entry - tp;
+    if (risk > 0) rr = Number((reward / risk).toFixed(2));
+  }
+
+  const notes = [bt.deviations, bt.psychology].filter(Boolean).join("\n\n");
+
+  return {
+    id: bt.id,
+    date: bt.trade_date || "",
+    instrument: bt.symbol || "Backtest",
+    direction: bt.side === "long" ? "LONG" : "SHORT",
+    setup: model.name,
+    account: model.name,
+    session: [model.market, model.timeframe].filter(Boolean).join(" ") || undefined,
+    entry: entry ?? undefined,
+    sl: sl ?? undefined,
+    tp: tp ?? undefined,
+    rr,
+    result,
+    pnl: bt.pnl,
+    reviewed: true,
+    executionRating: ticks.length > 0 ? adherence : undefined,
+    notes: notes || undefined,
+    createdAt: bt.created_at,
+  };
+}
+
+/**
+ * Maps a backtest model into the live `PlaybookSetup` shape so the Playbook
+ * page can render identical UI (SetupCard + calcSetupStats) for backtests.
+ * `name` carries through, which is what the strategy/trade matching keys on.
+ */
+export function toPlaybookSetup(model: BacktestModel): PlaybookSetup {
+  return {
+    id: model.id,
+    name: model.name,
+    status: model.status || "Active",
+    market: model.market || undefined,
+    timeframe: model.timeframe || undefined,
+    description: model.notes || undefined,
+    rules: model.rules || [],
+    mistakesToAvoid: [],
+    tags: [],
+    createdAt: model.created_at,
+    updatedAt: model.updated_at,
+  };
+}
+
+function outcomeToR(result: string | null): number | null {
+  const r = (result || "").trim().toLowerCase();
+  if (r === "win" || r.includes("win")) return 1;
+  if (r === "loss" || r.includes("loss")) return -1;
+  if (r === "be" || r.includes("breakeven") || r.includes("break even")) return 0;
+  return null;
 }

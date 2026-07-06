@@ -45,14 +45,14 @@ const liveMoreItemsBase: NavItem[] = [
 ];
 
 const backtestMainItems: NavItem[] = [
-  { label: "Dashboard", href: "/bt", icon: Home },
-  { label: "Trades", href: "/bt/trades", icon: ListChecks },
-  { label: "Analytics", href: "/bt/analytics", icon: BarChart3 },
-  { label: "AI Bot", href: "/bt/ai-coach", icon: Sparkles },
+  { label: "Dashboard", href: "/dashboard", icon: Home },
+  { label: "Trades", href: "/trades", icon: ListChecks },
+  { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "AI Coach", href: "/ai-coach", icon: Sparkles },
 ];
 
 const backtestMoreItems: NavItem[] = [
-  { label: "Playbook", href: "/bt/playbook", icon: BookOpen },
+  { label: "Playbook", href: "/playbook", icon: BookOpen },
   { label: "Accounts", href: "/accounts", icon: CreditCard },
   { label: "Settings", href: "/settings", icon: Settings },
   {
@@ -65,7 +65,7 @@ const backtestMoreItems: NavItem[] = [
 
 const switchItem: NavItem = {
   label: "Switch to Backtesting mode",
-  href: "/bt",
+  href: "/dashboard",
   icon: FlaskConical,
   switch: true,
 };
@@ -105,7 +105,7 @@ export function MobileNav() {
       router.push("/dashboard");
     } else {
       setMode("backtest");
-      router.push("/bt");
+      router.push("/dashboard");
     }
   }
 

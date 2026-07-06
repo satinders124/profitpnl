@@ -5,7 +5,15 @@ import dynamic from "next/dynamic";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useMode } from "@/components/providers/ModeProvider";
 import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
+import {
+  getModels,
+  getTrades as getBtTrades,
+  toTrade,
+  type BacktestModel,
+  type BacktestJournalTrade,
+} from "@/lib/backtesting/journal";
 import {
   breakdownBy,
   buildEquityPoints,
@@ -117,11 +125,14 @@ function FilterSelect({
 
 export default function AnalyticsPage() {
   const { user } = useAuth();
+  const { mode } = useMode();
+  const isBacktest = mode === "backtest";
 
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [playbook, setPlaybook] = useState<PlaybookSetup[]>([]);
+  const [btModels, setBtModels] = useState<BacktestModel[]>([]);
 
   const [accountFilter, setAccountFilter] = useState("");
   const [strategyFilter, setStrategyFilter] = useState("");
@@ -135,15 +146,31 @@ export default function AnalyticsPage() {
     setLoading(true);
 
     try {
-      const [tradeData, accountData, playbookData] = await Promise.all([
-        getTrades(user.id),
-        getAccounts(user.id),
-        getPlaybook(user.id),
-      ]);
+      if (isBacktest) {
+        const m = await getModels();
+        const all = await Promise.all(m.map((model) => getBtTrades(model.id)));
+        const flat = all.flat() as BacktestJournalTrade[];
+        setBtModels(m);
+        const mapped = flat
+          .map((t) => {
+            const model = m.find((x) => x.id === t.session_id);
+            return model ? toTrade(t, model) : null;
+          })
+          .filter((x): x is Trade => x !== null);
+        setTrades(mapped);
+        setAccounts([]);
+        setPlaybook([]);
+      } else {
+        const [tradeData, accountData, playbookData] = await Promise.all([
+          getTrades(user.id),
+          getAccounts(user.id),
+          getPlaybook(user.id),
+        ]);
 
-      setTrades(tradeData as Trade[]);
-      setAccounts(accountData as TradingAccount[]);
-      setPlaybook(playbookData as PlaybookSetup[]);
+        setTrades(tradeData as Trade[]);
+        setAccounts(accountData as TradingAccount[]);
+        setPlaybook(playbookData as PlaybookSetup[]);
+      }
     } finally {
       setLoading(false);
     }
@@ -155,7 +182,7 @@ export default function AnalyticsPage() {
       loadData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, mode]);
 
   const accountNames = useMemo(
     () =>
@@ -309,7 +336,7 @@ export default function AnalyticsPage() {
 
   return (
     <AppShell
-      title="Analytics"
+      title={isBacktest ? "Backtesting — Analytics" : "Analytics"}
       subtitle={`${filteredTrades.length} trades in view · ${stats.count} closed`}
     >
       {loading ? (

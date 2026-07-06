@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, ReactNode } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useMode } from "@/components/providers/ModeProvider";
 import { Card}  from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import PlaybookForm from "@/components/playbook/PlaybookForm";
@@ -12,6 +13,23 @@ import {
   deletePlaybookSetup,
   getTrades,
 } from "@/lib/db";
+import {
+  getModels,
+  getTrades as getBtTrades,
+  createModel,
+  updateModel,
+  deleteModel,
+  createTrade,
+  updateTrade,
+  deleteTrade as deleteBtTrade,
+  toTrade,
+  toPlaybookSetup,
+  type BacktestModel,
+  type BacktestJournalTrade,
+} from "@/lib/backtesting/journal";
+import { ModelForm, type ModelFormPayload } from "@/components/backtesting/journal/ModelForm";
+import { TradeForm as BacktestTradeForm } from "@/components/backtesting/journal/TradeForm";
+import { TradeRow } from "@/components/backtesting/journal/TradeRow";
 import { PlaybookSetup } from "@/types/playbook";
 import { Trade } from "@/types/trade";
 import {
@@ -684,11 +702,13 @@ function SetupCard({
   stats,
   onEdit,
   onDelete,
+  onOpen,
 }: {
   setup: PlaybookSetup;
   stats: SetupStats;
   onEdit: () => void;
   onDelete: () => void;
+  onOpen?: () => void;
 }) {
   const rules = setup.rules || [];
   const mistakes = setup.mistakesToAvoid || [];
@@ -794,6 +814,15 @@ function SetupCard({
           </div>
 
           <div className="mt-5 flex gap-2">
+            {onOpen && (
+              <button
+                onClick={onOpen}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#F0B429] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#d99f1e]"
+              >
+                Open
+              </button>
+            )}
+
             <button
               onClick={onEdit}
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#161628] px-4 py-3 text-sm font-medium text-[#A0A0C0] transition hover:bg-[#1E1E38] hover:text-white"
@@ -1000,6 +1029,8 @@ function EmptyPlaybook({ onCreate }: { onCreate: () => void }) {
 
 export default function PlaybookPage() {
   const { user } = useAuth();
+  const { mode } = useMode();
+  const isBacktest = mode === "backtest";
 
   const [loading, setLoading] = useState(true);
   const [setups, setSetups] = useState<PlaybookSetup[]>([]);
@@ -1011,20 +1042,51 @@ export default function PlaybookPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSetup, setEditingSetup] = useState<PlaybookSetup | null>(null);
 
+  // Backtesting-mode state
+  const [btModels, setBtModels] = useState<BacktestModel[]>([]);
+  const [btTradesAll, setBtTradesAll] = useState<BacktestJournalTrade[]>([]);
+  const [modelModalOpen, setModelModalOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState<BacktestModel | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailModel, setDetailModel] = useState<BacktestModel | null>(null);
+  const [detailTrades, setDetailTrades] = useState<BacktestJournalTrade[]>([]);
+  const [tradeModalOpen, setTradeModalOpen] = useState(false);
+  const [editingTrade, setEditingTrade] = useState<BacktestJournalTrade | null>(
+    null
+  );
+
   async function loadData() {
     if (!user) return;
 
     setLoading(true);
 
     try {
-      const [playbookData, tradeData] = await Promise.all([
-        getPlaybook(user.id),
-        getTrades(user.id),
-      ]);
+      if (isBacktest) {
+        const models = await getModels();
+        const allTrades = await Promise.all(
+          models.map((m) => getBtTrades(m.id))
+        );
+        const flat = allTrades.flat() as BacktestJournalTrade[];
+        setBtModels(models);
+        setBtTradesAll(flat);
+        const mappedSetups = models.map(toPlaybookSetup);
+        const mappedTrades = flat
+          .map((t) => {
+            const m = models.find((x) => x.id === t.session_id);
+            return m ? toTrade(t, m) : null;
+          })
+          .filter((x): x is Trade => x !== null);
+        setSetups(mappedSetups);
+        setTrades(mappedTrades);
+      } else {
+        const [playbookData, tradeData] = await Promise.all([
+          getPlaybook(user.id),
+          getTrades(user.id),
+        ]);
 
-      setSetups(playbookData as PlaybookSetup[]);
-      setTrades(tradeData as Trade[]);
-
+        setSetups(playbookData as PlaybookSetup[]);
+        setTrades(tradeData as Trade[]);
+      }
     } finally {
       setLoading(false);
     }
@@ -1034,7 +1096,7 @@ export default function PlaybookPage() {
     if (user) {
       loadData();
     }
-  }, [user]);
+  }, [user, mode]);
 
   const setupStats = useMemo(() => {
     const map = new Map<string, SetupStats>();
@@ -1146,12 +1208,78 @@ export default function PlaybookPage() {
     await loadData();
   }
 
+  // ── Backtesting-mode handlers (model = strategy, trades logged per model) ──
+  function openCreateModel() {
+    setEditingModel(null);
+    setModelModalOpen(true);
+  }
+
+  function openEditModel(setup: PlaybookSetup) {
+    const m = btModels.find((x) => x.id === setup.id);
+    if (!m) return;
+    setEditingModel(m);
+    setModelModalOpen(true);
+  }
+
+  async function handleDeleteModel(setup: PlaybookSetup) {
+    const m = btModels.find((x) => x.id === setup.id);
+    if (!m) return;
+    if (
+      !confirm(
+        `Delete "${m.name}"? This deletes the model and all its backtested trades.`
+      )
+    )
+      return;
+    await deleteModel(m.id);
+    await loadData();
+  }
+
+  function openDetail(setup: PlaybookSetup) {
+    const m = btModels.find((x) => x.id === setup.id);
+    if (!m) return;
+    setDetailModel(m);
+    setDetailTrades(btTradesAll.filter((t) => t.session_id === m.id));
+    setDetailOpen(true);
+  }
+
+  function openAddTrade() {
+    setEditingTrade(null);
+    setTradeModalOpen(true);
+  }
+
+  async function handleSaveModel(payload: ModelFormPayload) {
+    if (editingModel) await updateModel(editingModel.id, payload);
+    else await createModel(payload);
+    setModelModalOpen(false);
+    setEditingModel(null);
+    await loadData();
+  }
+
+  async function handleSaveTrade(payload: Record<string, unknown>) {
+    if (!detailModel) return;
+    if (editingTrade) await updateTrade(editingTrade.id, payload);
+    else await createTrade(detailModel.id, payload);
+    setTradeModalOpen(false);
+    setEditingTrade(null);
+    await loadData();
+  }
+
+  async function handleDeleteBtTrade(t: BacktestJournalTrade) {
+    if (!confirm("Delete this trade?")) return;
+    await deleteBtTrade(t.id);
+    await loadData();
+  }
+
   return (
     <AppShell
-      title="Playbook"
-      subtitle={`${setups.length} strategy models · ${globalStats.active} active`}
-      actionLabel="+ New Setup"
-      onAction={openCreate}
+      title={isBacktest ? "Backtesting — Playbook" : "Playbook"}
+      subtitle={
+        isBacktest
+          ? `${btModels.length} strategy models · ${btTradesAll.length} backtested trades`
+          : `${setups.length} strategy models · ${globalStats.active} active`
+      }
+      actionLabel={isBacktest ? "+ New Model" : "+ New Setup"}
+      onAction={isBacktest ? openCreateModel : openCreate}
     >
       <div className="space-y-5">
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -1252,7 +1380,7 @@ export default function PlaybookPage() {
           {loading ? (
             <PlaybookSkeleton />
           ) : setups.length === 0 ? (
-            <EmptyPlaybook onCreate={openCreate} />
+            <EmptyPlaybook onCreate={isBacktest ? openCreateModel : openCreate} />
           ) : filteredSetups.length === 0 ? (
             <Card>
               <div className="py-12 text-center">
@@ -1271,36 +1399,132 @@ export default function PlaybookPage() {
                   setupStats.get(setup.id) || calcSetupStats(setup, trades);
 
                 return (
-                  <SetupCard
-                    key={setup.id}
-                    setup={setup}
-                    stats={stats}
-                    onEdit={() => openEdit(setup)}
-                    onDelete={() => handleDelete(setup)}
-                  />
+                <SetupCard
+                  key={setup.id}
+                  setup={setup}
+                  stats={stats}
+                  onEdit={() =>
+                    isBacktest ? openEditModel(setup) : openEdit(setup)
+                  }
+                  onDelete={() =>
+                    isBacktest ? handleDeleteModel(setup) : handleDelete(setup)
+                  }
+                  onOpen={isBacktest ? () => openDetail(setup) : undefined}
+                />
                 );
               })}
             </div>
           )}
         </div>
 
-        <Modal
-          isOpen={modalOpen}
-          onClose={() => {
-            setModalOpen(false);
-            setEditingSetup(null);
-          }}
-          title={editingSetup ? "Edit Strategy Model" : "New Strategy Model"}
-        >
-          <PlaybookForm
-            existing={editingSetup}
-            onCancel={() => {
+        {isBacktest ? (
+          <>
+            <Modal
+              isOpen={modelModalOpen}
+              onClose={() => {
+                setModelModalOpen(false);
+                setEditingModel(null);
+              }}
+              title={editingModel ? "Edit Strategy Model" : "New Strategy Model"}
+            >
+              <ModelForm
+                existing={editingModel}
+                onCancel={() => {
+                  setModelModalOpen(false);
+                  setEditingModel(null);
+                }}
+                onSave={handleSaveModel}
+              />
+            </Modal>
+
+            {detailModel && (
+              <Modal
+                isOpen={detailOpen}
+                onClose={() => {
+                  setDetailOpen(false);
+                  setDetailModel(null);
+                }}
+                title={detailModel.name}
+                size="xl"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-[#8080A0]">
+                      {(detailModel.rules?.length || 0)} rules ·{" "}
+                      {detailTrades.length} trades
+                    </p>
+                    <button
+                      onClick={openAddTrade}
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#F0B429] px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#d99f1e]"
+                    >
+                      <Plus size={15} /> Add Trade
+                    </button>
+                  </div>
+                  {detailTrades.length === 0 ? (
+                    <p className="text-sm text-[#8080A0]">
+                      No trades yet. Click &ldquo;Add Trade&rdquo; and tick every
+                      rule you followed.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {detailTrades.map((t) => (
+                        <TradeRow
+                          key={t.id}
+                          trade={t}
+                          onEdit={() => {
+                            setEditingTrade(t);
+                            setTradeModalOpen(true);
+                          }}
+                          onDelete={() => handleDeleteBtTrade(t)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Modal>
+            )}
+
+            {detailModel && (
+              <Modal
+                isOpen={tradeModalOpen}
+                onClose={() => {
+                  setTradeModalOpen(false);
+                  setEditingTrade(null);
+                }}
+                title={editingTrade ? "Edit Trade" : "Add Backtest Trade"}
+                size="lg"
+              >
+                <BacktestTradeForm
+                  model={detailModel}
+                  existing={editingTrade}
+                  onCancel={() => {
+                    setTradeModalOpen(false);
+                    setEditingTrade(null);
+                  }}
+                  onSave={handleSaveTrade}
+                />
+              </Modal>
+            )}
+          </>
+        ) : (
+          <Modal
+            isOpen={modalOpen}
+            onClose={() => {
               setModalOpen(false);
               setEditingSetup(null);
             }}
-            onSave={handleSave}
-          />
-        </Modal>
+            title={editingSetup ? "Edit Strategy Model" : "New Strategy Model"}
+          >
+            <PlaybookForm
+              existing={editingSetup}
+              onCancel={() => {
+                setModalOpen(false);
+                setEditingSetup(null);
+              }}
+              onSave={handleSave}
+            />
+          </Modal>
+        )}
     </AppShell>
   );
 }

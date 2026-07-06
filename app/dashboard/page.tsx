@@ -5,7 +5,18 @@ import { Card } from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import { TradeForm } from "@/components/trades/TradeForm";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useMode } from "@/components/providers/ModeProvider";
+import { useRouter } from "next/navigation";
 import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
+import {
+  getModels,
+  getProfile,
+  saveProfile,
+  getTrades as getBtTrades,
+  toTrade,
+  type BacktestModel,
+  type BacktestProfile,
+} from "@/lib/backtesting/journal";
 import {
   calcStats,
   directionStats,
@@ -33,6 +44,7 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
+  Wallet,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
@@ -116,12 +128,22 @@ function DemoBanner({ onLogTrade }: { onLogTrade: () => void }) {
 
 export default function DashboardPage() {
   const { user, displayName } = useAuth();
+  const { mode } = useMode();
+  const isBacktest = mode === "backtest";
+  const router = useRouter();
 
   const [trades, setTrades] = useState<Trade[]>([]);
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [playbook, setPlaybook] = useState<PlaybookSetup[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
+
+  // Backtesting-mode state
+  const [models, setModels] = useState<BacktestModel[]>([]);
+  const [profile, setProfile] = useState<BacktestProfile | null>(null);
+  const [acct, setAcct] = useState("0");
+  const [acctCurrency, setAcctCurrency] = useState("USD");
+  const [savingAcct, setSavingAcct] = useState(false);
 
   // Modal State for Log Trade
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
@@ -135,17 +157,37 @@ export default function DashboardPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const [tradeRows, accountRows, playbookRows] = await Promise.all([
-        getTrades(user.id),
-        getAccounts(user.id),
-        getPlaybook(user.id),
-      ]);
+      if (isBacktest) {
+        const [m, p] = await Promise.all([getModels(), getProfile()]);
+        setModels(m);
+        setProfile(p);
+        setAcct(p ? String(p.account_size) : "0");
+        setAcctCurrency(p ? p.currency : "USD");
+        const all = await Promise.all(m.map((model) => getBtTrades(model.id)));
+        const flat = all.flat();
+        const mapped = flat
+          .map((t) => {
+            const model = m.find((x) => x.id === t.session_id);
+            return model ? toTrade(t, model) : null;
+          })
+          .filter((x): x is Trade => x !== null);
+        setTrades(mapped);
+        setAccounts([]);
+        setPlaybook([]);
+        setIsDemo(false);
+      } else {
+        const [tradeRows, accountRows, playbookRows] = await Promise.all([
+          getTrades(user.id),
+          getAccounts(user.id),
+          getPlaybook(user.id),
+        ]);
 
-      setTrades(tradeRows);
-      setAccounts(accountRows);
-      setPlaybook(playbookRows);
-      // Enable demo mode only when user has zero real trades
-      setIsDemo(tradeRows.length === 0);
+        setTrades(tradeRows);
+        setAccounts(accountRows);
+        setPlaybook(playbookRows);
+        // Enable demo mode only when user has zero real trades
+        setIsDemo(tradeRows.length === 0);
+      }
     } finally {
       setLoading(false);
     }
@@ -155,7 +197,18 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, mode]);
+
+  async function handleSaveAcct() {
+    setSavingAcct(true);
+    try {
+      await saveProfile(Number(acct) || 0, acctCurrency);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingAcct(false);
+    }
+  }
 
   const effectiveTrades = useMemo(() => {
     return isDemo ? DEMO_TRADES : trades;
@@ -240,13 +293,21 @@ export default function DashboardPage() {
 
   return (
     <AppShell
-      title="Overview"
-      subtitle={`Welcome back${displayName ? `, ${displayName}` : ""}`}
-      actionLabel="+ Log New Trade"
-      onAction={() => setTradeModalOpen(true)}
+      title={isBacktest ? "Backtesting" : "Overview"}
+      subtitle={
+        isBacktest
+          ? `${models.length} models · ${trades.length} backtested trades`
+          : `Welcome back${displayName ? `, ${displayName}` : ""}`
+      }
+      actionLabel={isBacktest ? "+ New Model" : "+ Log New Trade"}
+      onAction={
+        isBacktest
+          ? () => router.push("/playbook")
+          : () => setTradeModalOpen(true)
+      }
     >
       {/* Log Trade Modal */}
-      {tradeModalOpen && user && (
+      {!isBacktest && tradeModalOpen && user && (
         <Modal
           isOpen={tradeModalOpen}
           onClose={() => setTradeModalOpen(false)}
@@ -281,6 +342,60 @@ export default function DashboardPage() {
             <DemoBanner onLogTrade={() => setTradeModalOpen(true)} />
           )}
 
+          {/* --- BACKTESTING ACCOUNT SIZE HERO --- */}
+          {isBacktest && (
+            <Card className="overflow-hidden border-[#1E1E38]">
+              <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#F0B429]/10 text-[#F0B429]">
+                    <Wallet size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8080A0]">
+                      Account Size
+                    </p>
+                    <p className="text-sm text-[#8080A0]">
+                      The simulated account you backtest against.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-3">
+                    <span className="text-sm font-bold text-[#F0B429]">
+                      {acctCurrency === "USD" ? "$" : acctCurrency}
+                    </span>
+                    <input
+                      value={acct}
+                      onChange={(e) =>
+                        setAcct(e.target.value.replace(/[^0-9.]/g, ""))
+                      }
+                      inputMode="decimal"
+                      className="w-28 bg-transparent px-2 py-2.5 text-sm font-bold text-white outline-none"
+                    />
+                  </div>
+                  <select
+                    value={acctCurrency}
+                    onChange={(e) => setAcctCurrency(e.target.value)}
+                    className="rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-3 py-3 text-sm text-white outline-none"
+                  >
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="AUD">AUD</option>
+                    <option value="JPY">JPY</option>
+                  </select>
+                  <button
+                    onClick={handleSaveAcct}
+                    disabled={savingAcct}
+                    className="rounded-xl bg-[#F0B429] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#d99f1e] disabled:opacity-40"
+                  >
+                    {savingAcct ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* --- INSTITUTIONAL COMMAND HUD & TOP METRICS --- */}
           <div className="relative overflow-hidden rounded-2xl border border-[#F0B429]/30 bg-gradient-to-r from-[#121224] via-[#16162C] to-[#1A1A34] p-5 shadow-2xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#242444] pb-4 mb-5">
@@ -292,7 +407,8 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-black text-white tracking-tight">Institutional Performance Desk</h2>
                     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#00D084]/20 border border-[#00D084]/40 text-[#00D084] text-[10px] font-black uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#00D084] animate-ping" /> Live Terminal
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00D084] animate-ping" />{" "}
+                      {isBacktest ? "Backtesting" : "Live Terminal"}
                     </span>
                   </div>
                   <p className="text-xs text-[#A0A0C0] mt-0.5">Real-time edge attribution, quantitative expectancy & risk telemetry</p>

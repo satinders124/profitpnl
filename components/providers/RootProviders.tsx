@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { AppLoader } from "@/components/loader/AppLoader";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { RecoveryLinkHandler } from "@/components/providers/RecoveryLinkHandler";
-import { ModeProvider, ModeSync } from "@/components/providers/ModeProvider";
+import { ModeProvider } from "@/components/providers/ModeProvider";
 
 const PUBLIC_NO_AUTH_PATHS = new Set([
   "/about",
@@ -69,7 +69,6 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
     <AppLoader>
       <AuthProvider>
         <ModeProvider>
-          <ModeSync />
           <RecoveryLinkHandler />
           {children}
         </ModeProvider>

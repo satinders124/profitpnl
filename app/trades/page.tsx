@@ -1,16 +1,28 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import  Modal  from "@/components/ui/Modal";
+import Modal from "@/components/ui/Modal";
 import { Card } from "@/components/ui/Card";
 import { TradeForm } from "@/components/trades/TradeForm";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useMode } from "@/components/providers/ModeProvider";
+import { useRouter } from "next/navigation";
 import {
   deleteTrade,
   getAccounts,
   getPlaybook,
   getTrades,
 } from "@/lib/db";
+import {
+  getModels,
+  getTrades as getBtTrades,
+  updateTrade,
+  deleteTrade as deleteBtTrade,
+  toTrade,
+  type BacktestModel,
+  type BacktestJournalTrade,
+} from "@/lib/backtesting/journal";
+import { TradeForm as BacktestTradeForm } from "@/components/backtesting/journal/TradeForm";
 import {
   calcStats,
   formatPct,
@@ -40,11 +52,22 @@ type ResultFilter = "" | "win" | "loss" | "open" | "needs-review";
 
 export default function TradesPage() {
   const { user } = useAuth();
+  const { mode } = useMode();
+  const isBacktest = mode === "backtest";
+  const router = useRouter();
 
   const [trades, setTrades] = useState<Trade[]>([]);
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [playbook, setPlaybook] = useState<PlaybookSetup[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Backtesting-mode state
+  const [btTrades, setBtTrades] = useState<BacktestJournalTrade[]>([]);
+  const [btModels, setBtModels] = useState<BacktestModel[]>([]);
+  const [btTradeModal, setBtTradeModal] = useState(false);
+  const [editingBtTrade, setEditingBtTrade] = useState<BacktestJournalTrade | null>(
+    null
+  );
 
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
@@ -64,15 +87,32 @@ export default function TradesPage() {
     setLoading(true);
 
     try {
-      const [tradeRows, accountRows, playbookRows] = await Promise.all([
-        getTrades(user.id),
-        getAccounts(user.id),
-        getPlaybook(user.id),
-      ]);
+      if (isBacktest) {
+        const m = await getModels();
+        const all = await Promise.all(m.map((model) => getBtTrades(model.id)));
+        const flat = all.flat() as BacktestJournalTrade[];
+        setBtModels(m);
+        setBtTrades(flat);
+        const mapped = flat
+          .map((t) => {
+            const model = m.find((x) => x.id === t.session_id);
+            return model ? toTrade(t, model) : null;
+          })
+          .filter((x): x is Trade => x !== null);
+        setTrades(mapped);
+        setAccounts([]);
+        setPlaybook([]);
+      } else {
+        const [tradeRows, accountRows, playbookRows] = await Promise.all([
+          getTrades(user.id),
+          getAccounts(user.id),
+          getPlaybook(user.id),
+        ]);
 
-      setTrades(tradeRows);
-      setAccounts(accountRows);
-      setPlaybook(playbookRows);
+        setTrades(tradeRows);
+        setAccounts(accountRows);
+        setPlaybook(playbookRows);
+      }
     } finally {
       setLoading(false);
     }
@@ -83,7 +123,7 @@ export default function TradesPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, mode]);
 
   const accountNames = useMemo(() => {
     return uniqueClean([
@@ -173,6 +213,15 @@ export default function TradesPage() {
   }
 
   function openEditTrade(trade: Trade) {
+    if (isBacktest) {
+      const bt = btTrades.find((t) => t.id === trade.id);
+      const model = bt ? btModels.find((m) => m.id === bt.session_id) : undefined;
+      if (bt && model) {
+        setEditingBtTrade(bt);
+        setBtTradeModal(true);
+      }
+      return;
+    }
     setModalTrade(trade);
     setFormOpen(true);
   }
@@ -181,7 +230,11 @@ export default function TradesPage() {
     if (!user) return;
     if (!confirm("Delete this trade? This cannot be undone.")) return;
 
-    await deleteTrade(user.id, tradeId);
+    if (isBacktest) {
+      await deleteBtTrade(tradeId);
+    } else {
+      await deleteTrade(user.id, tradeId);
+    }
     await load();
   }
 
@@ -198,10 +251,10 @@ export default function TradesPage() {
 
   return (
     <AppShell
-      title="Trade Review Desk"
+      title={isBacktest ? "Backtesting — Trade Review" : "Trade Review Desk"}
       subtitle={`${trades.length} total trades · ${reviewedCount} reviewed`}
-      actionLabel="Log Trade"
-      onAction={openNewTrade}
+      actionLabel={isBacktest ? "+ New Model" : "Log Trade"}
+      onAction={isBacktest ? () => router.push("/playbook") : openNewTrade}
     >
       {loading ? (
         <div className="flex min-h-[360px] items-center justify-center text-sm text-[#5A5A80]">
@@ -505,7 +558,7 @@ export default function TradesPage() {
         </Modal>
       )}
 
-      {formOpen && user && (
+      {!isBacktest && formOpen && user && (
         <Modal
           title={modalTrade ? "Edit Trade Review" : "Log New Trade"}
           onClose={() => setFormOpen(false)}
@@ -522,6 +575,38 @@ export default function TradesPage() {
               await load();
             }}
           />
+        </Modal>
+      )}
+
+      {btTradeModal && editingBtTrade && (
+        <Modal
+          title="Edit Backtest Trade"
+          size="lg"
+          onClose={() => {
+            setBtTradeModal(false);
+            setEditingBtTrade(null);
+          }}
+        >
+          {(() => {
+            const model = btModels.find((m) => m.id === editingBtTrade.session_id);
+            if (!model) return null;
+            return (
+              <BacktestTradeForm
+                model={model}
+                existing={editingBtTrade}
+                onCancel={() => {
+                  setBtTradeModal(false);
+                  setEditingBtTrade(null);
+                }}
+                onSave={async (payload) => {
+                  await updateTrade(editingBtTrade.id, payload);
+                  setBtTradeModal(false);
+                  setEditingBtTrade(null);
+                  await load();
+                }}
+              />
+            );
+          })()}
         </Modal>
       )}
     </AppShell>

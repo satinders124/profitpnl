@@ -276,3 +276,73 @@ export async function buildTradingContext(uid: string, customClient?: any): Prom
     totalR,
   };
 }
+
+/**
+ * Builds the same TradingContext shape from already-mapped backtest trades
+ * (see lib/backtesting/journal.ts `toTrade`), so the AI Coach can review a
+ * user's BACKTESTING journal instead of (or in addition to) their live one.
+ */
+export function buildBacktestContext(trades: Trade[]): TradingContext {
+  const decided = trades.filter(
+    (t) =>
+      t.result !== "" &&
+      t.result !== null &&
+      Number.isFinite(Number(t.result))
+  );
+  const tradeCount = decided.length;
+
+  if (tradeCount === 0) {
+    return {
+      summary:
+        "This trader is reviewing a BACKTESTING journal and has not logged any completed backtested trades yet. Encourage them to add backtested trades with a rule checklist, price/SL/target/BE, risk (% or $), a 'did the plan change?' note, psychology notes, and an outcome (win/loss/BE).",
+      tradeCount: 0,
+      winRate: 0,
+      totalR: 0,
+    };
+  }
+
+  const results = decided.map((t) => Number(t.result));
+  const wins = results.filter((r) => r > 0);
+  const losses = results.filter((r) => r < 0);
+  const breakeven = results.filter((r) => r === 0);
+  const winRate = (wins.length / results.length) * 100;
+  const totalR = sum(results);
+  const avgR = avg(results);
+
+  // Per-model / per-setup breakdown (backtest trades carry model.name as setup)
+  const setupMap = new Map<string, { wins: number; losses: number; totalR: number; count: number }>();
+  for (const t of decided) {
+    const s = t.setup || "Unnamed Model";
+    const r = Number(t.result);
+    const ex = setupMap.get(s) || { wins: 0, losses: 0, totalR: 0, count: 0 };
+    ex.count++;
+    ex.totalR += r;
+    if (r > 0) ex.wins++;
+    else if (r < 0) ex.losses++;
+    setupMap.set(s, ex);
+  }
+  const setupsByR = Array.from(setupMap.entries()).sort((a, b) => b[1].totalR - a[1].totalR);
+
+  const lines: string[] = [];
+  lines.push(`## 📊 Backtesting Journal Performance Snapshot`);
+  lines.push(`- Total backtested trades: ${tradeCount}`);
+  lines.push(`- Win rate: ${winRate.toFixed(1)}% (${wins.length} Wins / ${losses.length} Losses / ${breakeven.length} Breakeven)`);
+  lines.push(`- Net R: ${totalR > 0 ? "+" : ""}${totalR.toFixed(2)}R | Expected Value per trade: ${avgR > 0 ? "+" : ""}${avgR.toFixed(2)}R`);
+  if (setupsByR.length > 0) {
+    lines.push(`\n## 🎯 Backtest Model Breakdown (Sorted by Net R)`);
+    for (const [name, stats] of setupsByR) {
+      const wr = stats.count ? ((stats.wins / stats.count) * 100).toFixed(0) : "0";
+      lines.push(`- ${name}: ${stats.totalR > 0 ? "+" : ""}${stats.totalR.toFixed(2)}R across ${stats.count} trades (${wr}% WR)`);
+    }
+  }
+  lines.push(`\n## 🎯 Coaching Mandate & Behavioral Directives`);
+  lines.push(`- You are reviewing the user's BACKTESTING journal. Trades were manually backtested on TradingView and logged here with a rule checklist, price/SL/target/BE, risk, a 'did the plan change?' note, psychology notes, and an outcome.`);
+  lines.push(`- Focus on: (1) did the trade follow the strategy rules, (2) edge and consistency across the backtest, (3) process and psychology. Be direct, concise, high-impact.`);
+
+  return {
+    summary: lines.join("\n"),
+    tradeCount,
+    winRate,
+    totalR,
+  };
+}

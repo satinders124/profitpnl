@@ -7,7 +7,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname } from "next/navigation";
 
 type Mode = "live" | "backtest";
 
@@ -51,19 +50,6 @@ export function ModeProvider({ children }: { children: ReactNode }) {
       {children}
     </ModeContext.Provider>
   );
-}
-
-/**
- * Keeps the persisted mode in sync with the route so the nav always matches the
- * section the user is actually viewing (/bt* => backtest, otherwise live).
- */
-export function ModeSync() {
-  const pathname = usePathname();
-  const { setMode } = useMode();
-  useEffect(() => {
-    setMode(pathname.startsWith("/bt") ? "backtest" : "live");
-  }, [pathname, setMode]);
-  return null;
 }
 
 export function useMode() {

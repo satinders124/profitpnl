@@ -65,11 +65,11 @@ const backtestNavGroups: NavGroup[] = [
   {
     label: "Backtesting Journal",
     items: [
-      { label: "Dashboard", href: "/bt", icon: Home },
-      { label: "Trade Log", href: "/bt/trades", icon: ListChecks },
-      { label: "Analytics", href: "/bt/analytics", icon: BarChart3 },
-      { label: "AI Bot", href: "/bt/ai-coach", icon: Sparkles, badge: "Pro" },
-      { label: "Playbook", href: "/bt/playbook", icon: BookOpen },
+      { label: "Dashboard", href: "/dashboard", icon: Home },
+      { label: "Trade Log", href: "/trades", icon: ListChecks },
+      { label: "Analytics", href: "/analytics", icon: BarChart3 },
+      { label: "AI Coach", href: "/ai-coach", icon: Sparkles, badge: "Pro" },
+      { label: "Playbook", href: "/playbook", icon: BookOpen },
     ],
   },
 ];
@@ -96,7 +96,7 @@ function ModeSwitch({ isBacktest }: { isBacktest: boolean }) {
           router.push("/dashboard");
         } else {
           setMode("backtest");
-          router.push("/bt");
+          router.push("/dashboard");
         }
       }}
       className="group flex w-full items-center gap-3 rounded-xl border border-[#1F1F2C] bg-[#0E0E14] px-3 py-3 text-xs font-medium text-zinc-400 transition-all hover:border-[#F0B429]/40 hover:text-[#F0B429]"
