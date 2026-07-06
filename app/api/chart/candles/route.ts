@@ -12,6 +12,10 @@ const INTERVAL_SECONDS: Record<string, number> = {
   "4h": 14400,
   "1d": 86400,
 };
+// How much history to pull by default when no explicit range is given.
+const DEFAULT_HISTORY_DAYS = 180;
+// Guard against runaway pagination (max ~10 × 1000-candle Binance chunks).
+const MAX_CHUNKS = 10;
 
 const BINANCE_SYMBOLS = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT",
@@ -109,23 +113,42 @@ async function fetchYahoo(yahooSymbol: string, timeframe: string, from: number |
   return timeframe === "4h" ? aggregateCandles(candles, targetSeconds) : candles;
 }
 
-async function fetchBinance(symbol: string, timeframe: string, from: number | null, to: number | null): Promise<Candle[]> {
-  const params = new URLSearchParams({ symbol, interval: timeframe, limit: "1000" });
-  if (from) params.set("startTime", String(from));
-  if (to) params.set("endTime", String(to));
-  const res = await fetch(`https://api.binance.com/api/v3/klines?${params.toString()}`, { next: { revalidate: 60 * 10 } });
-  if (!res.ok) throw new Error(`Binance ${res.status}`);
-  const raw = (await res.json()) as Array<Array<number | string>>;
-  return raw
-    .map((row) => ({
-      time: Math.floor(Number(row[0]) / 1000),
-      open: Number(row[1]),
-      high: Number(row[2]),
-      low: Number(row[3]),
-      close: Number(row[4]),
-      volume: Number(row[5]),
-    }))
-    .filter((c) => Number.isFinite(c.time) && Number.isFinite(c.open) && Number.isFinite(c.close));
+// Binance caps klines at 1000 candles per request, so we paginate backward
+// from `to` in 1000-candle chunks to assemble a full history window.
+async function fetchBinanceRange(symbol: string, timeframe: string, from: number, to: number): Promise<Candle[]> {
+  const intervalMs = intervalSeconds(timeframe) * 1000;
+  const all: Candle[] = [];
+  let end = to;
+  let guard = 0;
+  while (guard++ < MAX_CHUNKS) {
+    const start = Math.max(from, end - 1000 * intervalMs);
+    const params = new URLSearchParams({
+      symbol,
+      interval: timeframe,
+      startTime: String(start),
+      endTime: String(end),
+      limit: "1000",
+    });
+    // NOTE: api.binance.com is geo-restricted (HTTP 451) from some regions.
+    // data-api.binance.vision is Binance's public, unauthenticated market-data
+    // host with the same /api/v3/klines API and no geo-block.
+    const res = await fetch(`https://data-api.binance.vision/api/v3/klines?${params.toString()}`, { next: { revalidate: 60 * 10 } });
+    if (!res.ok) throw new Error(`Binance ${res.status}`);
+    const raw = (await res.json()) as Array<Array<number | string>>;
+    for (const row of raw) {
+      all.push({
+        time: Math.floor(Number(row[0]) / 1000),
+        open: Number(row[1]),
+        high: Number(row[2]),
+        low: Number(row[3]),
+        close: Number(row[4]),
+        volume: Number(row[5]),
+      });
+    }
+    if (raw.length < 1000 || start <= from) break;
+    end = start - 1;
+  }
+  return all;
 }
 
 async function fetchCoinbase(product: string, timeframe: string, from: number | null, to: number | null): Promise<Candle[]> {
@@ -180,7 +203,7 @@ function generateDemoCandles(symbol: string, timeframe: string, count = 240): Ca
 
 /**
  * Resolve a trade instrument to the best available data sources.
- * Crypto (e.g. BTCUSDT, ETH-USD) → Binance + Yahoo + Coinbase.
+ * Crypto (e.g. BTCUSDT, ETH-USD) → Binance (paginated) + Yahoo + Coinbase.
  * Forex / metals (e.g. EURUSD, XAUUSD) → Yahoo `SYM=X`.
  */
 function resolveSources(symbol: string) {
@@ -207,16 +230,20 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const symbol = (searchParams.get("symbol") || "BTCUSDT").toUpperCase().replace("/", "");
     const timeframe = searchParams.get("timeframe") || "1h";
-    const from = parseMs(searchParams.get("from"));
-    const to = parseMs(searchParams.get("to"));
 
     if (!TIMEFRAMES.includes(timeframe)) {
       return NextResponse.json({ error: "Unsupported timeframe." }, { status: 400 });
     }
 
+    // Range: explicit from/to if provided, else a full default history window.
+    const now = Date.now();
+    const defaultFrom = now - DEFAULT_HISTORY_DAYS * 24 * 60 * 60 * 1000;
+    const from = parseMs(searchParams.get("from")) ?? defaultFrom;
+    const to = parseMs(searchParams.get("to")) ?? now;
+
     const src = resolveSources(symbol);
     const attempts: Array<() => Promise<Candle[]>> = [];
-    if (src.binance) attempts.push(() => fetchBinance(src.binance!, timeframe, from, to));
+    if (src.binance) attempts.push(() => fetchBinanceRange(src.binance!, timeframe, from, to));
     if (src.yahoo) attempts.push(() => fetchYahoo(src.yahoo!, timeframe, from, to));
     if (src.coinbase) attempts.push(() => fetchCoinbase(src.coinbase!, timeframe, from, to));
 
@@ -225,7 +252,19 @@ export async function GET(req: Request) {
       try {
         const candles = await attempt();
         if (candles.length) {
-          return NextResponse.json({ symbol, timeframe, provider: "live", candles });
+          // Dedupe + ascending (Binance pagination can overlap at chunk edges).
+          const seen = new Set<number>();
+          const clean = candles
+            .filter((c) => Number.isFinite(c.time) && Number.isFinite(c.open) && Number.isFinite(c.close))
+            .sort((a, b) => a.time - b.time)
+            .filter((c) => {
+              if (seen.has(c.time)) return false;
+              seen.add(c.time);
+              return true;
+            });
+          if (clean.length) {
+            return NextResponse.json({ symbol, timeframe, provider: "live", from, to, candles: clean });
+          }
         }
       } catch (e) {
         errors.push(e instanceof Error ? e.message : String(e));

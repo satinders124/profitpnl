@@ -177,12 +177,14 @@ export function TradeChart({
       try {
         setStatus("loading");
         setMeta({});
+        // Request a FULL history window (capped server-side) so the chart shows
+        // the whole context, while still including the trade's execution candle.
+        const horizon = 180 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const from = execMs ? Math.min(execMs - 2 * 24 * 60 * 60 * 1000, now - horizon) : now - horizon;
         const params = new URLSearchParams({ symbol, timeframe: tfNorm });
-        if (execMs) {
-          // Request a window around the trade so the execution candle is present.
-          params.set("from", String(execMs - 3 * 24 * 60 * 60 * 1000));
-          params.set("to", String(execMs + 1 * 24 * 60 * 60 * 1000));
-        }
+        params.set("from", String(from));
+        params.set("to", String(now));
 
         const res = await fetch(`/api/chart/candles?${params.toString()}`);
         if (!res.ok) throw new Error(`Chart data ${res.status}`);
