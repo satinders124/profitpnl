@@ -23,6 +23,7 @@ import { PlaybookSetup } from "@/types/playbook";
 import {
   CheckCircle2,
   FileText,
+  Maximize2,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -33,7 +34,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { TradingViewChart } from "@/components/trades/TradingViewChart";
+import { TradeChart } from "@/components/trades/TradeChart";
 
 type ResultFilter = "" | "win" | "loss" | "open" | "needs-review";
 
@@ -55,6 +56,7 @@ export default function TradesPage() {
   const [modalTrade, setModalTrade] = useState<Trade | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedChartTrade, setSelectedChartTrade] = useState<Trade | null>(null);
+  const [expandedChartTrade, setExpandedChartTrade] = useState<Trade | null>(null);
 
   async function load() {
     if (!user) return;
@@ -288,32 +290,47 @@ export default function TradesPage() {
           {selectedChartTrade && (
             <Card className="p-4 relative border border-[#F0B429]/30 bg-[#0D0D1A] overflow-hidden animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#F0B429] animate-pulse" />
-                  <span className="text-xs font-black uppercase tracking-[0.12em] text-[#F0B429]">
-                    Interactive Live Chart — {selectedChartTrade.instrument}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#F0B429] animate-pulse shrink-0" />
+                  <span className="text-xs font-black uppercase tracking-[0.12em] text-[#F0B429] truncate">
+                    Trade Chart — {selectedChartTrade.instrument}
                   </span>
                 </div>
-                <button
-                  onClick={() => setSelectedChartTrade(null)}
-                  className="text-xs font-bold text-zinc-400 hover:text-white transition"
-                >
-                  Close Chart ×
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setExpandedChartTrade(selectedChartTrade)}
+                    className="flex items-center gap-1 rounded-lg border border-[#24243C] px-2 py-1 text-[11px] font-bold text-zinc-300 transition hover:border-[#F0B429] hover:text-white"
+                  >
+                    <Maximize2 size={13} /> Expand
+                  </button>
+                  <button
+                    onClick={() => setSelectedChartTrade(null)}
+                    className="text-xs font-bold text-zinc-400 hover:text-white transition"
+                  >
+                    Close ×
+                  </button>
+                </div>
               </div>
               <div className="rounded-xl overflow-hidden border border-[#24243C]">
-                <TradingViewChart
-                  symbol={selectedChartTrade.instrument}
-                  theme="dark"
-                  interval={selectedChartTrade.timeframe}
+                <TradeChart
+                  instrument={selectedChartTrade.instrument}
                   entry={selectedChartTrade.entry}
                   sl={selectedChartTrade.sl}
                   tp={selectedChartTrade.tp}
-                  direction={selectedChartTrade.direction as "LONG" | "SHORT"}
+                  direction={selectedChartTrade.direction}
+                  date={selectedChartTrade.date}
+                  time={selectedChartTrade.time}
+                  timeframe={selectedChartTrade.timeframe}
+                  height={360}
                 />
               </div>
-              <div className="mt-2 text-[10px] text-zinc-500 text-center">
-                Visualizing market feed for {selectedChartTrade.instrument} synced with your trade log context.
+              <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-zinc-500">
+                <span className="truncate">
+                  Entry / SL / TP marked · chart scrolls to your execution candle.
+                </span>
+                <span className="hidden sm:inline shrink-0">
+                  {selectedChartTrade.instrument} · {selectedChartTrade.timeframe || "1h"}
+                </span>
               </div>
             </Card>
           )}
@@ -452,6 +469,40 @@ export default function TradesPage() {
             )}
           </div>
         </div>
+      )}
+
+      {expandedChartTrade && (
+        <Modal
+          title={`Trade Chart — ${expandedChartTrade.instrument}`}
+          size="xl"
+          onClose={() => setExpandedChartTrade(null)}
+        >
+          <TradeChart
+            instrument={expandedChartTrade.instrument}
+            entry={expandedChartTrade.entry}
+            sl={expandedChartTrade.sl}
+            tp={expandedChartTrade.tp}
+            direction={expandedChartTrade.direction}
+            date={expandedChartTrade.date}
+            time={expandedChartTrade.time}
+            timeframe={expandedChartTrade.timeframe}
+            height={640}
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-zinc-400">
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-4 rounded bg-[#F0B429]" /> Entry
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-4 rounded bg-[#FF4565]" /> Stop Loss
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-4 rounded bg-[#00D084]" /> Take Profit
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-full bg-[#00D084]" /> Execution candle marked
+            </span>
+          </div>
+        </Modal>
       )}
 
       {formOpen && user && (

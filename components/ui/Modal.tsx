@@ -8,6 +8,7 @@ type ModalProps = {
   title?: string;
   open?: boolean;
   isOpen?: boolean;
+  size?: "md" | "lg" | "xl";
   onClose: () => void;
 };
 
@@ -16,6 +17,7 @@ export default function Modal({
   title,
   open,
   isOpen,
+  size = "md",
   onClose,
 }: ModalProps) {
   // FIX: If no 'open' prop is provided, we assume the parent is controlling 
@@ -23,6 +25,9 @@ export default function Modal({
   const visible = open ?? isOpen ?? true;
 
   if (!visible) return null;
+
+  const sizeClass =
+    size === "xl" ? "max-w-6xl" : size === "lg" ? "max-w-4xl" : "max-w-2xl";
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4 py-6 animate-in fade-in duration-200">
@@ -35,7 +40,7 @@ export default function Modal({
       />
 
       {/* Modal Container */}
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] border border-[#1E1E38] bg-[#0D0D1A] shadow-2xl shadow-black/80 animate-in zoom-in-95 duration-200">
+      <div className={`relative z-10 flex max-h-[90vh] w-full ${sizeClass} flex-col overflow-hidden rounded-[2.5rem] border border-[#1E1E38] bg-[#0D0D1A] shadow-2xl shadow-black/80 animate-in zoom-in-95 duration-200`}>
         
         {/* Premium Header */}
         <div className="flex items-center justify-between border-b border-[#1E1E38] px-6 py-5 bg-gradient-to-r from-[#0D0D1A] to-[#111120]">
