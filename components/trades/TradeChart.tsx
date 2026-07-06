@@ -101,17 +101,19 @@ export function TradeChart({
   const markersApiRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const priceLinesRef = useRef<IPriceLine[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [note, setNote] = useState<string>("");
+  const [meta, setMeta] = useState<{ provider?: string; warning?: string; error?: string }>({});
 
   // Keep latest trade values in a ref so the chart instance survives trade changes.
   const tradeRef = useRef({ instrument, entry, sl, tp, direction, date, time, timeframe });
   tradeRef.current = { instrument, entry, sl, tp, direction, date, time, timeframe };
 
-  // 1) Create the chart + markers plugin once.
+  // 1) Create the chart + markers plugin once. Size it manually (ResizeObserver)
+  //    so we never depend on autoSize timing — guarantees the canvas has real px.
   useEffect(() => {
     if (!containerRef.current) return;
-    const chart = createChart(containerRef.current, {
-      autoSize: true,
+    const container = containerRef.current;
+
+    const chart = createChart(container, {
       layout: { background: { color: COLORS.bg }, textColor: COLORS.text },
       grid: { vertLines: { color: COLORS.grid }, horzLines: { color: COLORS.grid } },
       crosshair: { mode: 1 },
@@ -125,11 +127,22 @@ export function TradeChart({
       wickDownColor: COLORS.down,
       borderVisible: false,
     });
+
+    const resize = () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w > 0 && h > 0) chart.resize(w, h);
+    };
+    resize();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
+    ro?.observe(container);
+
     chartRef.current = chart;
     seriesRef.current = series;
     markersApiRef.current = createSeriesMarkers(series, []);
 
     return () => {
+      ro?.disconnect();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -163,6 +176,7 @@ export function TradeChart({
     async function run(s: ISeriesApi<"Candlestick">, c: IChartApi) {
       try {
         setStatus("loading");
+        setMeta({});
         const params = new URLSearchParams({ symbol, timeframe: tfNorm });
         if (execMs) {
           // Request a window around the trade so the execution candle is present.
@@ -233,21 +247,21 @@ export function TradeChart({
 
           const half = Math.max(20, Math.round(data.length / 3));
           const fromIdx = Math.max(0, idx - half);
-          const toIdx = Math.min(data.length - 1, idx + Math.round(half / 2));
-          c.timeScale().setVisibleLogicalRange({ from: fromIdx, to: toIdx + 5 });
+          const toIdx = Math.min(data.length, idx + Math.round(half / 2));
+          c.timeScale().setVisibleLogicalRange({ from: fromIdx, to: toIdx });
         } else {
           markersApiRef.current?.setMarkers([]);
-          c.timeScale().scrollToPosition(0, false);
+          c.timeScale().fitContent();
         }
 
         if (!cancelled) {
           setStatus("ready");
-          setNote(json?.warning ? String(json.warning) : "");
+          setMeta({ provider: json.provider, warning: json.warning });
         }
       } catch (err) {
         if (!cancelled) {
           setStatus("error");
-          setNote(err instanceof Error ? err.message : "Failed to load chart");
+          setMeta({ error: err instanceof Error ? err.message : "Failed to load chart" });
         }
       }
     }
@@ -258,22 +272,30 @@ export function TradeChart({
     };
   }, [instrument, entry, sl, tp, direction, date, time, timeframe]);
 
+  const badge =
+    status === "loading"
+      ? { text: "Loading…", cls: "bg-white/10 text-zinc-300" }
+      : status === "error"
+        ? { text: "Chart unavailable", cls: "bg-[#FF4565]/20 text-[#FF4565]" }
+        : meta.provider === "demo"
+          ? { text: "DEMO DATA · live source unreachable", cls: "bg-[#F0B429]/20 text-[#F0B429]" }
+          : { text: `LIVE · ${meta.provider === "live" ? "Binance / Yahoo" : meta.provider || "market"}`, cls: "bg-[#00D084]/15 text-[#00D084]" };
+
   return (
     <div className={`relative w-full ${className}`} style={{ height }}>
       <div ref={containerRef} className="h-full w-full" />
-      {status === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500">
-          Loading chart…
-        </div>
-      )}
+      <div className={`absolute left-2 top-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badge.cls}`}>
+        {badge.text}
+      </div>
       {status === "error" && (
         <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-zinc-400">
           Couldn&apos;t load market data for {instrument}.
+          {meta.error ? ` (${meta.error})` : ""}
         </div>
       )}
-      {note && status === "ready" && (
+      {meta.warning && status === "ready" && (
         <div className="absolute bottom-2 left-2 right-2 truncate rounded-md bg-black/40 px-2 py-1 text-[10px] text-zinc-400">
-          {note}
+          {meta.warning}
         </div>
       )}
     </div>
