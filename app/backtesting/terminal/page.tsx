@@ -20,7 +20,6 @@ import {
   Save,
   SkipForward,
   Square,
-  Target,
   TrendingDown,
   TrendingUp,
   Upload,
@@ -37,13 +36,18 @@ import {
   maybeAutoCloseTrade,
   parseCandlesCsv,
 } from "@/lib/backtesting/engine";
+import { runStrategy } from "@/lib/backtesting/strategy";
 import {
-  BINANCE_SYMBOLS,
   TIMEFRAMES,
   type BacktestSide,
   type BacktestTrade,
   type Candle,
+  type Drawing,
+  type DrawingType,
+  type IndicatorConfig,
   type OpenBacktestTrade,
+  type StrategyConfig,
+  type StrategyResult,
 } from "@/lib/backtesting/types";
 
 const TerminalChart = dynamic(() => import("@/components/backtesting/TerminalChart").then((m) => m.TerminalChart), {
@@ -51,8 +55,28 @@ const TerminalChart = dynamic(() => import("@/components/backtesting/TerminalCha
   loading: () => <div className="flex h-full items-center justify-center text-sm text-zinc-500">Loading terminal chart…</div>,
 });
 
-type DataSource = "binance" | "csv";
-type BottomTab = "order" | "trades" | "stats" | "journal" | "sessions" | "data";
+type DataSource = "market" | "csv";
+type BottomTab = "order" | "trades" | "stats" | "journal" | "sessions" | "data" | "strategy";
+
+// Forex + crypto + metals instruments. The /api/chart/candles route resolves
+// each symbol to the right provider (Binance for *USDT, Yahoo for FX/metals).
+const MARKETS: Array<{ symbol: string; label: string; group: string }> = [
+  { symbol: "BTCUSDT", label: "BTC/USDT", group: "Crypto" },
+  { symbol: "ETHUSDT", label: "ETH/USDT", group: "Crypto" },
+  { symbol: "SOLUSDT", label: "SOL/USDT", group: "Crypto" },
+  { symbol: "BNBUSDT", label: "BNB/USDT", group: "Crypto" },
+  { symbol: "XRPUSDT", label: "XRP/USDT", group: "Crypto" },
+  { symbol: "ADAUSDT", label: "ADA/USDT", group: "Crypto" },
+  { symbol: "DOGEUSDT", label: "DOGE/USDT", group: "Crypto" },
+  { symbol: "AVAXUSDT", label: "AVAX/USDT", group: "Crypto" },
+  { symbol: "EURUSD", label: "EUR/USD", group: "Forex" },
+  { symbol: "GBPUSD", label: "GBP/USD", group: "Forex" },
+  { symbol: "USDJPY", label: "USD/JPY", group: "Forex" },
+  { symbol: "AUDUSD", label: "AUD/USD", group: "Forex" },
+  { symbol: "USDCAD", label: "USD/CAD", group: "Forex" },
+  { symbol: "XAUUSD", label: "Gold XAU/USD", group: "Metals" },
+  { symbol: "XAGUSD", label: "Silver XAG/USD", group: "Metals" },
+];
 
 type SavedSession = {
   id: string;
@@ -74,12 +98,11 @@ const sampleCsv = `time,open,high,low,close,volume
 2026-07-01T09:25:00Z,107,109,104,105,1700
 2026-07-01T09:30:00Z,105,111,104,110,2200`;
 
-const toolButtons = [
-  { label: "Crosshair", icon: Crosshair },
-  { label: "Trendline", icon: LineChart },
-  { label: "Level", icon: Layers },
-  { label: "Target", icon: Target },
-  { label: "Clear", icon: Eraser },
+const drawTools: Array<{ id: string; label: string; icon: typeof Crosshair; tool: DrawingType | null }> = [
+  { id: "crosshair", label: "Cursor", icon: Crosshair, tool: null },
+  { id: "trendline", label: "Trendline", icon: LineChart, tool: "trendline" },
+  { id: "level", label: "Horizontal level", icon: Layers, tool: "level" },
+  { id: "rectangle", label: "Rectangle", icon: Square, tool: "rectangle" },
 ];
 
 function money(value: number) {
@@ -128,7 +151,7 @@ const TIMEZONES = ["UTC", "America/New_York", "Europe/London", "Asia/Tokyo", "Au
 
 export default function BacktestingTerminalPage() {
   const { user } = useAuth();
-  const [dataSource, setDataSource] = useState<DataSource>("binance");
+  const [dataSource, setDataSource] = useState<DataSource>("market");
   const [symbol, setSymbol] = useState("BTCUSDT");
   const [timeframe, setTimeframe] = useState("5m");
   const [from, setFrom] = useState(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
@@ -163,7 +186,12 @@ export default function BacktestingTerminalPage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
-  const [activeTool, setActiveTool] = useState("Crosshair");
+  const [activeTool, setActiveTool] = useState<DrawingType | null>(null);
+  const [indicators, setIndicators] = useState<IndicatorConfig>({ sma: { enabled: true, period: 20 }, ema: { enabled: false, period: 50 }, rsi: { enabled: false, period: 14 }, volume: true });
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const [strategyConfig, setStrategyConfig] = useState<StrategyConfig>({ type: "ma_cross", fastPeriod: 20, slowPeriod: 50, stopLossPercent: 2, takeProfitPercent: 4, initialCapital: Number(startingBalance) || 100000, symbol });
+  const [strategySummary, setStrategySummary] = useState("");
+  const [strategyResult, setStrategyResult] = useState<StrategyResult | null>(null);
 
   const numericStartingBalance = Number(startingBalance) || 0;
   const currentCandle = candles[currentIndex] || null;
@@ -191,6 +219,9 @@ export default function BacktestingTerminalPage() {
     loadSavedSessions();
   }, [loadSavedSessions]);
 
+  const addDrawing = useCallback((d: Drawing) => setDrawings((rows) => [...rows, d]), []);
+  const clearDrawings = useCallback(() => setDrawings([]), []);
+
   const loadCandles = useCallback(async () => {
     setLoadingData(true);
     setDataError("");
@@ -210,10 +241,10 @@ export default function BacktestingTerminalPage() {
         return;
       }
 
-      const fromIso = liveMode ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() : `${from}T${fromTime || "00:00"}:00`;
-      const toIso = liveMode ? new Date().toISOString() : `${to}T${toTime || "23:59"}:00`;
-      const params = new URLSearchParams({ symbol, timeframe, from: fromIso, to: toIso, provider: "crypto" });
-      const res = await fetch(`/api/market-data/candles?${params.toString()}`);
+      const fromMs = liveMode ? Date.now() - 180 * 24 * 60 * 60 * 1000 : new Date(`${from}T${fromTime || "00:00"}:00`).getTime();
+      const toMs = liveMode ? Date.now() : new Date(`${to}T${toTime || "23:59"}:00`).getTime();
+      const params = new URLSearchParams({ symbol, timeframe, from: String(fromMs), to: String(toMs) });
+      const res = await fetch(`/api/chart/candles?${params.toString()}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not load market data.");
       if (!json.candles?.length) throw new Error("No candles returned for that range.");
@@ -273,6 +304,27 @@ export default function BacktestingTerminalPage() {
     setBalance(Number(startingBalance) || 100000);
     setSaveMessage("");
   }
+
+  function runStrategyBacktest() {
+    if (candles.length < Math.max(strategyConfig.fastPeriod, strategyConfig.slowPeriod) + 2) {
+      setStrategySummary("Load enough candles (more bars than the slow MA period) before running the strategy tester.");
+      setStrategyResult(null);
+      setBottomTab("strategy");
+      return;
+    }
+    const result = runStrategy(candles, strategyConfig);
+    setStrategyResult(result);
+    const s = result.stats;
+    setStrategySummary(
+      `${strategyConfig.type.toUpperCase()} ${strategyConfig.fastPeriod}/${strategyConfig.slowPeriod} · ${s.trades} trades · WR ${(s.winRate * 100).toFixed(1)}% · Net ${signedMoney(s.netPnl)} (${(s.returnPercent * 100).toFixed(2)}%) · PF ${s.profitFactor >= 99 ? "∞" : s.profitFactor.toFixed(2)} · Max DD ${money(s.maxDrawdown)}`
+    );
+    setBottomTab("strategy");
+  }
+
+  // Keep the automated strategy params in sync with the active market + capital.
+  useEffect(() => {
+    setStrategyConfig((c) => ({ ...c, symbol, initialCapital: numericStartingBalance || 100000 }));
+  }, [symbol, numericStartingBalance]);
 
   function defaultStop(side: BacktestSide, entry: number) {
     return side === "long" ? entry * 0.99 : entry * 1.01;
@@ -343,7 +395,7 @@ export default function BacktestingTerminalPage() {
         body: JSON.stringify({
           name: sessionName,
           symbol,
-          market: dataSource === "binance" ? "Crypto" : "Custom CSV",
+          market: dataSource === "csv" ? "Custom CSV" : (MARKETS.find((m) => m.symbol === symbol)?.group ?? "Crypto"),
           timeframe,
           startDate: from,
           endDate: to,
@@ -403,9 +455,9 @@ export default function BacktestingTerminalPage() {
             <Link href="/dashboard" className="mr-1 rounded-md bg-black px-2 py-1 text-xs font-black text-white">P</Link>
             <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 shadow-sm">
               <CandlestickChart size={16} className="text-[#c8961e]" />
-              {dataSource === "binance" ? (
+              {dataSource === "market" ? (
                 <select value={symbol} onChange={(event) => setSymbol(event.target.value)} className="bg-transparent text-sm font-bold outline-none">
-                  {BINANCE_SYMBOLS.map((item) => <option key={item} value={item}>{item}</option>)}
+                  {MARKETS.map((m) => <option key={m.symbol} value={m.symbol}>{m.label}</option>)}
                 </select>
               ) : (
                 <input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} className="w-24 bg-transparent text-sm font-bold outline-none" />
@@ -445,22 +497,31 @@ export default function BacktestingTerminalPage() {
           {/* Left toolbar */}
           <aside className="border-r border-[#1E1E38] bg-[#08080F] p-2">
             <div className="space-y-2">
-              {toolButtons.map((tool) => {
+              {drawTools.map((tool) => {
                 const Icon = tool.icon;
+                const active = activeTool === tool.tool;
                 return (
                   <button
-                    key={tool.label}
+                    key={tool.id}
                     title={tool.label}
-                    onClick={() => setActiveTool(tool.label)}
+                    onClick={() => setActiveTool(tool.tool)}
                     className={classNames(
                       "flex h-9 w-9 items-center justify-center rounded-xl border transition-colors",
-                      activeTool === tool.label ? "border-[#F0B429] bg-[#F0B429]/10 text-[#F0B429]" : "border-[#1E1E38] text-zinc-500 hover:text-zinc-300"
+                      active ? "border-[#F0B429] bg-[#F0B429]/10 text-[#F0B429]" : "border-[#1E1E38] text-zinc-500 hover:text-zinc-300"
                     )}
                   >
                     <Icon size={17} />
                   </button>
                 );
               })}
+              <button
+                title="Clear drawings"
+                onClick={clearDrawings}
+                disabled={!drawings.length}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#1E1E38] text-zinc-500 transition-colors hover:text-[#FF4565] disabled:opacity-30"
+              >
+                <Eraser size={17} />
+              </button>
             </div>
           </aside>
 
@@ -473,7 +534,7 @@ export default function BacktestingTerminalPage() {
                   {currentCandle ? currentCandle.close.toFixed(2) : "—"} {currentPriceChange >= 0 ? "+" : ""}{currentPriceChange.toFixed(2)}
                 </span>
                 <span className="text-zinc-500">{currentTime}</span>
-                <span className="text-zinc-600">Tool: {activeTool}</span>
+                <span className="text-zinc-600">Tool: {activeTool ?? "Cursor"}</span>
               </div>
               <div className="flex items-center gap-3 text-xs text-zinc-500">
                 <span>{candles.length ? `${currentIndex + 1}/${candles.length}` : "0/0"}</span>
@@ -482,7 +543,16 @@ export default function BacktestingTerminalPage() {
             </div>
 
             <div className="relative min-h-[280px] flex-1 sm:min-h-[420px] xl:min-h-[520px]">
-              <TerminalChart candles={visibleCandles} openTrade={openTrade} trades={trades} />
+              <TerminalChart
+                candles={visibleCandles}
+                openTrade={openTrade}
+                trades={trades}
+                indicators={indicators}
+                drawings={drawings}
+                activeTool={activeTool}
+                onAddDrawing={addDrawing}
+                onClearDrawings={clearDrawings}
+              />
               {openTrade && currentCandle && (
                 <div className="absolute left-4 top-4 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A]/90 p-4 shadow-2xl backdrop-blur">
                   <p className="font-mono2 text-[10px] uppercase tracking-widest text-zinc-500">Open position</p>
@@ -550,12 +620,65 @@ export default function BacktestingTerminalPage() {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="mb-3 text-sm font-black text-white">Watchlist</div>
+            <div className="border-b border-[#1E1E38] p-4">
+              <div className="mb-3 text-sm font-black text-white">Indicators</div>
               <div className="space-y-2">
-                {BINANCE_SYMBOLS.map((item) => (
-                  <button key={item} onClick={() => { setDataSource("binance"); setSymbol(item); }} className={classNames("flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs", item === symbol ? "border-[#F0B429] bg-[#F0B429]/10 text-[#F0B429]" : "border-[#1E1E38] text-zinc-400 hover:text-white")}>
-                    <span>{item}</span><span>Crypto</span>
+                <div className="flex items-center justify-between rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-3 py-2">
+                  <button onClick={() => setIndicators((c) => ({ ...c, sma: { ...c.sma, enabled: !c.sma.enabled } }))} className={classNames("inline-flex items-center gap-2 text-xs font-bold", indicators.sma.enabled ? "text-white" : "text-zinc-500")}>
+                    <span className="h-2 w-2 rounded-full bg-[#f0b429]" /> SMA
+                  </button>
+                  {indicators.sma.enabled && (
+                    <input type="number" min={1} value={indicators.sma.period} onChange={(e) => setIndicators((c) => ({ ...c, sma: { ...c.sma, period: Math.max(1, Number(e.target.value) || 1) } }))} className="w-16 rounded-md border border-[#1E1E38] bg-[#08080F] px-2 py-1 text-xs text-white outline-none" />
+                  )}
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-3 py-2">
+                  <button onClick={() => setIndicators((c) => ({ ...c, ema: { ...c.ema, enabled: !c.ema.enabled } }))} className={classNames("inline-flex items-center gap-2 text-xs font-bold", indicators.ema.enabled ? "text-white" : "text-zinc-500")}>
+                    <span className="h-2 w-2 rounded-full bg-[#22d3ee]" /> EMA
+                  </button>
+                  {indicators.ema.enabled && (
+                    <input type="number" min={1} value={indicators.ema.period} onChange={(e) => setIndicators((c) => ({ ...c, ema: { ...c.ema, period: Math.max(1, Number(e.target.value) || 1) } }))} className="w-16 rounded-md border border-[#1E1E38] bg-[#08080F] px-2 py-1 text-xs text-white outline-none" />
+                  )}
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-3 py-2">
+                  <button onClick={() => setIndicators((c) => ({ ...c, rsi: { ...c.rsi, enabled: !c.rsi.enabled } }))} className={classNames("inline-flex items-center gap-2 text-xs font-bold", indicators.rsi.enabled ? "text-white" : "text-zinc-500")}>
+                    <span className="h-2 w-2 rounded-full bg-[#a855f7]" /> RSI
+                  </button>
+                  {indicators.rsi.enabled && (
+                    <input type="number" min={1} value={indicators.rsi.period} onChange={(e) => setIndicators((c) => ({ ...c, rsi: { ...c.rsi, period: Math.max(1, Number(e.target.value) || 1) } }))} className="w-16 rounded-md border border-[#1E1E38] bg-[#08080F] px-2 py-1 text-xs text-white outline-none" />
+                  )}
+                </div>
+                <button onClick={() => setIndicators((c) => ({ ...c, volume: !c.volume }))} className={classNames("flex w-full items-center justify-between rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-3 py-2 text-xs font-bold", indicators.volume ? "text-white" : "text-zinc-500")}>
+                  <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#7c8cff]" /> Volume</span>
+                  <span>{indicators.volume ? "On" : "Off"}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="border-b border-[#1E1E38] p-4">
+              <div className="mb-3 text-sm font-black text-white">Strategy Tester</div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Type">
+                  <select value={strategyConfig.type} onChange={(e) => setStrategyConfig((c) => ({ ...c, type: e.target.value as StrategyConfig["type"] }))} className={terminalInput}>
+                    <option value="ma_cross">MA Cross</option>
+                    <option value="mean_reversion">Mean Reversion</option>
+                    <option value="breakout">Breakout</option>
+                  </select>
+                </Field>
+                <Field label="Fast"><input type="number" min={1} value={strategyConfig.fastPeriod} onChange={(e) => setStrategyConfig((c) => ({ ...c, fastPeriod: Math.max(1, Number(e.target.value) || 1) }))} className={terminalInput} /></Field>
+                <Field label="Slow"><input type="number" min={1} value={strategyConfig.slowPeriod} onChange={(e) => setStrategyConfig((c) => ({ ...c, slowPeriod: Math.max(1, Number(e.target.value) || 1) }))} className={terminalInput} /></Field>
+                <Field label="Stop %"><input type="number" min={0} step={0.1} value={strategyConfig.stopLossPercent} onChange={(e) => setStrategyConfig((c) => ({ ...c, stopLossPercent: Math.max(0, Number(e.target.value) || 0) }))} className={terminalInput} /></Field>
+                <Field label="Target %"><input type="number" min={0} step={0.1} value={strategyConfig.takeProfitPercent} onChange={(e) => setStrategyConfig((c) => ({ ...c, takeProfitPercent: Math.max(0, Number(e.target.value) || 0) }))} className={terminalInput} /></Field>
+              </div>
+              <button onClick={runStrategyBacktest} disabled={!candles.length} className="mt-3 w-full rounded-xl bg-[#2962ff] px-4 py-3 text-sm font-black text-white disabled:opacity-50">Run Strategy</button>
+              {strategySummary && <p className="mt-3 rounded-xl border border-[#1E1E38] bg-[#0D0D1A] p-3 text-xs leading-relaxed text-zinc-300">{strategySummary}</p>}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="mb-3 text-sm font-black text-white">Markets</div>
+              <div className="space-y-2">
+                {MARKETS.map((item) => (
+                  <button key={item.symbol} onClick={() => { setDataSource("market"); setSymbol(item.symbol); }} className={classNames("flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs", item.symbol === symbol ? "border-[#F0B429] bg-[#F0B429]/10 text-[#F0B429]" : "border-[#1E1E38] text-zinc-400 hover:text-white")}>
+                    <span>{item.label}</span><span className="text-[10px] uppercase tracking-widest text-zinc-600">{item.group}</span>
                   </button>
                 ))}
               </div>
@@ -570,6 +693,7 @@ export default function BacktestingTerminalPage() {
               ["order", "Order"],
               ["trades", "Trades"],
               ["stats", "Stats"],
+              ["strategy", "Strategy"],
               ["journal", "Journal"],
               ["sessions", "Sessions"],
               ["data", "Data"],
@@ -669,16 +793,16 @@ export default function BacktestingTerminalPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Data source">
                   <select value={dataSource} onChange={(event) => setDataSource(event.target.value as DataSource)} className={terminalInput}>
-                    <option value="binance">Crypto API (Binance/Coinbase)</option>
+                    <option value="market">Crypto / Forex / Metals</option>
                     <option value="csv">Custom CSV candles</option>
                   </select>
                 </Field>
                 <Field label="Symbol">
-                  {dataSource === "binance" ? (
-                    <select value={symbol} onChange={(event) => setSymbol(event.target.value)} className={terminalInput}>{BINANCE_SYMBOLS.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-                  ) : (
-                    <input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} className={terminalInput} />
-                  )}
+                {dataSource === "market" ? (
+                  <select value={symbol} onChange={(event) => setSymbol(event.target.value)} className={terminalInput}>{MARKETS.map((m) => <option key={m.symbol} value={m.symbol}>{m.label}</option>)}</select>
+                ) : (
+                  <input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} className={terminalInput} />
+                )}
                 </Field>
                 <Field label="From date"><input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className={terminalInput} /></Field>
                 <Field label="From time"><input type="time" value={fromTime} onChange={(event) => setFromTime(event.target.value)} className={terminalInput} /></Field>
