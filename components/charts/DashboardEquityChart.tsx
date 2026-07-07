@@ -72,7 +72,8 @@ function EquityCurveTooltip({
 
 export default function DashboardEquityChart({ data }: { data: DashboardEquityChartPoint[] }) {
   const finalEquity = data.length ? data[data.length - 1].equity : 0;
-  const lineColor = finalEquity >= 0 ? "#F0B429" : "#FF4565";
+  // Green when the curve is in profit (above break-even), red when in a loss.
+  const lineColor = finalEquity >= 0 ? "#00D084" : "#FF4565";
 
   return (
     <ResponsiveContainer width="100%" height="100%">

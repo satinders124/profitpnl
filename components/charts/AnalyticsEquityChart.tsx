@@ -60,13 +60,17 @@ function EquityTooltip({
 }
 
 export default function AnalyticsEquityChart({ data }: { data: EquityPoint[] }) {
+  const finalEquity = data.length ? data[data.length - 1].equity : 0;
+  // Green when the curve is in profit (above break-even), red when in a loss.
+  const lineColor = finalEquity >= 0 ? "#00D084" : "#FF4565";
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="analyticsEquityFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#F0B429" stopOpacity={0.35} />
-            <stop offset="95%" stopColor="#F0B429" stopOpacity={0} />
+            <stop offset="5%" stopColor={lineColor} stopOpacity={0.35} />
+            <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
           </linearGradient>
         </defs>
 
@@ -92,7 +96,7 @@ export default function AnalyticsEquityChart({ data }: { data: EquityPoint[] }) 
         <Area
           type="monotone"
           dataKey="equity"
-          stroke="#F0B429"
+          stroke={lineColor}
           strokeWidth={2}
           fill="url(#analyticsEquityFill)"
         />
