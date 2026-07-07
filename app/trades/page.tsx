@@ -85,10 +85,10 @@ export default function TradesPage() {
   const [selectedChartTrade, setSelectedChartTrade] = useState<Trade | null>(null);
   const [expandedChartTrade, setExpandedChartTrade] = useState<Trade | null>(null);
 
-  async function load() {
+  async function load(showLoader = true) {
     if (!user) return;
 
-    setLoading(true);
+    if (showLoader) setLoading(true);
 
     try {
       if (isBacktest) {
@@ -240,7 +240,7 @@ export default function TradesPage() {
     } else {
       await deleteTrade(user.id, tradeId);
     }
-    await load();
+    await load(false);
   }
 
   // Opens the "log a backtested trade" flow: if there's exactly one model we
@@ -264,7 +264,7 @@ export default function TradesPage() {
     setBtTradeModal(false);
     setEditingBtTrade(null);
     setBtTradeModel(null);
-    await load();
+    await load(false);
   }
 
   function clearFilters() {

@@ -1055,10 +1055,10 @@ export default function PlaybookPage() {
     null
   );
 
-  async function loadData() {
+  async function loadData(showLoader = true) {
     if (!user) return;
 
-    setLoading(true);
+    if (showLoader) setLoading(true);
 
     try {
       if (isBacktest) {
@@ -1259,13 +1259,13 @@ export default function PlaybookPage() {
     else await createTrade(detailModel.id, payload);
     setTradeModalOpen(false);
     setEditingTrade(null);
-    await loadData();
+    await loadData(false);
   }
 
   async function handleDeleteBtTrade(t: BacktestJournalTrade) {
     if (!confirm("Delete this trade?")) return;
     await deleteBtTrade(t.id);
-    await loadData();
+    await loadData(false);
   }
 
   return (

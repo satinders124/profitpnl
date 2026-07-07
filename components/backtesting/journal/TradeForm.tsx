@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import type {
   BacktestModel,
   BacktestJournalTrade,
@@ -16,7 +16,7 @@ export function TradeForm({
   model: BacktestModel;
   existing?: BacktestJournalTrade | null;
   onCancel: () => void;
-  onSave: (payload: Record<string, unknown>) => void;
+  onSave: (payload: Record<string, unknown>) => void | Promise<void>;
 }) {
   const rules = model.rules || [];
   const [side, setSide] = useState<"long" | "short">(
@@ -49,27 +49,33 @@ export function TradeForm({
   const [deviations, setDeviations] = useState(existing?.deviations || "");
   const [psychology, setPsychology] = useState(existing?.psychology || "");
   const [result, setResult] = useState(existing?.result || "");
+  const [saving, setSaving] = useState(false);
 
   function toggleRule(i: number) {
     setRuleTicks(ruleTicks.map((v, idx) => (idx === i ? !v : v)));
   }
   const numOrNull = (s: string) => (s.trim() === "" ? null : Number(s));
 
-  function submit() {
-    onSave({
-      side,
-      tradeDate: tradeDate || null,
-      entryPrice: numOrNull(price),
-      stopLoss: numOrNull(sl),
-      takeProfit: numOrNull(target),
-      be: numOrNull(be),
-      risk: numOrNull(risk),
-      riskUnit,
-      ruleTicks,
-      deviations: deviations.trim() || null,
-      psychology: psychology.trim() || null,
-      result: result || null,
-    });
+  async function submit() {
+    setSaving(true);
+    try {
+      await onSave({
+        side,
+        tradeDate: tradeDate || null,
+        entryPrice: numOrNull(price),
+        stopLoss: numOrNull(sl),
+        takeProfit: numOrNull(target),
+        be: numOrNull(be),
+        risk: numOrNull(risk),
+        riskUnit,
+        ruleTicks,
+        deviations: deviations.trim() || null,
+        psychology: psychology.trim() || null,
+        result: result || null,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   const labelCls =
@@ -275,9 +281,19 @@ export function TradeForm({
         </button>
         <button
           onClick={submit}
-          className="rounded-xl bg-[#F0B429] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#d99f1e]"
+          disabled={saving}
+          className="flex items-center justify-center gap-2 rounded-xl bg-[#F0B429] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#d99f1e] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {existing ? "Save Changes" : "Save Trade"}
+          {saving ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Saving…
+            </>
+          ) : existing ? (
+            "Save Changes"
+          ) : (
+            "Save Trade"
+          )}
         </button>
       </div>
     </div>
