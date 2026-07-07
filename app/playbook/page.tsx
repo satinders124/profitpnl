@@ -15,7 +15,7 @@ import {
 } from "@/lib/db";
 import {
   getModels,
-  getTrades as getBtTrades,
+  getJournalTrades,
   createModel,
   updateModel,
   deleteModel,
@@ -1063,9 +1063,7 @@ export default function PlaybookPage() {
     try {
       if (isBacktest) {
         const models = await getModels();
-        const allTrades = await Promise.all(
-          models.map((m) => getBtTrades(m.id))
-        );
+        const allTrades = await getJournalTrades();
         const flat = allTrades.flat() as BacktestJournalTrade[];
         setBtModels(models);
         setBtTradesAll(flat);

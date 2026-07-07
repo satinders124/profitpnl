@@ -78,12 +78,32 @@ async function jsonOrThrow(res: Response) {
   return data;
 }
 
+// ── Client-side cache ────────────────────────────────────────────────
+// Persists across SPA navigations so switching between Dashboard /
+// Analytics / Trades / Playbook in Backtesting mode doesn't re-fetch
+// everything. Invalidated on every mutation below.
+let _models: BacktestModel[] | null = null;
+let _profile: BacktestProfile | null | undefined = undefined;
+const _trades = new Map<string, BacktestJournalTrade[]>();
+const _modelDetail = new Map<string, { session: BacktestModel; trades: BacktestJournalTrade[] }>();
+let _allTrades: BacktestJournalTrade[] | null = null;
+
+export function clearBacktestCache() {
+  _models = null;
+  _profile = undefined;
+  _trades.clear();
+  _modelDetail.clear();
+  _allTrades = null;
+}
+
 export async function getModels(): Promise<BacktestModel[]> {
+  if (_models) return _models;
   const res = await fetch(`/api/backtests/sessions?kind=journal`, {
     headers: await authHeaders(),
   });
   const data = await jsonOrThrow(res);
-  return (data.sessions || []) as BacktestModel[];
+  _models = (data.sessions || []) as BacktestModel[];
+  return _models;
 }
 
 export async function createModel(
@@ -94,16 +114,22 @@ export async function createModel(
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify({ ...payload, kind: "journal" }),
   });
+  _models = null;
+  _allTrades = null;
   return jsonOrThrow(res);
 }
 
 export async function getModel(
   id: string
 ): Promise<{ session: BacktestModel; trades: BacktestJournalTrade[] }> {
+  const cached = _modelDetail.get(id);
+  if (cached) return cached;
   const res = await fetch(`/api/backtests/sessions/${id}`, {
     headers: await authHeaders(),
   });
-  return jsonOrThrow(res);
+  const data = await jsonOrThrow(res);
+  _modelDetail.set(id, data);
+  return data;
 }
 
 export async function updateModel(id: string, patch: Record<string, unknown>) {
@@ -112,6 +138,8 @@ export async function updateModel(id: string, patch: Record<string, unknown>) {
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(patch),
   });
+  _models = null;
+  _modelDetail.delete(id);
   return jsonOrThrow(res);
 }
 
@@ -120,17 +148,35 @@ export async function deleteModel(id: string) {
     method: "DELETE",
     headers: await authHeaders(),
   });
+  _models = null;
+  _modelDetail.delete(id);
+  _trades.delete(id);
+  _allTrades = null;
   return jsonOrThrow(res);
 }
 
 export async function getTrades(
   sessionId: string
 ): Promise<BacktestJournalTrade[]> {
+  const cached = _trades.get(sessionId);
+  if (cached) return cached;
   const res = await fetch(`/api/backtests/sessions/${sessionId}/trades`, {
     headers: await authHeaders(),
   });
   const data = await jsonOrThrow(res);
-  return (data.trades || []) as BacktestJournalTrade[];
+  const trades = (data.trades || []) as BacktestJournalTrade[];
+  _trades.set(sessionId, trades);
+  return trades;
+}
+
+export async function getJournalTrades(): Promise<BacktestJournalTrade[]> {
+  if (_allTrades) return _allTrades;
+  const res = await fetch(`/api/backtests/trades`, {
+    headers: await authHeaders(),
+  });
+  const data = await jsonOrThrow(res);
+  _allTrades = (data.trades || []) as BacktestJournalTrade[];
+  return _allTrades;
 }
 
 export async function createTrade(
@@ -142,6 +188,9 @@ export async function createTrade(
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(payload),
   });
+  _trades.delete(sessionId);
+  _allTrades = null;
+  _models = null;
   return jsonOrThrow(res);
 }
 
@@ -151,6 +200,8 @@ export async function updateTrade(id: string, patch: Record<string, unknown>) {
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(patch),
   });
+  _trades.delete(id);
+  _allTrades = null;
   return jsonOrThrow(res);
 }
 
@@ -159,16 +210,21 @@ export async function deleteTrade(id: string) {
     method: "DELETE",
     headers: await authHeaders(),
   });
+  _trades.delete(id);
+  _allTrades = null;
+  _models = null;
   return jsonOrThrow(res);
 }
 
 export async function getProfile(): Promise<BacktestProfile | null> {
+  if (_profile !== undefined) return _profile;
   const res = await fetch(`/api/backtests/profile`, {
     headers: await authHeaders(),
   });
   const data = await jsonOrThrow(res);
-  return ((data as { profile?: BacktestProfile | null }).profile ||
+  _profile = ((data as { profile?: BacktestProfile | null }).profile ||
     null) as BacktestProfile | null;
+  return _profile;
 }
 
 export async function saveProfile(accountSize: number, currency: string) {
@@ -177,6 +233,7 @@ export async function saveProfile(accountSize: number, currency: string) {
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify({ accountSize, currency }),
   });
+  _profile = undefined;
   return jsonOrThrow(res);
 }
 

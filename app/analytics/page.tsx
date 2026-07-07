@@ -9,7 +9,7 @@ import { useMode } from "@/components/providers/ModeProvider";
 import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
 import {
   getModels,
-  getTrades as getBtTrades,
+  getJournalTrades,
   toTrade,
   type BacktestModel,
   type BacktestJournalTrade,
@@ -148,7 +148,7 @@ export default function AnalyticsPage() {
     try {
       if (isBacktest) {
         const m = await getModels();
-        const all = await Promise.all(m.map((model) => getBtTrades(model.id)));
+        const all = [await getJournalTrades()];
         const flat = all.flat() as BacktestJournalTrade[];
         setBtModels(m);
         const mapped = flat

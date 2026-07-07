@@ -12,7 +12,7 @@ import {
   getModels,
   getProfile,
   saveProfile,
-  getTrades as getBtTrades,
+  getJournalTrades,
   toTrade,
   type BacktestModel,
   type BacktestProfile,
@@ -163,7 +163,7 @@ export default function DashboardPage() {
         setProfile(p);
         setAcct(p ? String(p.account_size) : "0");
         setAcctCurrency(p ? p.currency : "USD");
-        const all = await Promise.all(m.map((model) => getBtTrades(model.id)));
+        const all = [await getJournalTrades()];
         const flat = all.flat();
         const mapped = flat
           .map((t) => {
