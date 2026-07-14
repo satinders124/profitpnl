@@ -1,4 +1,23 @@
 import { createBrowserClient } from "@supabase/ssr";
+import type { SupportedStorage } from "@supabase/supabase-js";
+
+// Custom storage adapter enforcing localStorage fallback so the browser / PWA
+// has a completely bulletproof session store that survives tab closes, kills, 
+// background app restarts, and OS memory cleaning.
+const customStorageAdapter: SupportedStorage = {
+  getItem: (key) => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(key);
+  },
+  setItem: (key, value) => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(key, value);
+  },
+  removeItem: (key) => {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(key);
+  },
+};
 
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -19,9 +38,10 @@ export function createClient() {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      storage: customStorageAdapter, // Enforce localStorage fallback for PWA / iOS standalone survival
     },
     cookieOptions: {
-      maxAge: 31536000, // Persist cookie sessions for 1 year so closing the tab/reopening the app doesn't log the user out
+      maxAge: 31536000, // Sync 1 year expiration limits on headers/cookies
       path: "/",
       sameSite: "lax",
     }
