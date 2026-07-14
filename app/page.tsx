@@ -8,6 +8,8 @@
    ===================================================================== */
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase-client";
 import {
   motion,
   AnimatePresence,
@@ -1733,6 +1735,31 @@ function Footer() {
    ===================================================================== */
 
 export default function Home() {
+  const router = useRouter();
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace("/dashboard");
+      } else {
+        setCheckingSession(false);
+      }
+    });
+  }, [router]);
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-[#080810] text-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-6 w-6 rounded-full border-2 border-[#F0B429]/30 border-t-[#F0B429] animate-spin" />
+          <span className="text-sm text-[#5A5A80]">Loading ProfitPnL…</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-ink text-txt antialiased">
       <Navbar />
