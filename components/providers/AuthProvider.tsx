@@ -178,11 +178,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           window.location.href = `/reset-password${window.location.hash || window.location.search}`;
           return;
         }
-        if (session?.user) {
-          setUser(session.user);
-          fetchPlanData(session.user.id);
-          fetchAffiliateFlag(session.user.id, session.user.email);
-        } else {
+
+        // Fix auto-logout bug when tab switches, focus triggers or PWA background refreshes:
+        // COMMUNITY BUG: Supabase onAuthStateChange triggers on window/tab refocus with events like INITIAL_SESSION
+        // with empty/null session temporarily before recovering, or triggers invalid SIGNED_OUT events.
+        // We only clean the user session if the event is explicitly SIGNED_OUT.
+        if (event === "SIGNED_OUT") {
           setUser(null);
           setPlan("Free Plan");
           setPlanSource("");
@@ -191,6 +192,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setDisplayName("");
           setSoundEffects(true);
           setIsAffiliate(false);
+        } else if (session?.user) {
+          setUser(session.user);
+          fetchPlanData(session.user.id);
+          fetchAffiliateFlag(session.user.id, session.user.email);
         }
         setLoading(false);
       }
