@@ -1,23 +1,4 @@
 import { createBrowserClient } from "@supabase/ssr";
-import type { SupportedStorage } from "@supabase/supabase-js";
-
-// Custom storage adapter enforcing localStorage fallback so the browser / PWA
-// has a completely bulletproof session store that survives tab closes, kills, 
-// background app restarts, and OS memory cleaning.
-const customStorageAdapter: SupportedStorage = {
-  getItem: (key) => {
-    if (typeof window === "undefined") return null;
-    return window.localStorage.getItem(key);
-  },
-  setItem: (key, value) => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(key, value);
-  },
-  removeItem: (key) => {
-    if (typeof window === "undefined") return;
-    window.localStorage.removeItem(key);
-  },
-};
 
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -33,15 +14,18 @@ export function createClient() {
     return createBrowserClient("http://localhost:54321", "dummy-key");
   }
 
+  // By using the standard createBrowserClient, it automatically writes chunked cookies 
+  // and hooks up to the browser's cookies gracefully. If we override the 'storage' key completely 
+  // with a non-chunked customStorageAdapter, some async handshakes break cookie verification, 
+  // which causes API requests (like clocks, trades, summaries) to fail silently on the client-side!
   return createBrowserClient(url, key, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storage: customStorageAdapter, // Enforce localStorage fallback for PWA / iOS standalone survival
     },
     cookieOptions: {
-      maxAge: 31536000, // Sync 1 year expiration limits on headers/cookies
+      maxAge: 31536000, // 1 year cookie persistence
       path: "/",
       sameSite: "lax",
     }
