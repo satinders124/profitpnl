@@ -49,6 +49,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
+import { ActiveTraderCheckinModal } from "@/components/providers/ActiveTraderCheckinModal";
 
 type TimeRange = "all" | "7d" | "30d" | "90d";
 type PnlViewMode = "r" | "dollar";
@@ -307,6 +308,8 @@ export default function DashboardPage() {
       }
     >
       {/* Log Trade Modal */}
+      <ActiveTraderCheckinModal />
+      
       {!isBacktest && tradeModalOpen && user && (
         <Modal
           isOpen={tradeModalOpen}
