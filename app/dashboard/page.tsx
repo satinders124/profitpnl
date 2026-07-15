@@ -52,6 +52,7 @@ import { motion } from "framer-motion";
 import { ActiveTraderCheckinModal } from "@/components/providers/ActiveTraderCheckinModal";
 import { ActiveShiftTerminal } from "@/components/backtesting/ActiveShiftTerminal";
 import { getActiveShift, TraderShift } from "@/lib/shifts-db";
+import { FeatureAnnouncementBanner } from "@/components/providers/FeatureAnnouncementBanner";
 
 type TimeRange = "all" | "7d" | "30d" | "90d";
 type PnlViewMode = "r" | "dollar";
@@ -321,6 +322,7 @@ export default function DashboardPage() {
     >
       {/* Log Trade Modal */}
       <ActiveTraderCheckinModal />
+      <FeatureAnnouncementBanner />
       
       {!isBacktest && tradeModalOpen && user && (
         <Modal
