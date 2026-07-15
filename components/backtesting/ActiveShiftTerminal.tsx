@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/Card";
-import { getActiveShift, getRecentShifts, clockOut, TraderShift, clockIn } from "@/lib/shifts-db";
+import { getActiveShift, getRecentShifts, clockOut, TraderShift } from "@/lib/shifts-db";
 import { getRunningTradesForShift, addRunningTrade, closeRunningTrade, RunningTrade } from "@/lib/running-trades-db";
 import { getPlaybook } from "@/lib/db";
 import { PlaybookSetup } from "@/types/playbook";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
 import { 
-  Brain, Clock, ShieldAlert, ArrowRight, Play, Check, AlertCircle, Info, ChevronRight, X, Sparkles, Smile, Trophy, Activity, LogOut
+  Brain, Clock, ShieldAlert, ArrowRight, Play, Check, AlertCircle, Info, ChevronRight, X, Sparkles, Smile, Trophy, Activity, LogOut, ChevronDown, ChevronUp, Calendar
 } from "lucide-react";
 
 export function ActiveShiftTerminal({
@@ -24,6 +24,7 @@ export function ActiveShiftTerminal({
 
   const [runningTrades, setRunningTrades] = useState<RunningTrade[]>([]);
   const [playbook, setPlaybook] = useState<PlaybookSetup[]>([]);
+  const [recentShifts, setRecentShifts] = useState<TraderShift[]>([]);
   const [loading, setLoading] = useState(true);
 
   // New Trade Panel States
@@ -53,15 +54,21 @@ export function ActiveShiftTerminal({
   const [emotionsFelt, setEmotionsFelt] = useState("");
   const [lessonsLearned, setLessonsLearned] = useState("");
 
+  // Detailed Modal overlay for read-more day stats
+  const [selectedDayShift, setSelectedDayShift] = useState<TraderShift | null>(null);
+  const [dayTrades, setDayTrades] = useState<RunningTrade[]>([]);
+
   const loadData = useCallback(async () => {
     if (!user) return;
     try {
-      const [trades, play] = await Promise.all([
+      const [trades, play, recent] = await Promise.all([
         getRunningTradesForShift(activeShift.id),
-        getPlaybook(user.id)
+        getPlaybook(user.id),
+        getRecentShifts(user.id)
       ]);
       setRunningTrades(trades);
       setPlaybook(play);
+      setRecentShifts(recent);
     } catch (e) {
       console.error(e);
     } finally {
@@ -72,6 +79,17 @@ export function ActiveShiftTerminal({
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Load trades specifically for the detailed shift overlay
+  const handleOpenDetailedDay = async (shift: TraderShift) => {
+    try {
+      const trades = await getRunningTradesForShift(shift.id);
+      setDayTrades(trades);
+      setSelectedDayShift(shift);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Handle strategy picker change
   const handleStrategyChange = (id: string) => {
@@ -91,7 +109,6 @@ export function ActiveShiftTerminal({
 
   // Monitor risk thresholds
   useEffect(() => {
-    // If the planned risk exceeds the daily loss limit configured during shift clock-in, trigger a clear caution alert banner
     const dailyLimit = activeShift.maxDrawdownLimit || 10000;
     if (riskAmount > dailyLimit) {
       setIsCaution(true);
@@ -149,23 +166,25 @@ export function ActiveShiftTerminal({
 
   const handleShiftClockOut = async () => {
     if (!user) return;
+    setActionLoading(true);
     try {
       const realizedTotal = runningTrades.reduce((sum, t) => sum + (t.pnlRealized || 0), 0);
-      const moodNote = emotionsFelt ? `experiencing feelings of ${emotionsFelt.toLowerCase()}` : "retaining strict emotional bounds";
-      
-      let summary = `Your completed session clocked in with ${runningTrades.length} trades, generating a total realized P&L of $${realizedTotal}. You rated your final discipline at ${postDiscipline}/10, noting that you were ${moodNote}. `;
-      
-      if (realizedTotal > 0) {
-        summary += `Superb execution today! You successfully secured $${realizedTotal} in realized profit while keeping your boundaries strictly aligned with your strategy criteria.`;
-      } else if (realizedTotal < 0) {
-        summary += `A challenging session in the charts, but remember: accepting risk limit hits is what separates professional traders from blow-up accounts. Pausing to clear the mind is recommended.`;
-      } else {
-        summary += `A completely break-even session. Excellent work preserving your account boundaries and avoiding force-trades.`;
-      }
 
-      if (lessonsLearned) {
-        summary += ` You noted a vital lesson: "${lessonsLearned}".`;
-      }
+      // Call premium Claude-3 AI Backend endpoint to generate dynamic humanized paragraph
+      const res = await fetch("/api/ai/shift-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tradesCount: runningTrades.length,
+          realizedPnl: realizedTotal,
+          postDiscipline,
+          emotionsFelt,
+          lessonsLearned,
+          preNotes: activeShift.preNotes
+        })
+      });
+      const data = await res.json();
+      const summary = data.summary || "Shift ended successfully.";
 
       await clockOut(user.id, activeShift.id, {
         postDiscipline,
@@ -174,12 +193,16 @@ export function ActiveShiftTerminal({
         behavioralSummary: summary
       });
 
-      showCelebrate("Shift Complete! ⏱️", `Outstanding check-out. AI evaluation saved: " ${summary}"`, "success");
+      showCelebrate("Shift Complete! ⏱️", `Outstanding check-out. AI evaluation saved!`, "success");
       onStateChange();
     } catch (e) {
       console.error(e);
+    } finally {
+      setActionLoading(false);
     }
   };
+
+  const [actionLoading, setActionLoading] = useState(false);
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
@@ -446,9 +469,10 @@ export function ActiveShiftTerminal({
 
               <button 
                 onClick={handleShiftClockOut}
+                disabled={actionLoading}
                 className="w-full bg-red-500 hover:bg-red-600 py-3 rounded-xl text-white text-xs font-black flex items-center justify-center gap-1.5 transition active:scale-95"
               >
-                <Clock size={14} /> Close & Summarize Shift
+                {actionLoading ? "Generating AI Summary..." : "Close & Summarize Shift"}
               </button>
             </div>
           </Card>
@@ -503,6 +527,141 @@ export function ActiveShiftTerminal({
           </Card>
         </div>
       )}
+
+      {/* DETAILED DAILY SHIFT OVERLAY SCREEN (Claude-AI Infused) */}
+      {selectedDayShift && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <Card className="w-full max-w-2xl bg-[#0F0F1E] border border-[#24243C] p-6 sm:p-8 animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] space-y-6">
+            <div className="flex items-center justify-between border-b border-[#1E1E38] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#F0B429]/10 flex items-center justify-center text-[#F0B429]">
+                  <Brain size={20} className="animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">AI Shift Analysis — {new Date(selectedDayShift.clockIn).toLocaleDateString()}</h3>
+                  <p className="text-xs text-[#5A5A80]">Full performance review & deep cognitive feedback</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedDayShift(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1A1A26] text-zinc-400 hover:text-white transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Premium Claude Paragraph summary */}
+              <div className="p-5 rounded-2xl bg-[#14142B] border border-[#24243C] relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#F0B429]/5 to-transparent pointer-events-none" />
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#F0B429] mb-1.5 flex items-center gap-1">
+                  <Sparkles size={11} className="animate-spin-slow" /> CLAUDE CO-PILOT ADVICE
+                </p>
+                <p className="text-xs sm:text-sm leading-relaxed text-zinc-200 italic">
+                  {selectedDayShift.behavioralSummary || "No summary recorded."}
+                </p>
+              </div>
+
+              {/* Shift metrics block */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Discipline Rating</p>
+                  <p className="text-sm font-black text-[#00D084] mt-1">{selectedDayShift.postDiscipline || 0}/10</p>
+                </div>
+                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Initial Stress</p>
+                  <p className="text-sm font-black text-white mt-1">{selectedDayShift.stressLevel}/10</p>
+                </div>
+                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Daily Loss Limit</p>
+                  <p className="text-sm font-black text-[#FF4565] mt-1">${selectedDayShift.maxDrawdownLimit || 0}</p>
+                </div>
+                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Profit Target</p>
+                  <p className="text-sm font-black text-[#00D084] mt-1">${selectedDayShift.targetProfit || 0}</p>
+                </div>
+              </div>
+
+              {/* Shift Trade logs */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-black uppercase tracking-wider text-zinc-400">Position logs recorded this day</h4>
+                {dayTrades.length === 0 ? (
+                  <p className="text-xs text-zinc-500 italic">No running trade logs tracked for this shift.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {dayTrades.map(t => (
+                      <div key={t.id} className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38] flex justify-between items-center text-xs">
+                        <div>
+                          <p className="font-bold text-white">{t.strategyName}</p>
+                          <p className="text-[10px] text-zinc-500">Entry: ${t.entryPrice} · Exit: ${t.exitPrice || "—"}</p>
+                        </div>
+                        <span className={`font-mono2 font-black ${t.pnlRealized! >= 0 ? "text-[#00D084]" : "text-[#FF4565]"}`}>
+                          {t.pnlRealized! >= 0 ? `+$${t.pnlRealized}` : `-$${Math.abs(t.pnlRealized!)}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Claude dynamic recommendation logic */}
+              <div className="p-4 bg-orange-400/5 border border-orange-400/20 rounded-xl">
+                <h5 className="text-[10px] font-black uppercase text-orange-400 tracking-wider mb-1 flex items-center gap-1">
+                  <Smile size={12} /> NEXT DAY FOCUS ACTION
+                </h5>
+                <p className="text-xs text-zinc-300">
+                  {selectedDayShift.postDiscipline! < 6 
+                    ? "Based on your cognitive logs today, prioritize sleep and cut your trade size by 50% tomorrow. Do not attempt to recover losses."
+                    : "Excellent structure today. Maintain consistent size and restrict yourself only to your verified playbook setups."}
+                </p>
+              </div>
+
+              <button 
+                onClick={() => setSelectedDayShift(null)}
+                className="w-full bg-[#1A1A26] hover:bg-[#222234] py-3 rounded-xl text-xs font-black text-zinc-300 transition"
+              >
+                Close Detailed View
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* RENDER SHIFT HISTORY SECTION UNDER COCKPIT */}
+      <Card className="p-5">
+        <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2 text-white">
+          <Calendar size={16} className="text-[#F0B429]" /> Your Completed Shift History Ledger
+        </h3>
+        
+        {recentShifts.length === 0 ? (
+          <p className="text-center py-10 text-xs text-zinc-500">No completed shifts recorded yet.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {recentShifts.map(shift => (
+              <div key={shift.id} className="p-4 bg-[#0D0D1A] rounded-xl border border-[#1E1E38] space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center text-[10px] mb-2 border-b border-[#1E1E38]/60 pb-1.5">
+                    <span className="text-zinc-400 font-bold flex items-center gap-1">
+                      <Clock size={11} /> {new Date(shift.clockIn).toLocaleDateString()}
+                    </span>
+                    <span className="text-[#00D084] font-black">Discipline: {shift.postDiscipline}/10</span>
+                  </div>
+                  <p className="text-xs text-zinc-300 line-clamp-3 italic">
+                    {shift.behavioralSummary}
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => handleOpenDetailedDay(shift)}
+                  className="w-full py-2 bg-[#1C1C30]/50 hover:bg-[#1C1C30] rounded-lg text-[11px] font-bold text-[#F0B429] flex items-center justify-center gap-1 transition"
+                >
+                  Read Full Day Report <ChevronRight size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
     </div>
   );
