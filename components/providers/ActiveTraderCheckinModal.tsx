@@ -104,24 +104,24 @@ export function ActiveTraderCheckinModal() {
           </div>
 
           <div className="space-y-4">
-            {/* Target Profit & Max Drawdown Row */}
-            <div className="grid grid-cols-2 gap-3.5">
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1.5">Today's Profit Target ($)</label>
+            {/* Target Profit & Max Drawdown Row — fully aligned on desktop and mobile */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-2 leading-none">Today's Profit Target ($)</label>
                 <input 
                   type="number"
                   value={targetProfit}
                   onChange={e => setTargetProfit(Number(e.target.value))}
-                  className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
+                  className="w-full h-11 bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
                 />
               </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1.5">Daily Loss Limit ($)</label>
+              <div className="flex flex-col">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-2 leading-none">Daily Loss Limit ($)</label>
                 <input 
                   type="number"
                   value={maxDrawdownLimit}
                   onChange={e => setMaxDrawdownLimit(Number(e.target.value))}
-                  className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
+                  className="w-full h-11 bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
                 />
               </div>
             </div>
