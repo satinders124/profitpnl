@@ -179,14 +179,14 @@ export function ActiveTraderCheckinModal() {
             <div className="flex gap-3 border-t border-[#1E1E38] pt-4">
               <button
                 onClick={dismissToday}
-                className="flex-1 py-2.5 rounded-xl border border-[#1E1E38] text-xs font-black text-[#A0A0C0] hover:bg-[#1E1E38]/30 transition"
+                className="flex-1 py-2.5 rounded-xl border border-[#1E1E38] text-xs font-black text-[#A0A0C0] hover:bg-[#1E1E38]/30 transition duration-300 active:scale-[0.98]"
               >
                 Skip
               </button>
               <button
                 onClick={handleClockIn}
                 disabled={actionLoading}
-                className="flex-[2] gold-gradient py-2.5 rounded-xl text-[#080810] font-black text-xs flex items-center justify-center gap-2 transition hover:scale-[1.01]"
+                className="flex-[2] gold-gradient py-2.5 rounded-xl text-[#080810] font-black text-xs flex items-center justify-center gap-2 transition duration-300 hover:shadow-[0_0_20px_rgba(240,180,41,0.4)] active:scale-[0.98]"
               >
                 <Clock size={15} /> Clock-In Shift
               </button>

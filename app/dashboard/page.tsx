@@ -1353,7 +1353,7 @@ function MetricCard({
     tone === "green" ? "#00D084" : tone === "red" ? "#FF4565" : "#F0B429";
 
   return (
-    <Card className="min-w-0 border-[#1E1E38] p-5 shadow-md transition-all hover:border-white/20">
+    <Card className="min-w-0 glass-panel border-none p-5 transition-all duration-300 hover:scale-[1.01] hover:border-white/25">
       <div className="flex items-center justify-between gap-2">
         <div className="truncate text-xs font-semibold uppercase tracking-wider text-[#8080A0]">
           {label}
