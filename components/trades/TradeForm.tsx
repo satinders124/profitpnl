@@ -7,6 +7,7 @@ import { Trade } from "@/types/trade";
 import { CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
+import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
 
 const instruments = [
   "XAUUSD",
@@ -115,6 +116,7 @@ export function TradeForm({
 
   const [saving, setSaving] = useState(false);
   const { playSuccess } = useSoundEffects();
+  const { showCelebrate } = useNotificationCoPilot();
 
   function update<K extends keyof Trade>(key: K, value: Trade[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -128,7 +130,7 @@ export function TradeForm({
     setSaving(true);
 
     try {
-      await saveTrade(uid, {
+      const resId = await saveTrade(uid, {
         ...form,
         id: existing?.id,
         entry: cleanNumber(form.entry),
@@ -141,6 +143,36 @@ export function TradeForm({
       });
 
       playSuccess();
+
+      // Humanized Real-Time AI co-pilot celebration triggers!
+      const pnlVal = form.pnl !== undefined && form.pnl !== "" && form.pnl !== null ? Number(form.pnl) : 0;
+      const rVal = form.result !== undefined && form.result !== "" && form.result !== null ? Number(form.result) : 0;
+      const instr = form.instrument || "trade";
+
+      if (existing) {
+        showCelebrate("Trade Log Updated!", `Your updates to ${instr} have been recorded successfully.`, "success");
+      } else {
+        if (rVal > 0) {
+          showCelebrate(
+            "Profit Secured! 💰", 
+            `Superb execution on ${instr}! You banked +${rVal}R ($${pnlVal.toFixed(0)}). Your discipline is creating real consistency.`, 
+            "celebrate"
+          );
+        } else if (rVal < 0) {
+          showCelebrate(
+            "Controlled Risk. ❤️", 
+            `Took a loss of ${rVal}R on ${instr}. That is perfectly okay. Accepting a loss gracefully is the ultimate hallmark of a professional.`, 
+            "motivation"
+          );
+        } else {
+          showCelebrate(
+            "Trade Logged! 📝", 
+            `Your trade on ${instr} is safe in your journal. AI analysis pending on your next session check-out!`, 
+            "success"
+          );
+        }
+      }
+
       onSaved();
     } finally {
       setSaving(false);

@@ -5,6 +5,7 @@ import { AppLoader } from "@/components/loader/AppLoader";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { RecoveryLinkHandler } from "@/components/providers/RecoveryLinkHandler";
 import { ModeProvider } from "@/components/providers/ModeProvider";
+import { NotificationProvider } from "@/components/providers/NotificationProvider";
 
 const PUBLIC_NO_AUTH_PATHS = new Set([
   "/about",
@@ -68,10 +69,12 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
   return (
     <AppLoader>
       <AuthProvider>
-        <ModeProvider>
-          <RecoveryLinkHandler />
-          {children}
-        </ModeProvider>
+        <NotificationProvider>
+          <ModeProvider>
+            <RecoveryLinkHandler />
+            {children}
+          </ModeProvider>
+        </NotificationProvider>
       </AuthProvider>
     </AppLoader>
   );
