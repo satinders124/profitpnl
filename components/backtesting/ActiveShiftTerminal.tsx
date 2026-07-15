@@ -1,0 +1,510 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { Card } from "@/components/ui/Card";
+import { getActiveShift, getRecentShifts, clockOut, TraderShift, clockIn } from "@/lib/shifts-db";
+import { getRunningTradesForShift, addRunningTrade, closeRunningTrade, RunningTrade } from "@/lib/running-trades-db";
+import { getPlaybook } from "@/lib/db";
+import { PlaybookSetup } from "@/types/playbook";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
+import { 
+  Brain, Clock, ShieldAlert, ArrowRight, Play, Check, AlertCircle, Info, ChevronRight, X, Sparkles, Smile, Trophy, Activity, LogOut
+} from "lucide-react";
+
+export function ActiveShiftTerminal({
+  activeShift,
+  onStateChange
+}: {
+  activeShift: TraderShift;
+  onStateChange: () => void;
+}) {
+  const { user } = useAuth();
+  const { showCelebrate } = useNotificationCoPilot();
+
+  const [runningTrades, setRunningTrades] = useState<RunningTrade[]>([]);
+  const [playbook, setPlaybook] = useState<PlaybookSetup[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // New Trade Panel States
+  const [isAdding, setIsAdding] = useState(false);
+  const [strategyId, setStrategyId] = useState("");
+  const [strategyName, setStrategyName] = useState("");
+  const [rules, setRules] = useState<string[]>([]);
+  const [rulesChecked, setRuleChecked] = useState<boolean[]>([]);
+
+  // Prices State
+  const [entry, setEntry] = useState(0);
+  const [sl, setSl] = useState(0);
+  const [tp, setTp] = useState(0);
+  const [lotSize, setLotSize] = useState(1);
+  const [pipsTicks, setPipsTicks] = useState(10);
+  const [riskAmount, setRiskAmount] = useState(100);
+  const [targetProfit, setTargetProfit] = useState(200);
+  const [isCaution, setIsCaution] = useState(false);
+
+  // Close Trade modal state
+  const [closingTrade, setClosingTrade] = useState<RunningTrade | null>(null);
+  const [exitPrice, setExitPrice] = useState(0);
+  const [realizedPnl, setRealizedPnl] = useState(0);
+
+  // Clock Out variables
+  const [postDiscipline, setPostDiscipline] = useState(5);
+  const [emotionsFelt, setEmotionsFelt] = useState("");
+  const [lessonsLearned, setLessonsLearned] = useState("");
+
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [trades, play] = await Promise.all([
+        getRunningTradesForShift(activeShift.id),
+        getPlaybook(user.id)
+      ]);
+      setRunningTrades(trades);
+      setPlaybook(play);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, activeShift]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Handle strategy picker change
+  const handleStrategyChange = (id: string) => {
+    setStrategyId(id);
+    const selected = playbook.find(p => p.id === id);
+    if (selected) {
+      const selectedRules = selected.rules || [];
+      setStrategyName(selected.name);
+      setRules(selectedRules);
+      setRuleChecked(new Array(selectedRules.length).fill(false));
+    } else {
+      setStrategyName("");
+      setRules([]);
+      setRuleChecked([]);
+    }
+  };
+
+  // Monitor risk thresholds
+  useEffect(() => {
+    // If the planned risk exceeds the daily loss limit configured during shift clock-in, trigger a clear caution alert banner
+    const dailyLimit = activeShift.maxDrawdownLimit || 10000;
+    if (riskAmount > dailyLimit) {
+      setIsCaution(true);
+    } else {
+      setIsCaution(false);
+    }
+  }, [riskAmount, activeShift]);
+
+  const handleCreateRunningTrade = async () => {
+    if (!user) return;
+    try {
+      const checkedRules = rules.filter((_, idx) => rulesChecked[idx]);
+      await addRunningTrade(user.id, {
+        shiftId: activeShift.id,
+        strategyId: strategyId || null,
+        strategyName: strategyName || "Manual Setup",
+        rulesFollowed: checkedRules,
+        entryPrice: entry,
+        slPrice: sl,
+        tpPrice: tp,
+        riskAmount,
+        potentialProfit: targetProfit,
+        lotSize,
+        pipsTicks,
+        isCaution
+      });
+      showCelebrate("Trade Active! 🚀", `Your running trade for ${strategyName || "Manual Setup"} is now live on telemetry monitoring!`, "success");
+      setIsAdding(false);
+      loadData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCloseRunningTrade = async () => {
+    if (!user || !closingTrade) return;
+    try {
+      await closeRunningTrade(user.id, closingTrade.id, {
+        exitPrice,
+        pnlRealized: realizedPnl
+      });
+      showCelebrate(
+        realizedPnl >= 0 ? "Profit Banked! 🏆" : "Risk Handled. ❤️",
+        realizedPnl >= 0 
+          ? `Closed out ${closingTrade.strategyName} for a clean realized profit of $${realizedPnl}!`
+          : `Handled close of ${closingTrade.strategyName} with a loss of $${Math.abs(realizedPnl)}. Move on to the next opportunity.`,
+        realizedPnl >= 0 ? "celebrate" : "motivation"
+      );
+      setClosingTrade(null);
+      loadData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleShiftClockOut = async () => {
+    if (!user) return;
+    try {
+      const realizedTotal = runningTrades.reduce((sum, t) => sum + (t.pnlRealized || 0), 0);
+      const moodNote = emotionsFelt ? `experiencing feelings of ${emotionsFelt.toLowerCase()}` : "retaining strict emotional bounds";
+      
+      let summary = `Your completed session clocked in with ${runningTrades.length} trades, generating a total realized P&L of $${realizedTotal}. You rated your final discipline at ${postDiscipline}/10, noting that you were ${moodNote}. `;
+      
+      if (realizedTotal > 0) {
+        summary += `Superb execution today! You successfully secured $${realizedTotal} in realized profit while keeping your boundaries strictly aligned with your strategy criteria.`;
+      } else if (realizedTotal < 0) {
+        summary += `A challenging session in the charts, but remember: accepting risk limit hits is what separates professional traders from blow-up accounts. Pausing to clear the mind is recommended.`;
+      } else {
+        summary += `A completely break-even session. Excellent work preserving your account boundaries and avoiding force-trades.`;
+      }
+
+      if (lessonsLearned) {
+        summary += ` You noted a vital lesson: "${lessonsLearned}".`;
+      }
+
+      await clockOut(user.id, activeShift.id, {
+        postDiscipline,
+        emotionsFelt,
+        lessonsLearned,
+        behavioralSummary: summary
+      });
+
+      showCelebrate("Shift Complete! ⏱️", `Outstanding check-out. AI evaluation saved: " ${summary}"`, "success");
+      onStateChange();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+      {/* HUD Bar */}
+      <Card className="p-5 border-l-4 border-l-[#F0B429] bg-[#111124]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00D084] animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-wider text-[#00D084]">AI Active Shield Monitoring</span>
+            </div>
+            <h2 className="text-lg font-black mt-1">Live Shift Dashboard</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Logged-In as {user?.email?.split('@')[0] || "Trader"} · Limits: Max loss ${activeShift.maxDrawdownLimit} / Target profit ${activeShift.targetProfit}</p>
+          </div>
+          
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="gold-gradient px-4 py-2.5 rounded-xl text-xs font-black text-[#080810]"
+          >
+            + Register Running Trade
+          </button>
+        </div>
+      </Card>
+
+      <div className="grid gap-6 md:grid-cols-[1.5fr_1fr]">
+        
+        {/* Active Trade Feeds & Register */}
+        <div className="space-y-6">
+          
+          {/* New Running Trade Input Form */}
+          {isAdding && (
+            <Card className="p-6 border border-[#F0B429]/40 bg-[#0E0E1F]/90 space-y-5 animate-in slide-in-from-top-4 duration-200">
+              <div className="flex items-center justify-between border-b border-[#1E1E38] pb-3">
+                <span className="text-sm font-black text-white flex items-center gap-2">
+                  <Activity size={16} className="text-[#F0B429]" />
+                  Enter Running Trade Telemetry
+                </span>
+                <button onClick={() => setIsAdding(false)} className="text-xs text-zinc-500 hover:text-white">Cancel ×</button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Strategy Picker */}
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1.5">Select Playbook Strategy</label>
+                  <select 
+                    value={strategyId}
+                    onChange={e => handleStrategyChange(e.target.value)}
+                    className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
+                  >
+                    <option value="">No Strategy (Manual Trade)</option>
+                    {playbook.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Strategy Checklist Overlay */}
+                {rules.length > 0 && (
+                  <div className="p-4 bg-[#14142B] border border-[#1E1E38] rounded-xl space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-[#F0B429]">Playbook Rule Verification Checklist</p>
+                    <div className="space-y-1.5 pt-1">
+                      {rules.map((rule, idx) => (
+                        <label key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300 font-medium cursor-pointer">
+                          <input 
+                            type="checkbox"
+                            checked={rulesChecked[idx]}
+                            onChange={e => {
+                              const updated = [...rulesChecked];
+                              updated[idx] = e.target.checked;
+                              setRuleChecked(updated);
+                            }}
+                            className="mt-0.5 rounded border-[#1E1E38] bg-[#0D0D1A] accent-[#F0B429]"
+                          />
+                          <span>{rule}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Prices & Sizing */}
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1">Entry Price</label>
+                    <input 
+                      type="number" value={entry} onChange={e => setEntry(Number(e.target.value))}
+                      className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#F0B429]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1">Lot Size / Position Volume</label>
+                    <input 
+                      type="number" value={lotSize} onChange={e => setLotSize(Number(e.target.value))}
+                      className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#F0B429]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1">Stop Loss (SL) Target</label>
+                    <input 
+                      type="number" value={sl} onChange={e => setSl(Number(e.target.value))}
+                      className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#F0B429]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1">Take Profit (TP) Target</label>
+                    <input 
+                      type="number" value={tp} onChange={e => setTp(Number(e.target.value))}
+                      className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#F0B429]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1">Planned Risk Amount ($)</label>
+                    <input 
+                      type="number" value={riskAmount} onChange={e => setRiskAmount(Number(e.target.value))}
+                      className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#F0B429]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1">Target Profit Amount ($)</label>
+                    <input 
+                      type="number" value={targetProfit} onChange={e => setTargetProfit(Number(e.target.value))}
+                      className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#F0B429]"
+                    />
+                  </div>
+                </div>
+
+                {isCaution && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2 text-xs text-[#FF4565]">
+                    <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                    <span>CAUTION: Your planned trade risk (${riskAmount}) exceeds your daily shift loss limit (${activeShift.maxDrawdownLimit})! Standardize parameters to protect your account.</span>
+                  </div>
+                )}
+
+                <button 
+                  onClick={handleCreateRunningTrade}
+                  className="w-full gold-gradient py-3 rounded-xl text-xs font-black text-black flex items-center justify-center gap-1.5"
+                >
+                  <Play size={13} /> Initialize Active Telemetry
+                </button>
+              </div>
+            </Card>
+          )}
+
+          {/* List of active running trades */}
+          <Card className="p-5">
+            <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2 text-white">
+              <Clock size={16} className="text-[#00D084]" /> Active Trades Telemetry
+            </h3>
+
+            {runningTrades.filter(t => t.status === "running").length === 0 ? (
+              <p className="text-center py-10 text-xs text-zinc-500 border border-dashed border-[#24243C] rounded-xl">No active trades currently running on active shift. Click "Register Running Trade" to initiate.</p>
+            ) : (
+              <div className="space-y-3.5">
+                {runningTrades.filter(t => t.status === "running").map(t => (
+                  <div key={t.id} className="p-4 bg-[#0A0A16] rounded-xl border border-[#1E1E38] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#00D084] animate-pulse" />
+                        <span className="text-sm font-black text-white">{t.strategyName}</span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400 mt-1">Entry: ${t.entryPrice} · SL: ${t.slPrice} · TP: ${t.tpPrice} · Lot: {t.lotSize}</p>
+                      {t.rulesFollowed.length > 0 && (
+                        <p className="text-[10px] text-[#F0B429] font-semibold mt-1">Verified: {t.rulesFollowed.length} rules followed</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-[10px] text-zinc-500 font-bold uppercase">Max Risk</p>
+                        <p className="text-xs font-black text-[#FF4565]">${t.riskAmount}</p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setClosingTrade(t);
+                          setExitPrice(t.entryPrice);
+                        }}
+                        className="bg-[#FF4565] hover:bg-red-600 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white transition-colors"
+                      >
+                        Close Position
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Realized trades logged this shift */}
+          <Card className="p-5">
+            <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2 text-white">
+              <Check size={16} className="text-[#00D084]" /> Realized Trades (This Shift)
+            </h3>
+
+            {runningTrades.filter(t => t.status === "closed").length === 0 ? (
+              <p className="text-center py-8 text-xs text-zinc-500">No closed trades recorded yet during this shift.</p>
+            ) : (
+              <div className="space-y-2">
+                {runningTrades.filter(t => t.status === "closed").map(t => (
+                  <div key={t.id} className="p-3 bg-[#111124]/40 border border-[#1E1E38] rounded-xl flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-bold text-white">{t.strategyName}</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">Entry: ${t.entryPrice} · Exit: ${t.exitPrice}</p>
+                    </div>
+                    <span className={`font-mono2 font-black ${t.pnlRealized! >= 0 ? "text-[#00D084]" : "text-[#FF4565]"}`}>
+                      {t.pnlRealized! >= 0 ? `+$${t.pnlRealized}` : `-$${Math.abs(t.pnlRealized!)}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+        </div>
+
+        {/* Post-Session Shift Evaluation / Clock-out */}
+        <div className="space-y-6">
+          
+          <Card className="p-6 space-y-5 border border-l-4 border-l-red-500">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500">
+                <LogOut size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black">Close Session Shift</h3>
+                <p className="text-xs text-[#5A5A80]">Log your final discipline and clear your terminal.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 border-t border-[#1E1E38] pt-4">
+              <div>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="text-[#A0A0C0] font-bold">End-of-Session Discipline</span>
+                  <span className="text-white font-black">{postDiscipline}/10</span>
+                </div>
+                <input 
+                  type="range" min="1" max="10" value={postDiscipline}
+                  onChange={e => setPostDiscipline(Number(e.target.value))}
+                  className="w-full h-1 bg-[#1E1E38] rounded-lg appearance-none cursor-pointer accent-red-500" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-2">Emotions Experienced</label>
+                <input 
+                  value={emotionsFelt}
+                  onChange={e => setEmotionsFelt(e.target.value)}
+                  placeholder="e.g. FOMO, Calm, Anxious, Revenge"
+                  className="w-full bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-red-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-2">Primary Shift Lesson Learned</label>
+                <textarea
+                  value={lessonsLearned}
+                  onChange={e => setLessonsLearned(e.target.value)}
+                  placeholder="What is the one golden takeaway from today's trades?"
+                  className="w-full h-24 bg-[#0D0D1A] border border-[#1E1E38] rounded-xl p-3 text-xs text-white outline-none focus:border-red-500 resize-none font-medium"
+                />
+              </div>
+
+              <button 
+                onClick={handleShiftClockOut}
+                className="w-full bg-red-500 hover:bg-red-600 py-3 rounded-xl text-white text-xs font-black flex items-center justify-center gap-1.5 transition active:scale-95"
+              >
+                <Clock size={14} /> Close & Summarize Shift
+              </button>
+            </div>
+          </Card>
+
+        </div>
+
+      </div>
+
+      {/* Position Closure Evaluation overlay modal */}
+      {closingTrade && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+          <Card className="w-full max-w-md bg-[#0D0D1A] border border-[#24243C] p-6 sm:p-8 animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-black text-white mb-2 flex items-center gap-2">
+              <Trophy size={18} className="text-[#F0B429]" />
+              Position Close Evaluation
+            </h3>
+            <p className="text-xs text-[#5A5A80] mb-6">Log the realized outputs for {closingTrade.strategyName} to sync stats.</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1.5">Exit Price reached</label>
+                <input 
+                  type="number" value={exitPrice} onChange={e => setExitPrice(Number(e.target.value))}
+                  className="w-full bg-[#111120] border border-[#1E1E38] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1.5">Realized Profit / Loss ($)</label>
+                <input 
+                  type="number" value={realizedPnl} onChange={e => setRealizedPnl(Number(e.target.value))}
+                  className="w-full bg-[#111120] border border-[#1E1E38] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
+                  placeholder="e.g. 500 or -250"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button 
+                  onClick={() => setClosingTrade(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-[#1E1E38] text-xs font-black text-[#A0A0C0]"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleCloseRunningTrade}
+                  className="flex-[2] gold-gradient py-2.5 rounded-xl text-xs font-black text-[#080810]"
+                >
+                  Save Realized Position
+                </button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+    </div>
+  );
+}
+export default ActiveShiftTerminal;

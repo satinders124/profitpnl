@@ -14,6 +14,8 @@ export interface TraderShift {
   lessonsLearned: string;
   behavioralSummary: string | null;
   createdAt: string;
+  targetProfit: number | null;
+  maxDrawdownLimit: number | null;
 }
 
 export async function getActiveShift(uid: string): Promise<TraderShift | null> {
@@ -70,6 +72,8 @@ export async function clockIn(uid: string, data: {
   stressLevel: number;
   disciplineLevel: number;
   preNotes: string;
+  targetProfit: number;
+  maxDrawdownLimit: number;
 }): Promise<string | null> {
   const supabase = createClient();
   try {
@@ -81,6 +85,8 @@ export async function clockIn(uid: string, data: {
         stress_level: data.stressLevel,
         discipline_level: data.disciplineLevel,
         pre_notes: data.preNotes,
+        target_profit: data.targetProfit,
+        max_drawdown_limit: data.maxDrawdownLimit,
         clock_in: new Date().toISOString(),
       })
       .select("id")
@@ -90,7 +96,7 @@ export async function clockIn(uid: string, data: {
     return inserted.id;
   } catch (e) {
     console.error("clockIn error:", e);
-    alert("Database Connection Info: Please run the latest migration SQL file '20260708000000_create_trader_shifts.sql' in your Supabase SQL editor to create the necessary 'trader_shifts' database table first! Once the table is created, this clock-in feature is 100% ready to use.");
+    alert("Database Connection Info: Please run the latest migration SQL file in your Supabase SQL editor to enable these fields first!");
     return null;
   }
 }
@@ -136,5 +142,7 @@ function mapRowToShift(row: any): TraderShift {
     lessonsLearned: row.lessons_learned || "",
     behavioralSummary: row.behavioral_summary,
     createdAt: row.created_at,
+    targetProfit: row.target_profit ? Number(row.target_profit) : null,
+    maxDrawdownLimit: row.max_drawdown_limit ? Number(row.max_drawdown_limit) : null,
   };
 }

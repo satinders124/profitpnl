@@ -50,6 +50,8 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { ActiveTraderCheckinModal } from "@/components/providers/ActiveTraderCheckinModal";
+import { ActiveShiftTerminal } from "@/components/backtesting/ActiveShiftTerminal";
+import { getActiveShift, TraderShift } from "@/lib/shifts-db";
 
 type TimeRange = "all" | "7d" | "30d" | "90d";
 type PnlViewMode = "r" | "dollar";
@@ -146,6 +148,9 @@ export default function DashboardPage() {
   const [acctCurrency, setAcctCurrency] = useState("USD");
   const [savingAcct, setSavingAcct] = useState(false);
 
+  // Active Live Shift state for direct cockpit rendering
+  const [shiftData, setShiftData] = useState<TraderShift | null>(null);
+
   // Modal State for Log Trade
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
 
@@ -158,6 +163,9 @@ export default function DashboardPage() {
     if (!user) return;
     setLoading(true);
     try {
+      const activeShift = await getActiveShift(user.id);
+      setShiftData(activeShift);
+
       if (isBacktest) {
         const [m, p] = await Promise.all([getModels(), getProfile()]);
         setModels(m);
@@ -294,17 +302,21 @@ export default function DashboardPage() {
 
   return (
     <AppShell
-      title={isBacktest ? "Backtesting" : "Overview"}
+      title={isBacktest ? "Backtesting" : shiftData ? "AI Co-pilot Active Terminal" : "Overview"}
       subtitle={
         isBacktest
           ? `${models.length} models · ${trades.length} backtested trades`
-          : `Welcome back${displayName ? `, ${displayName}` : ""}`
+          : shiftData 
+            ? "Your active, real-time strategy verification co-pilot"
+            : `Welcome back${displayName ? `, ${displayName}` : ""}`
       }
-      actionLabel={isBacktest ? "+ New Model" : "+ Log New Trade"}
+      actionLabel={isBacktest ? "+ New Model" : shiftData ? undefined : "+ Log New Trade"}
       onAction={
         isBacktest
           ? () => router.push("/playbook")
-          : () => setTradeModalOpen(true)
+          : shiftData
+            ? undefined
+            : () => setTradeModalOpen(true)
       }
     >
       {/* Log Trade Modal */}
@@ -334,6 +346,8 @@ export default function DashboardPage() {
         <div className="flex min-h-[420px] items-center justify-center text-sm text-[#8080A0]">
           Loading performance analytics…
         </div>
+      ) : shiftData && !isBacktest ? (
+        <ActiveShiftTerminal activeShift={shiftData} onStateChange={loadData} />
       ) : (
         <motion.div
           initial={{ opacity: 0 }}
