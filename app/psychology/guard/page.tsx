@@ -14,7 +14,8 @@ import {
   Clock, 
   LogIn, 
   Calendar,
-  Heart
+  Heart,
+  ChevronRight
 } from "lucide-react";
 
 type RiskDiagnosis = {
@@ -42,6 +43,9 @@ export default function PwaPsychologyGuardPage() {
   const [preNotes, setPreNotes] = useState("");
   const [targetProfit, setTargetProfit] = useState(500);
   const [maxDrawdownLimit, setMaxDrawdownLimit] = useState(250);
+
+  // Detailed Modal overlay for read-more day stats in historical fallback view
+  const [selectedDayShift, setSelectedDayShift] = useState<TraderShift | null>(null);
 
   // UI state
   const [diagnosed, setDiagnosed] = useState<RiskDiagnosis | null>(null);
@@ -331,10 +335,17 @@ export default function PwaPsychologyGuardPage() {
 
                         {shift.behavioralSummary && (
                           <div className="p-2.5 bg-[#151522] rounded-lg border border-[#24243C] text-[11px] leading-relaxed text-zinc-300">
-                            <p className="font-semibold text-[10px] text-[#F0B429] flex items-center gap-1 mb-1">
+                            <p className="font-semibold text-[10px] text-[#F0B429] flex items-center gap-1 mb-1.5">
                               <Heart size={10} /> AI HUMAN ANALYSIS
                             </p>
-                            {shift.behavioralSummary}
+                            <span className="line-clamp-3">{shift.behavioralSummary}</span>
+                            
+                            <button 
+                              onClick={() => setSelectedDayShift(shift)}
+                              className="w-full mt-3 py-1.5 bg-[#1C1C30]/50 hover:bg-[#1C1C30] rounded-lg text-[10px] font-bold text-[#F0B429] flex items-center justify-center gap-1 transition"
+                            >
+                              Read Full Report <ChevronRight size={10} />
+                            </button>
                           </div>
                         )}
                       </div>
@@ -348,6 +359,68 @@ export default function PwaPsychologyGuardPage() {
         )}
 
       </div>
+
+      {/* DETAILED DAILY SHIFT OVERLAY FOR OFF-DUTY ARCHIVE VIEW */}
+      {selectedDayShift && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <Card className="w-full max-w-2xl bg-[#0F0F1E] border border-[#24243C] p-6 sm:p-8 animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] space-y-6">
+            <div className="flex items-center justify-between border-b border-[#1E1E38] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#F0B429]/10 flex items-center justify-center text-[#F0B429]">
+                  <Brain size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">AI Shift Analysis — {new Date(selectedDayShift.clockIn).toLocaleDateString()}</h3>
+                  <p className="text-xs text-[#5A5A80]">Full performance review & deep cognitive feedback</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedDayShift(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1A1A26] text-zinc-400 hover:text-white transition"
+              >
+                Close ×
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div className="p-5 rounded-2xl bg-[#14142B] border border-[#24243C]">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#F0B429] mb-1.5">CLAUDE CO-PILOT ADVICE</p>
+                <p className="text-xs sm:text-sm leading-relaxed text-zinc-200 italic">
+                  {selectedDayShift.behavioralSummary || "No summary recorded."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Discipline Rating</p>
+                  <p className="text-sm font-black text-[#00D084] mt-1">{selectedDayShift.postDiscipline || 0}/10</p>
+                </div>
+                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Initial Stress</p>
+                  <p className="text-sm font-black text-white mt-1">{selectedDayShift.stressLevel}/10</p>
+                </div>
+                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Daily Loss Limit</p>
+                  <p className="text-sm font-black text-[#FF4565] mt-1">${selectedDayShift.maxDrawdownLimit || 0}</p>
+                </div>
+                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Profit Target</p>
+                  <p className="text-sm font-black text-[#00D084] mt-1">${selectedDayShift.targetProfit || 0}</p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setSelectedDayShift(null)}
+                className="w-full bg-[#1A1A26] hover:bg-[#222234] py-3 rounded-xl text-xs font-black text-zinc-300 transition"
+              >
+                Close Detailed View
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
     </AppShell>
   );
 }
+export { ActiveShiftTerminal };
