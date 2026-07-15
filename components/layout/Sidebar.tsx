@@ -49,6 +49,7 @@ const liveNavGroups: NavGroup[] = [
       { label: "Certificates", href: "/certificates", icon: Award },
       { label: "AI Coach", href: "/ai-coach", icon: Sparkles, badge: "Pro" },
       { label: "Psychology", href: "/psychology", icon: Brain },
+      { label: "AI Risk-Guard", href: "/psychology/guard", icon: Shield, badge: "PWA" },
       { label: "Playbook", href: "/playbook", icon: BookOpen },
     ],
   },

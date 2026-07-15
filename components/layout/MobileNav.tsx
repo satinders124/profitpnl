@@ -40,6 +40,7 @@ const liveMoreItemsBase: NavItem[] = [
   { label: "Certificates", href: "/certificates", icon: Award },
   { label: "Playbook", href: "/playbook", icon: BookOpen },
   { label: "Psychology", href: "/psychology", icon: Brain },
+  { label: "AI Risk-Guard", href: "/psychology/guard", icon: Brain },
   { label: "Accounts", href: "/accounts", icon: CreditCard },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
@@ -88,8 +89,9 @@ export function MobileNav() {
           liveMoreItemsBase[1],
           liveMoreItemsBase[2],
           liveMoreItemsBase[3],
+          liveMoreItemsBase[4],
           { label: "Affiliate", href: "/affiliate", icon: Award },
-          ...liveMoreItemsBase.slice(4),
+          ...liveMoreItemsBase.slice(5),
           switchItem,
         ]
       : [...liveMoreItemsBase, switchItem];
