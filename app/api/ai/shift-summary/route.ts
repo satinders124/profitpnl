@@ -6,10 +6,26 @@ import { createServerClient } from "@/lib/supabase-server";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  // Safe defaults so catch block can reference them without TypeScript errors
+  let postDiscipline: any = 0;
+  let emotionsFelt: any = "None";
+  let lessonsLearned: any = "None";
+  let preNotes: any = "None";
+  let shiftId: any = null;
+  let tradesCount: any = 0;
+  let realizedPnl: any = 0;
+
   try {
     const user = await getAuthenticatedUser(req);
     const body = await req.json();
-    const { tradesCount, realizedPnl, postDiscipline, emotionsFelt, lessonsLearned, preNotes, shiftId } = body;
+    const { tradesCount: tc, realizedPnl: rp, postDiscipline: pd, emotionsFelt: ef, lessonsLearned: ll, preNotes: pn, shiftId: sid } = body;
+    postDiscipline = pd ?? 5;
+    emotionsFelt = ef ?? "None";
+    lessonsLearned = ll ?? "None";
+    preNotes = pn ?? "None";
+    shiftId = sid ?? null;
+    tradesCount = tc ?? 0;
+    realizedPnl = rp ?? 0;
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
