@@ -138,7 +138,7 @@ ${tradeDetails || "No individual trade telemetry recorded."}
           system: systemPrompt,
           messages: [{ role: "user", content: userPrompt }]
         });
-        summary = response.content[0].type === "text" ? response.content[0].text : "";
+        summary = (response.content[0] as any)?.text || (response.content[0] as any)?.content || response.content?.map((c: any) => c.text || c.content || "").join("\n") || "";
         break;
       } catch (err: any) {
         lastErr = err?.message || String(err);
