@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase-client";
 import { 
   Sparkles, Layers, Eye, Cpu, Coins, Info, Check, Copy, ChevronDown, ChevronUp, Star, Award, ShieldAlert, Zap, Heart
 } from "lucide-react";
@@ -88,9 +89,13 @@ export default function BiasDeskProPage() {
             <button 
               onClick={async () => {
                 try {
+                  const { data: { session } } = await createClient().auth.getSession();
                   const res = await fetch("/api/payments/checkout-indicator", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                      "Content-Type": "application/json",
+                      ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+                    },
                   });
                   const data = await res.json();
                   if (data.url) {
