@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
+import BiasDeskIndicatorProduct from "@/components/tools/BiasDeskIndicatorProduct";
 import {
   motion,
   AnimatePresence,
@@ -1768,6 +1769,7 @@ export default function Home() {
         <TickerTape />
         <Hero />
         <Stats />
+        <BiasDeskIndicatorProduct />
         <ToolsPreview />
         <Features />
         <Playbook />
