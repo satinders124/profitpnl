@@ -8,31 +8,8 @@ import {
 import { Card } from "@/components/ui/Card";
 
 export default function BiasDeskProPage() {
-  const [copied, setCopied] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
   const [activeHighlight, setActiveHighlight] = useState(0);
-
-  const pineScriptCode = `//@version=6
-indicator("BIAS DESK — Structure Bias [Fortune Forge]", 
-          shorttitle="BIAS DESK PRO", 
-          overlay=true, 
-          max_labels_count=100)
-
-// ── INPUTS (Exact as original) ───────────────────────────────────────────────
-biasTF    = input.timeframe("240", "Bias Timeframe")
-len       = input.int(3, "Swing Strength (Pivot Bars)", minval=2, maxval=10)
-showInv   = input.bool(true,  "Invalidation Line")
-showEq    = input.bool(true,  "Dealing Range EQ (50%)")
-showRange = input.bool(false, "Tracked Swing High / Low")
-showFlip  = input.bool(true,  "Bias Flip Labels")
-showBg    = input.bool(false, "Background Tint")
-showMulti = input.bool(true,  "Multi-Pair Bias Box")`;
-
-  const copyCode = async () => {
-    await navigator.clipboard.writeText(pineScriptCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const highlights = [
     {
@@ -59,7 +36,7 @@ showMulti = input.bool(true,  "Multi-Pair Bias Box")`;
     },
     {
       q: "How is the lifetime script license delivered?",
-      a: "Instant delivery. Upon purchase, copy the verified Pine Script v6 compiler source code directly from your ProfitPnL dashboard, open TradingView's Pine Editor, paste it, and save it to your charts forever."
+      a: "Instant access. Upon secure lifetime checkout, you will receive invitation access to the private TradingView script on your TradingView profile. Simply add it to your favorites."
     },
     {
       q: "Which timeframes and assets are supported?",
@@ -82,7 +59,7 @@ showMulti = input.bool(true,  "Multi-Pair Bias Box")`;
         <div className="mx-auto max-w-3xl text-center space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#F0B429]/30 bg-[#F0B429]/10 px-4 py-1.5 text-xs font-semibold text-[#F0B429] animate-bounce">
             <Sparkles size={13} />
-            LIFETIME INDICATOR LICENCE
+            LIFETIME INDICATOR ACCESS
           </div>
           
           <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-none text-white">
@@ -105,7 +82,7 @@ showMulti = input.bool(true,  "Multi-Pair Bias Box")`;
                 <span className="text-xs text-zinc-500 font-bold uppercase line-through">$399</span>
                 <span className="text-xs text-[#10b981] font-black uppercase tracking-wider">Save 60%</span>
               </div>
-              <p className="text-xs text-zinc-400 font-medium">No monthly fees · Unlimited charts · Complete Pine Script v6 source access</p>
+              <p className="text-xs text-zinc-400 font-medium">No monthly fees · Unlimited charts · Complete TradingView script profile activation</p>
             </div>
 
             <a 
@@ -150,40 +127,29 @@ showMulti = input.bool(true,  "Multi-Pair Bias Box")`;
             </div>
           </div>
 
-          {/* Right Column: Code viewer */}
+          {/* Right Column: Premium Pitch Terminal Card */}
           <div className="min-w-0">
-            <Card className="border-[#1E1E38] bg-[#070712] rounded-3xl p-5 sm:p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between h-[480px]">
+            <Card className="border-[#1E1E38] bg-[#070712] rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between h-[450px]">
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#F0B429]/2 to-transparent pointer-events-none" />
               
-              <div className="flex items-center justify-between border-b border-[#1E1E38]/60 pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#F0B429]" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
-                  </div>
-                  <span className="text-[10px] font-mono2 text-zinc-500 font-bold ml-2">bias_desk_pro.pine</span>
+              <div className="space-y-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#F0B429] bg-[#F0B429]/10 px-2 py-0.5 rounded">THE DESK RULES</span>
+                <h4 className="text-lg font-black text-white leading-tight">Mechanical Execution — Strictly Enforced</h4>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Bias Desk Pro continuously scans higher timeframe swing levels (defaulting to the 4H). It computes the exact critical invalidation level (the most recent higher-low or lower-high) and plots a zero-drift horizontal reference line. 
+                </p>
+                
+                <div className="p-4 bg-[#111124] border border-[#1E1E38] rounded-xl space-y-1 text-[#F0B429] font-semibold">
+                  <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">📝 UNCOMPROMISING BIAS LAWS:</p>
+                  <p className="text-[11px] text-zinc-300">1. Flips ONLY occur when a candle body-closes past the level.</p>
+                  <p className="text-[11px] text-zinc-300">2. Wicks do NOT trigger trend flips. Repainting is impossible.</p>
+                  <p className="text-[11px] text-zinc-300">3. Keeps tables and ranges screen-locked in the corners.</p>
                 </div>
-
-                <button 
-                  onClick={copyCode}
-                  className="px-3 py-1.5 bg-[#16162C] border border-[#24243C] rounded-lg text-[10px] font-bold text-[#F0B429] hover:bg-white/5 transition flex items-center gap-1.5"
-                >
-                  {copied ? "Copied" : "Copy Pine Script"}
-                </button>
-              </div>
-
-              <div className="flex-1 font-mono2 text-[11px] leading-relaxed text-zinc-400 overflow-y-auto no-scrollbar space-y-2.5 pr-2 select-all">
-                <p className="text-zinc-500 font-medium">// BIAS DESK PRO — PREMIUM MECHANICAL BIAS ENGINE</p>
-                <p className="text-zinc-500 font-medium">// Exact Desk Rules • Professional Styling • Ready to Sell</p>
-                <pre className="text-[#8b5cf6] bg-black/30 p-3 rounded-xl border border-white/[0.02] text-xs">
-                  {pineScriptCode}
-                </pre>
               </div>
 
               <div className="mt-4 pt-3 border-t border-[#1E1E38]/60 text-[9px] text-zinc-600 flex items-center gap-1.5">
                 <Info size={12} />
-                <span>Compatible with TradingView Pine Script v6. Standard license protection active.</span>
+                <span>Private access invitation sent directly to your TradingView profile upon purchase.</span>
               </div>
             </Card>
           </div>
