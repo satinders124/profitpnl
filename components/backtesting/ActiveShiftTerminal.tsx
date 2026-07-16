@@ -8,6 +8,7 @@ import { getPlaybook, saveTrade } from "@/lib/db";
 import { PlaybookSetup } from "@/types/playbook";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { createClient } from "@/lib/supabase-client";
+import { getShiftReportSummary } from "@/lib/shift-report";
 import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
 import { 
   Brain, Clock, Play, Check, AlertCircle, ChevronRight, X, Smile, Trophy, Activity, LogOut, Calendar
@@ -659,7 +660,7 @@ export function ActiveShiftTerminal({
                   <span className="w-1.5 h-1.5 rounded-full bg-[#F0B429] animate-pulse" /> CLAUDE CO-PILOT ADVICE
                 </p>
                 <p className="text-xs sm:text-sm leading-[1.75] text-zinc-200 italic relative">
-                  {selectedDayShift.behavioralSummary || "No summary recorded."}
+                  {getShiftReportSummary(selectedDayShift)}
                 </p>
               </div>
 
@@ -761,7 +762,7 @@ export function ActiveShiftTerminal({
                     <span className="text-[#00D084] font-black">Discipline: {shift.postDiscipline}/10</span>
                   </div>
                   <p className="text-xs text-zinc-300 line-clamp-3 italic">
-                    {shift.behavioralSummary}
+                    {getShiftReportSummary(shift)}
                   </p>
                 </div>
 

@@ -4,13 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { getActiveShift, getRecentShifts, clockIn, clockOut, TraderShift } from "@/lib/shifts-db";
+import { getActiveShift, getRecentShifts, clockIn, TraderShift } from "@/lib/shifts-db";
 import { getTrades } from "@/lib/db";
+import { getShiftReportSummary } from "@/lib/shift-report";
 import { Trade } from "@/types/trade";
 import { ActiveShiftTerminal } from "@/components/backtesting/ActiveShiftTerminal";
 import { 
   Brain, 
-  Activity, 
   Clock, 
   LogIn, 
   Calendar,
@@ -223,7 +223,7 @@ export default function PwaPsychologyGuardPage() {
                   {/* Targets fully aligned on mobile/desktop */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-2 leading-none">Today's Profit Target ($)</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-2 leading-none">Today&apos;s Profit Target ($)</label>
                       <input 
                         type="number"
                         value={targetProfit}
@@ -347,21 +347,19 @@ export default function PwaPsychologyGuardPage() {
                           </div>
                         </div>
 
-                        {shift.behavioralSummary && (
-                          <div className="p-2.5 bg-[#151522] rounded-lg border border-[#24243C] text-[11px] leading-relaxed text-zinc-300">
-                            <p className="font-semibold text-[10px] text-[#F0B429] flex items-center gap-1 mb-1.5">
-                              <Heart size={10} /> AI HUMAN ANALYSIS
-                            </p>
-                            <span className="line-clamp-3">{shift.behavioralSummary}</span>
-                            
-                            <button 
-                              onClick={() => setSelectedDayShift(shift)}
-                              className="w-full mt-3 py-1.5 bg-[#1C1C30]/50 hover:bg-[#1C1C30] rounded-lg text-[10px] font-bold text-[#F0B429] flex items-center justify-center gap-1 transition"
-                            >
-                              Read Full Report <ChevronRight size={10} />
-                            </button>
-                          </div>
-                        )}
+                        <div className="p-2.5 bg-[#151522] rounded-lg border border-[#24243C] text-[11px] leading-relaxed text-zinc-300">
+                          <p className="font-semibold text-[10px] text-[#F0B429] flex items-center gap-1 mb-1.5">
+                            <Heart size={10} /> AI HUMAN ANALYSIS
+                          </p>
+                          <span className="line-clamp-3">{getShiftReportSummary(shift)}</span>
+                          
+                          <button 
+                            onClick={() => setSelectedDayShift(shift)}
+                            className="w-full mt-3 py-1.5 bg-[#1C1C30]/50 hover:bg-[#1C1C30] rounded-lg text-[10px] font-bold text-[#F0B429] flex items-center justify-center gap-1 transition"
+                          >
+                            Read Full Report <ChevronRight size={10} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -404,7 +402,7 @@ export default function PwaPsychologyGuardPage() {
                   <span className="w-1.5 h-1.5 rounded-full bg-[#F0B429] animate-pulse" /> CLAUDE CO-PILOT ADVICE
                 </p>
                 <p className="text-xs sm:text-sm leading-[1.75] text-zinc-200 italic relative">
-                  {selectedDayShift.behavioralSummary || "No summary recorded."}
+                  {getShiftReportSummary(selectedDayShift)}
                 </p>
               </div>
 
