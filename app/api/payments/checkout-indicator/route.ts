@@ -50,7 +50,8 @@ export async function POST(req: Request) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://profitpnl.com";
 
     // Create checkout session specifically for the $149 Lifetime License of Bias Desk Pro
-    // By setting mode to 'payment' (instead of subscription), Stripe processes this securely as a one-off lifetime charge
+    // By setting allow_promotion_codes to true, Stripe will render the native promo-code 
+    // input box directly on the checkout screen so coupons created in Stripe will work perfectly!
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
         },
       ],
       mode: "payment",
+      allow_promotion_codes: true, // Fixes: Unlocks promotion/coupon inputs on Stripe checkout page!
       success_url: `${appUrl}/settings?indicator_purchased=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/bias-desk-pro?cancelled=true`,
       metadata: {
