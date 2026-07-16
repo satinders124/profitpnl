@@ -111,7 +111,8 @@ export async function clockOut(uid: string, shiftId: string, data: {
 }): Promise<void> {
   const supabase = createClient();
   try {
-    const { error } = await supabase
+    // Try saving with duration column; fall back to basic update if column missing
+    let result = await supabase
       .from("trader_shifts")
       .update({
         clock_out: new Date().toISOString(),
@@ -124,9 +125,24 @@ export async function clockOut(uid: string, shiftId: string, data: {
       .eq("id", shiftId)
       .eq("user_id", uid);
 
-    if (error) throw error;
+    if (result.error && (result.error.message?.includes("column") || result.error.message?.includes("session_duration_minutes"))) {
+      result = await supabase
+        .from("trader_shifts")
+        .update({
+          clock_out: new Date().toISOString(),
+          post_discipline: data.postDiscipline,
+          emotions_felt: data.emotionsFelt,
+          lessons_learned: data.lessonsLearned,
+          behavioral_summary: data.behavioralSummary,
+        })
+        .eq("id", shiftId)
+        .eq("user_id", uid);
+    }
+
+    if (result.error) throw result.error;
   } catch (e) {
     console.error("clockOut error:", e);
+    throw e;
   }
 }
 

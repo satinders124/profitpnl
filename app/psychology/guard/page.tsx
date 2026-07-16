@@ -166,31 +166,31 @@ export default function PwaPsychologyGuardPage() {
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Institutional Banner */}
-        <Card className="relative overflow-hidden p-8 border-[#F0B429]/30 bg-[#0D0D16]/90 shadow-2xl shadow-black/20">
-          <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-[#F0B429]/10 blur-[100px] pointer-events-none" />
-          <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
-            <div className="space-y-4">
-              <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[#F0B429]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F0B429] animate-pulse" />
+        <Card className="relative overflow-hidden p-8 md:p-10 border-[#F0B429]/30 bg-[#0D0D16]/90 shadow-2xl shadow-black/30">
+          <div className="absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full bg-[#F0B429]/8 blur-[120px] pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+            <div className="space-y-5 max-w-xl">
+              <span className="inline-flex items-center gap-2.5 text-[10px] font-black uppercase tracking-[0.3em] text-[#F0B429]">
+                <span className="w-2 h-2 rounded-full bg-[#F0B429] animate-pulse shadow-[0_0_8px_#F0B429]" />
                 Cognitive Shift Manager
               </span>
-              <h1 className="text-4xl md:text-5xl font-black tracking-tighter leading-[0.95] text-white">
+              <h1 className="text-[2.75rem] md:text-[3.5rem] font-black tracking-tighter leading-[0.9] text-white">
                 AI Risk-Guard
               </h1>
-              <p className="text-sm text-[#A0A0C0] max-w-xl leading-relaxed">
+              <p className="text-sm text-[#A0A0C0] max-w-md leading-[1.7]">
                 Professional trading session management. Clock in with full cognitive diagnostics, execute with verified playbook rules, and receive institutional-grade behavioral analysis powered by Claude AI.
               </p>
             </div>
             
             <div className="flex gap-3 shrink-0">
-              <div className={`rounded-2xl border px-6 py-5 text-center min-w-[160px] backdrop-blur-sm ${activeShift ? "border-[#00D084]/40 bg-[#00D084]/5" : "border-[#1E1E38] bg-[#0D0D1A]/60"}`}>
-                <p className="text-[9px] text-[#5A5A80] font-black uppercase tracking-[0.15em] mb-2">Shift Status</p>
-                <p className={`text-xl font-black flex items-center justify-center gap-2 ${activeShift ? "text-[#00D084]" : "text-zinc-500"}`}>
-                  <span className={`w-2.5 h-2.5 rounded-full ${activeShift ? "bg-[#00D084] animate-pulse" : "bg-zinc-500"}`} />
+              <div className={`rounded-2xl border px-7 py-6 text-center min-w-[170px] backdrop-blur-md transition-all duration-300 ${activeShift ? "border-[#00D084]/40 bg-[#00D084]/8 shadow-[0_0_30px_-12px_#00D084]/20" : "border-[#1E1E38] bg-[#0D0D1A]/70"}`}>
+                <p className="text-[9px] text-[#5A5A80] font-black uppercase tracking-[0.2em] mb-3">Shift Status</p>
+                <p className={`text-2xl font-black flex items-center justify-center gap-2.5 ${activeShift ? "text-[#00D084]" : "text-zinc-500"}`}>
+                  <span className={`w-3 h-3 rounded-full shadow-[0_0_10px_currentColor] ${activeShift ? "bg-[#00D084] animate-pulse" : "bg-zinc-500"}`} />
                   {activeShift ? "ACTIVE" : "OFF-DUTY"}
                 </p>
                 {activeShift && (
-                  <p className="text-[10px] text-[#5A5A80] mt-2 font-mono">
+                  <p className="text-[10px] text-[#5A5A80] mt-3 font-mono tracking-wide">
                     {new Date(activeShift.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 )}
@@ -423,7 +423,16 @@ export default function PwaPsychologyGuardPage() {
                 </div>
                 <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
                   <p className="text-[9px] text-[#5A5A80] font-black uppercase">Session Duration</p>
-                  <p className="text-sm font-black text-[#F0B429] mt-1">{selectedDayShift.sessionDurationMinutes ? `${Math.floor(selectedDayShift.sessionDurationMinutes / 60)}h ${selectedDayShift.sessionDurationMinutes % 60}m` : "—"}</p>
+                  <p className="text-sm font-black text-[#F0B429] mt-1">{
+                    selectedDayShift.sessionDurationMinutes
+                      ? `${Math.floor(selectedDayShift.sessionDurationMinutes / 60)}h ${selectedDayShift.sessionDurationMinutes % 60}m`
+                      : selectedDayShift.clockIn && selectedDayShift.clockOut
+                        ? (() => {
+                            const mins = Math.round((new Date(selectedDayShift.clockOut).getTime() - new Date(selectedDayShift.clockIn).getTime()) / 60000);
+                            return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+                          })()
+                        : "—"
+                  }</p>
                 </div>
               </div>
 
