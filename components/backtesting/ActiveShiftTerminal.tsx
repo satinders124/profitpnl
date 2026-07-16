@@ -264,12 +264,19 @@ export function ActiveShiftTerminal({
 
       <div className="grid gap-6 md:grid-cols-[1.5fr_1fr]">
         
-        {/* Active Trade Feeds & Register */}
-        <div className="space-y-6">
-          
-          {/* New Running Trade Input Form */}
-          {isAdding && (
-            <Card className="p-6 border border-[#F0B429]/40 bg-[#0E0E1F]/90 space-y-5 animate-in slide-in-from-top-4 duration-200">
+          {/* Active Trade Feeds & Register */}
+          <div className="space-y-6">
+            
+            {/* New Running Trade Input Form */}
+            {isAdding && (
+              <Card className="p-6 md:p-8 border border-[#F0B429]/30 bg-[#0D0D16]/95 space-y-5 animate-in slide-in-from-top-4 duration-300 shadow-[0_0_60px_-20px_#F0B429]/5">
+                <div className="flex items-center justify-between border-b border-[#1E1E38] pb-4">
+                  <span className="text-sm font-black text-white flex items-center gap-2 tracking-tight">
+                    <Activity size={16} className="text-[#F0B429]" />
+                    Enter Running Trade Telemetry
+                  </span>
+                  <button onClick={() => setIsAdding(false)} className="text-xs text-zinc-500 hover:text-white font-medium transition-colors">Cancel</button>
+                </div>
               <div className="flex items-center justify-between border-b border-[#1E1E38] pb-3">
                 <span className="text-sm font-black text-white flex items-center gap-2">
                   <Activity size={16} className="text-[#F0B429]" />
