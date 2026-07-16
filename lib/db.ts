@@ -32,6 +32,7 @@ export async function updateProfile(uid: string, updates: Record<string, unknown
     "timezone",
     "notifications",
     "sound_effects",
+    "tradingview_username",
     "initial_account_size",
     "default_risk_percentage",
     "default_commission",

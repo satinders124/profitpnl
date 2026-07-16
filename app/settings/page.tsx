@@ -107,6 +107,7 @@ export default function SettingsPage() {
     timezone: "UTC",
     notifications: true,
     soundEffects: true,
+    tradingviewUsername: "", // Tradingview custom username to authorize settings
 
     // Trading Preferences
     initialAccountSize: 50000,
@@ -167,6 +168,7 @@ export default function SettingsPage() {
             timezone: data.timezone || "UTC",
             notifications: data.notifications ?? true,
             soundEffects: data.sound_effects ?? true,
+            tradingviewUsername: data.tradingview_username || "",
             initialAccountSize: Number(data.initial_account_size) || 50000,
             defaultRiskPercentage: Number(data.default_risk_percentage) || 1.0,
             defaultCommission: data.default_commission != null ? Number(data.default_commission) : 2.5,
@@ -205,6 +207,7 @@ export default function SettingsPage() {
         timezone: settings.timezone,
         notifications: settings.notifications,
         sound_effects: settings.soundEffects,
+        tradingview_username: settings.tradingviewUsername,
         initial_account_size: settings.initialAccountSize,
         default_risk_percentage: settings.defaultRiskPercentage,
         default_commission: settings.defaultCommission,
@@ -1415,6 +1418,27 @@ export default function SettingsPage() {
                     className="w-full bg-[#14141E] border border-[#242436] rounded-lg px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#F0B429] transition-all font-medium"
                     placeholder="Enter professional name..."
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-zinc-300 text-xs font-semibold">
+                    TradingView Username (For Indicator Access)
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.tradingviewUsername}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        tradingviewUsername: e.target.value,
+                      })
+                    }
+                    className="w-full bg-[#14141E] border border-[#242436] rounded-lg px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#F0B429] transition-all font-medium"
+                    placeholder="Enter your exact TradingView username..."
+                  />
+                  <p className="text-zinc-600 text-[10px]">
+                    Required to grant secure invite-only script access to your indicators (Bias Desk Pro).
+                  </p>
                 </div>
 
                 <div className="space-y-2">
