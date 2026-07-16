@@ -165,27 +165,35 @@ export default function PwaPsychologyGuardPage() {
     <AppShell title="AI Risk-Guard" subtitle="Cognitive check-in shift manager.">
       <div className="max-w-4xl mx-auto space-y-6">
         
-        {/* Banner */}
-        <Card className="relative overflow-hidden p-6 border-[#F0B429]/30 bg-[#111124]/80">
-          <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-[#F0B429]/10 blur-2xl" />
-          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F0B429] flex items-center gap-1.5">
-                <Brain size={14} /> Cognitive Shift Manager
+        {/* Institutional Banner */}
+        <Card className="relative overflow-hidden p-8 border-[#F0B429]/30 bg-[#0D0D16]/90 shadow-2xl shadow-black/20">
+          <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-[#F0B429]/10 blur-[100px] pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
+            <div className="space-y-4">
+              <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[#F0B429]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F0B429] animate-pulse" />
+                Cognitive Shift Manager
               </span>
-              <h1 className="text-2xl font-black mt-2 tracking-tight">Active Clock-In Terminal</h1>
-              <p className="text-xs text-[#A0A0C0] mt-1 max-w-xl">
-                Treat your trading as a professional job. Clock-in before your sessions, run your AI risk evaluations, trade, and clock-out to receive a humanized AI behavioral breakdown.
+              <h1 className="text-4xl md:text-5xl font-black tracking-tighter leading-[0.95] text-white">
+                AI Risk-Guard
+              </h1>
+              <p className="text-sm text-[#A0A0C0] max-w-xl leading-relaxed">
+                Professional trading session management. Clock in with full cognitive diagnostics, execute with verified playbook rules, and receive institutional-grade behavioral analysis powered by Claude AI.
               </p>
             </div>
             
             <div className="flex gap-3 shrink-0">
-              <div className={`rounded-xl border p-4 text-center min-w-[130px] flex flex-col justify-center ${activeShift ? "border-[#00D084]/30 bg-[#00D084]/5" : "border-[#1E1E38] bg-[#0D0D1A]"}`}>
-                <p className="text-[9px] text-[#5A5A80] font-black uppercase tracking-wider">Shift Status</p>
-                <p className={`text-sm font-black mt-1 flex items-center justify-center gap-1.5 ${activeShift ? "text-[#00D084]" : "text-zinc-500"}`}>
-                  <span className={`w-2 h-2 rounded-full ${activeShift ? "bg-[#00D084] animate-pulse" : "bg-zinc-500"}`} />
-                  {activeShift ? "ACTIVE SHIFT" : "OFF-DUTY"}
+              <div className={`rounded-2xl border px-6 py-5 text-center min-w-[160px] backdrop-blur-sm ${activeShift ? "border-[#00D084]/40 bg-[#00D084]/5" : "border-[#1E1E38] bg-[#0D0D1A]/60"}`}>
+                <p className="text-[9px] text-[#5A5A80] font-black uppercase tracking-[0.15em] mb-2">Shift Status</p>
+                <p className={`text-xl font-black flex items-center justify-center gap-2 ${activeShift ? "text-[#00D084]" : "text-zinc-500"}`}>
+                  <span className={`w-2.5 h-2.5 rounded-full ${activeShift ? "bg-[#00D084] animate-pulse" : "bg-zinc-500"}`} />
+                  {activeShift ? "ACTIVE" : "OFF-DUTY"}
                 </p>
+                {activeShift && (
+                  <p className="text-[10px] text-[#5A5A80] mt-2 font-mono">
+                    {new Date(activeShift.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -329,9 +337,14 @@ export default function PwaPsychologyGuardPage() {
                             <Clock size={11} />
                             {new Date(shift.clockIn).toLocaleDateString()}
                           </span>
-                          <span className="text-[#00D084] font-black uppercase">
-                            Discipline: {shift.postDiscipline}/10
-                          </span>
+                          <div className="flex gap-2">
+                            <span className="text-[#F0B429] font-black uppercase text-[9px]">
+                              {shift.sessionDurationMinutes ? `${Math.floor(shift.sessionDurationMinutes / 60)}h ${shift.sessionDurationMinutes % 60}m` : "—"}
+                            </span>
+                            <span className="text-[#00D084] font-black uppercase">
+                              Discipline: {shift.postDiscipline}/10
+                            </span>
+                          </div>
                         </div>
 
                         {shift.behavioralSummary && (
@@ -407,6 +420,10 @@ export default function PwaPsychologyGuardPage() {
                 <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
                   <p className="text-[9px] text-[#5A5A80] font-black uppercase">Profit Target</p>
                   <p className="text-sm font-black text-[#00D084] mt-1">${selectedDayShift.targetProfit || 0}</p>
+                </div>
+                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Session Duration</p>
+                  <p className="text-sm font-black text-[#F0B429] mt-1">{selectedDayShift.sessionDurationMinutes ? `${Math.floor(selectedDayShift.sessionDurationMinutes / 60)}h ${selectedDayShift.sessionDurationMinutes % 60}m` : "—"}</p>
                 </div>
               </div>
 

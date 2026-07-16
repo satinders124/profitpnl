@@ -16,6 +16,7 @@ export interface TraderShift {
   createdAt: string;
   targetProfit: number | null;
   maxDrawdownLimit: number | null;
+  sessionDurationMinutes: number | null;
 }
 
 export async function getActiveShift(uid: string): Promise<TraderShift | null> {
@@ -106,6 +107,7 @@ export async function clockOut(uid: string, shiftId: string, data: {
   emotionsFelt: string;
   lessonsLearned: string;
   behavioralSummary: string;
+  sessionDurationMinutes?: number;
 }): Promise<void> {
   const supabase = createClient();
   try {
@@ -117,6 +119,7 @@ export async function clockOut(uid: string, shiftId: string, data: {
         emotions_felt: data.emotionsFelt,
         lessons_learned: data.lessonsLearned,
         behavioral_summary: data.behavioralSummary,
+        session_duration_minutes: data.sessionDurationMinutes ?? null,
       })
       .eq("id", shiftId)
       .eq("user_id", uid);
@@ -144,5 +147,6 @@ function mapRowToShift(row: any): TraderShift {
     createdAt: row.created_at,
     targetProfit: row.target_profit ? Number(row.target_profit) : null,
     maxDrawdownLimit: row.max_drawdown_limit ? Number(row.max_drawdown_limit) : null,
+    sessionDurationMinutes: row.session_duration_minutes != null ? Number(row.session_duration_minutes) : null,
   };
 }

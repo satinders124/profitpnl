@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/Card";
 import { getActiveShift, getRecentShifts, clockOut, TraderShift } from "@/lib/shifts-db";
 import { getRunningTradesForShift, addRunningTrade, closeRunningTrade, RunningTrade } from "@/lib/running-trades-db";
-import { getPlaybook } from "@/lib/db";
+import { getPlaybook, saveTrade } from "@/lib/db";
 import { PlaybookSetup } from "@/types/playbook";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
@@ -169,12 +169,17 @@ export function ActiveShiftTerminal({
     setActionLoading(true);
     try {
       const realizedTotal = runningTrades.reduce((sum, t) => sum + (t.pnlRealized || 0), 0);
+      // Calculate session duration (minutes) from clockIn to now
+      const clockInTime = new Date(activeShift.clockIn);
+      const clockOutTime = new Date();
+      const sessionDurationMinutes = Math.round((clockOutTime.getTime() - clockInTime.getTime()) / 60000);
 
       // Call premium Claude-3 AI Backend endpoint to generate dynamic humanized paragraph
       const res = await fetch("/api/ai/shift-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          shiftId: activeShift.id,
           tradesCount: runningTrades.length,
           realizedPnl: realizedTotal,
           postDiscipline,
@@ -186,11 +191,35 @@ export function ActiveShiftTerminal({
       const data = await res.json();
       const summary = data.summary || "Shift ended successfully.";
 
+      // Batch-save all closed running trades to the main Trade Log (trades table)
+      const closedTrades = runningTrades.filter((t) => t.status === "closed");
+      for (const rt of closedTrades) {
+        try {
+          await saveTrade(user.id, {
+            date: rt.createdAt ? new Date(rt.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+            instrument: rt.strategyName || "Manual Setup",
+            direction: "",
+            setup: rt.strategyName || "Manual Setup",
+            session: "Live Session",
+            entry: rt.entryPrice,
+            sl: rt.slPrice,
+            tp: rt.tpPrice,
+            result: rt.pnlRealized,
+            pnl: rt.pnlRealized,
+            notes: rt.rulesFollowed.length > 0 ? `Rules: ${rt.rulesFollowed.join(", ")}` : "",
+            reviewed: false,
+          });
+        } catch (saveErr) {
+          console.error("Failed to save trade from running_trades:", saveErr);
+        }
+      }
+
       await clockOut(user.id, activeShift.id, {
         postDiscipline,
         emotionsFelt,
         lessonsLearned,
-        behavioralSummary: summary
+        behavioralSummary: summary,
+        sessionDurationMinutes,
       });
 
       showCelebrate("Shift Complete! ⏱️", `Outstanding check-out. AI evaluation saved!`, "success");
@@ -214,8 +243,14 @@ export function ActiveShiftTerminal({
               <span className="w-2.5 h-2.5 rounded-full bg-[#00D084] animate-pulse" />
               <span className="text-xs font-black uppercase tracking-wider text-[#00D084]">AI Active Shield Monitoring</span>
             </div>
-            <h2 className="text-lg font-black mt-1">Live Shift Dashboard</h2>
+            <h2 className="text-lg font-black mt-1 tracking-tight">Live Shift Dashboard</h2>
             <p className="text-xs text-zinc-400 mt-0.5">Logged-In as {user?.email?.split('@')[0] || "Trader"} · Limits: Max loss ${activeShift.maxDrawdownLimit} / Target profit ${activeShift.targetProfit}</p>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0D0D1A] border border-[#1E1E38] text-[10px] font-mono text-[#A0A0C0] uppercase tracking-wide">
+                <Clock size={11} className="text-[#F0B429]" />
+                Session Duration: {Math.round((new Date().getTime() - new Date(activeShift.clockIn).getTime()) / 60000)} min
+              </span>
+            </div>
           </div>
           
           <button 
