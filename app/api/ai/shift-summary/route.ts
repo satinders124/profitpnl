@@ -167,6 +167,12 @@ ${tradeDetails || "No individual trade telemetry recorded."}
     return NextResponse.json({ summary: summary.trim() });
   } catch (error: any) {
     console.error("AI Shift Generator error:", error);
-    return NextResponse.json({ error: error?.message || "Could not generate AI summary" }, { status: 500 });
+    return NextResponse.json({
+      summary: `AI Risk-Guard — Session logged successfully. ` +
+        `Discipline: ${postDiscipline || 0}/10. ` +
+        `Emotions: "${emotionsFelt || "None"}". ` +
+        `Note: Claude AI summary could not be generated due to a server error (` + (error?.message || "unknown") + `). ` +
+        `Please verify ANTHROPIC_API_KEY is configured correctly in your hosting environment.`
+    }, { status: 200 });
   }
 }
