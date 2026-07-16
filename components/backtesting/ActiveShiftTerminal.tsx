@@ -2,15 +2,60 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/Card";
-import { getActiveShift, getRecentShifts, clockOut, TraderShift } from "@/lib/shifts-db";
+import { getRecentShifts, clockOut, TraderShift } from "@/lib/shifts-db";
 import { getRunningTradesForShift, addRunningTrade, closeRunningTrade, RunningTrade } from "@/lib/running-trades-db";
 import { getPlaybook, saveTrade } from "@/lib/db";
 import { PlaybookSetup } from "@/types/playbook";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { createClient } from "@/lib/supabase-client";
 import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
 import { 
-  Brain, Clock, ShieldAlert, ArrowRight, Play, Check, AlertCircle, Info, ChevronRight, X, Sparkles, Smile, Trophy, Activity, LogOut, ChevronDown, ChevronUp, Calendar
+  Brain, Clock, Play, Check, AlertCircle, ChevronRight, X, Smile, Trophy, Activity, LogOut, Calendar
 } from "lucide-react";
+
+function formatShiftDuration(minutes: number) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "unknown duration";
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hrs <= 0) return `${mins}m`;
+  return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+}
+
+function formatShiftMoney(value: number) {
+  const abs = Math.abs(value);
+  const formatted = abs.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return value < 0 ? `-$${formatted}` : `$${formatted}`;
+}
+
+function buildClientShiftFallbackSummary({
+  activeShift,
+  runningTrades,
+  realizedTotal,
+  postDiscipline,
+  emotionsFelt,
+  lessonsLearned,
+  sessionDurationMinutes,
+}: {
+  activeShift: TraderShift;
+  runningTrades: RunningTrade[];
+  realizedTotal: number;
+  postDiscipline: number;
+  emotionsFelt: string;
+  lessonsLearned: string;
+  sessionDurationMinutes: number;
+}) {
+  const closedTrades = runningTrades.filter((trade) => trade.status === "closed").length;
+  const tradeSentence = runningTrades.length > 0
+    ? `You tracked ${runningTrades.length} trade${runningTrades.length === 1 ? "" : "s"}, closed ${closedTrades}, and finished with ${formatShiftMoney(realizedTotal)} realized P&L.`
+    : `No individual running trades were recorded, so this review is based on your check-in, check-out notes, and reported session discipline.`;
+  const disciplineTone = postDiscipline >= 8
+    ? "strong control"
+    : postDiscipline >= 6
+      ? "decent control with room to tighten execution"
+      : "a discipline warning that calls for smaller size and fewer decisions next session";
+
+  return `Your AI Risk-Guard session is complete after ${formatShiftDuration(sessionDurationMinutes)} against a target of ${formatShiftMoney(activeShift.targetProfit || 0)} and a daily loss limit of ${formatShiftMoney(activeShift.maxDrawdownLimit || 0)}. ${tradeSentence} You rated your end-of-session discipline ${postDiscipline}/10, showing ${disciplineTone}; emotions logged: “${emotionsFelt.trim() || "None"}”. Your pre-shift focus was “${activeShift.preNotes || "None"}”, and your key lesson was “${lessonsLearned.trim() || "None"}”. For the next session, keep risk inside the planned limit, only take verified playbook setups, and pause immediately if the same emotional trigger shows up again.`;
+}
 
 export function ActiveShiftTerminal({
   activeShift,
@@ -25,7 +70,6 @@ export function ActiveShiftTerminal({
   const [runningTrades, setRunningTrades] = useState<RunningTrade[]>([]);
   const [playbook, setPlaybook] = useState<PlaybookSetup[]>([]);
   const [recentShifts, setRecentShifts] = useState<TraderShift[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // New Trade Panel States
   const [isAdding, setIsAdding] = useState(false);
@@ -39,10 +83,10 @@ export function ActiveShiftTerminal({
   const [sl, setSl] = useState(0);
   const [tp, setTp] = useState(0);
   const [lotSize, setLotSize] = useState(1);
-  const [pipsTicks, setPipsTicks] = useState(10);
+  const [pipsTicks] = useState(10);
   const [riskAmount, setRiskAmount] = useState(100);
   const [targetProfit, setTargetProfit] = useState(200);
-  const [isCaution, setIsCaution] = useState(false);
+  const isCaution = riskAmount > (activeShift.maxDrawdownLimit || 10000);
 
   // Close Trade modal state
   const [closingTrade, setClosingTrade] = useState<RunningTrade | null>(null);
@@ -71,12 +115,11 @@ export function ActiveShiftTerminal({
       setRecentShifts(recent);
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
   }, [user, activeShift]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
 
@@ -106,16 +149,6 @@ export function ActiveShiftTerminal({
       setRuleChecked([]);
     }
   };
-
-  // Monitor risk thresholds
-  useEffect(() => {
-    const dailyLimit = activeShift.maxDrawdownLimit || 10000;
-    if (riskAmount > dailyLimit) {
-      setIsCaution(true);
-    } else {
-      setIsCaution(false);
-    }
-  }, [riskAmount, activeShift]);
 
   const handleCreateRunningTrade = async () => {
     if (!user) return;
@@ -172,24 +205,56 @@ export function ActiveShiftTerminal({
       // Calculate session duration (minutes) from clockIn to now
       const clockInTime = new Date(activeShift.clockIn);
       const clockOutTime = new Date();
-      const sessionDurationMinutes = Math.round((clockOutTime.getTime() - clockInTime.getTime()) / 60000);
+      const sessionDurationMinutes = Math.max(1, Math.round((clockOutTime.getTime() - clockInTime.getTime()) / 60000));
 
-      // Call premium Claude-3 AI Backend endpoint to generate dynamic humanized paragraph
-      const res = await fetch("/api/ai/shift-summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shiftId: activeShift.id,
-          tradesCount: runningTrades.length,
-          realizedPnl: realizedTotal,
-          postDiscipline,
-          emotionsFelt,
-          lessonsLearned,
-          preNotes: activeShift.preNotes
-        })
+      let summary = buildClientShiftFallbackSummary({
+        activeShift,
+        runningTrades,
+        realizedTotal,
+        postDiscipline,
+        emotionsFelt,
+        lessonsLearned,
+        sessionDurationMinutes,
       });
-      const data = await res.json();
-      const summary = data.summary || "Shift ended successfully.";
+
+      // Call the authenticated AI backend to generate the polished paragraph shown in Read Full Report.
+      // The endpoint needs the Supabase access token; without it the server cannot safely pull this shift's trades.
+      try {
+        const { data: { session } } = await createClient().auth.getSession();
+        const res = await fetch("/api/ai/shift-summary", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            shiftId: activeShift.id,
+            tradesCount: runningTrades.length,
+            realizedPnl: realizedTotal,
+            postDiscipline,
+            emotionsFelt,
+            lessonsLearned,
+            preNotes: activeShift.preNotes,
+            sessionDurationMinutes,
+            clockOutAt: clockOutTime.toISOString(),
+            sleepQuality: activeShift.sleepQuality,
+            stressLevel: activeShift.stressLevel,
+            disciplineLevel: activeShift.disciplineLevel,
+            targetProfit: activeShift.targetProfit,
+            maxDrawdownLimit: activeShift.maxDrawdownLimit,
+          })
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.error || data?.warning || `AI summary request failed (${res.status})`);
+        }
+        if (typeof data?.summary === "string" && data.summary.trim()) {
+          summary = data.summary.trim();
+        }
+      } catch (summaryErr) {
+        console.error("AI shift summary failed; saving local fallback paragraph:", summaryErr);
+      }
 
       // Batch-save all closed running trades to the main Trade Log (trades table)
       const closedTrades = runningTrades.filter((t) => t.status === "closed");
@@ -391,7 +456,7 @@ export function ActiveShiftTerminal({
             </h3>
 
             {runningTrades.filter(t => t.status === "running").length === 0 ? (
-              <p className="text-center py-10 text-xs text-zinc-500 border border-dashed border-[#24243C] rounded-xl">No active trades currently running on active shift. Click "Register Running Trade" to initiate.</p>
+              <p className="text-center py-10 text-xs text-zinc-500 border border-dashed border-[#24243C] rounded-xl">No active trades currently running on active shift. Click &quot;Register Running Trade&quot; to initiate.</p>
             ) : (
               <div className="space-y-3.5">
                 {runningTrades.filter(t => t.status === "running").map(t => (
