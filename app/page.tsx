@@ -27,6 +27,7 @@ import {
    ===================================================================== */
 
 const navLinks = [
+  { label: "Bias Desk Pro", href: "/bias-desk-pro" },
   { label: "Tools", href: "/tools" },
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#how-it-works" },
@@ -733,11 +734,11 @@ const toolCards = [
     stat: "Risk-first sizing",
   },
   {
-    icon: "🧮",
-    title: "Pip Value Calculator",
-    desc: "See what one pip or futures tick is worth in your account currency.",
-    href: "/tools/pip-value-calculator",
-    stat: "Forex + ES/NQ ticks",
+    icon: "📊",
+    title: "Bias Desk Pro",
+    desc: "Our premium non-repaint mechanical pivot indicators. Lock absolute trend bias to your charts.",
+    href: "/bias-desk-pro",
+    stat: "Premium TradingView Indicator",
   },
   {
     icon: "⚖️",
