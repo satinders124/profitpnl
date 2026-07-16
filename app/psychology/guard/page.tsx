@@ -291,14 +291,14 @@ export default function PwaPsychologyGuardPage() {
                   <div className="flex gap-3">
                     <button 
                       onClick={calculatePreRisk}
-                      className="flex-1 py-3 rounded-xl border border-[#1E1E38] text-xs font-black text-[#A0A0C0] hover:bg-[#1E1E38]/30"
+                      className="flex-1 py-3 rounded-xl border border-[#1E1E38] text-xs font-black text-[#A0A0C0] hover:bg-[#1E1E38]/30 transition whitespace-nowrap"
                     >
                       Calculate Pre-Risk
                     </button>
                     <button 
                       onClick={handleClockIn}
                       disabled={actionLoading}
-                      className="flex-[2] gold-gradient py-3 rounded-xl text-[#080810] font-black text-xs flex items-center justify-center gap-2"
+                      className="flex-[2] gold-gradient py-3 rounded-xl text-[#080810] font-black text-xs flex items-center justify-center gap-2 whitespace-nowrap"
                     >
                       <Clock size={15} /> Clock-In Session
                     </button>
@@ -380,50 +380,54 @@ export default function PwaPsychologyGuardPage() {
           <Card className="w-full max-w-2xl bg-[#0F0F1E] border border-[#24243C] p-6 sm:p-8 animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] space-y-6">
             <div className="flex items-center justify-between border-b border-[#1E1E38] pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#F0B429]/10 flex items-center justify-center text-[#F0B429]">
+                <div className="w-10 h-10 rounded-xl bg-[#F0B429]/10 flex items-center justify-center text-[#F0B429] shadow-[0_0_15px_-5px_#F0B429]/30">
                   <Brain size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">AI Shift Analysis — {new Date(selectedDayShift.clockIn).toLocaleDateString()}</h3>
+                  <h3 className="text-base font-black text-white tracking-tight">AI Shift Analysis — {new Date(selectedDayShift.clockIn).toLocaleDateString()}</h3>
                   <p className="text-xs text-[#5A5A80]">Full performance review & deep cognitive feedback</p>
                 </div>
               </div>
               <button 
                 onClick={() => setSelectedDayShift(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1A1A26] text-zinc-400 hover:text-white transition"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A1A26] text-zinc-400 hover:text-white hover:bg-[#222234] transition shadow-lg"
+                aria-label="Close overlay"
               >
-                Close ×
+                <span className="text-sm font-black leading-none">×</span>
               </button>
             </div>
 
             <div className="space-y-5">
-              <div className="p-5 rounded-2xl bg-[#14142B] border border-[#24243C]">
-                <p className="text-[10px] font-black uppercase tracking-wider text-[#F0B429] mb-1.5">CLAUDE CO-PILOT ADVICE</p>
-                <p className="text-xs sm:text-sm leading-relaxed text-zinc-200 italic">
+              <div className="p-5 rounded-2xl bg-[#14142B] border border-[#24243C] relative overflow-hidden shadow-[0_0_40px_-15px_#F0B429]/10">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#F0B429]/5 to-transparent pointer-events-none" />
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#F0B429] mb-2 flex items-center gap-1.5 relative">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#F0B429] animate-pulse" /> CLAUDE CO-PILOT ADVICE
+                </p>
+                <p className="text-xs sm:text-sm leading-[1.75] text-zinc-200 italic relative">
                   {selectedDayShift.behavioralSummary || "No summary recorded."}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
-                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Discipline Rating</p>
-                  <p className="text-sm font-black text-[#00D084] mt-1">{selectedDayShift.postDiscipline || 0}/10</p>
+                <div className="p-4 bg-[#0D0D1A]/80 rounded-2xl border border-[#1E1E38]/60 backdrop-blur-sm">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase tracking-[0.15em] mb-1.5">Discipline Rating</p>
+                  <p className="text-sm font-black text-[#00D084] mt-0.5">{selectedDayShift.postDiscipline || 0}/10</p>
                 </div>
-                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
-                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Initial Stress</p>
-                  <p className="text-sm font-black text-white mt-1">{selectedDayShift.stressLevel}/10</p>
+                <div className="p-4 bg-[#0D0D1A]/80 rounded-2xl border border-[#1E1E38]/60 backdrop-blur-sm">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase tracking-[0.15em] mb-1.5">Initial Stress</p>
+                  <p className="text-sm font-black text-white mt-0.5">{selectedDayShift.stressLevel}/10</p>
                 </div>
-                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
-                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Daily Loss Limit</p>
-                  <p className="text-sm font-black text-[#FF4565] mt-1">${selectedDayShift.maxDrawdownLimit || 0}</p>
+                <div className="p-4 bg-[#0D0D1A]/80 rounded-2xl border border-[#1E1E38]/60 backdrop-blur-sm">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase tracking-[0.15em] mb-1.5">Daily Loss Limit</p>
+                  <p className="text-sm font-black text-[#FF4565] mt-0.5">${selectedDayShift.maxDrawdownLimit || 0}</p>
                 </div>
-                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
-                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Profit Target</p>
-                  <p className="text-sm font-black text-[#00D084] mt-1">${selectedDayShift.targetProfit || 0}</p>
+                <div className="p-4 bg-[#0D0D1A]/80 rounded-2xl border border-[#1E1E38]/60 backdrop-blur-sm">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase tracking-[0.15em] mb-1.5">Profit Target</p>
+                  <p className="text-sm font-black text-[#00D084] mt-0.5">${selectedDayShift.targetProfit || 0}</p>
                 </div>
-                <div className="p-3 bg-[#0D0D1A] rounded-xl border border-[#1E1E38]">
-                  <p className="text-[9px] text-[#5A5A80] font-black uppercase">Session Duration</p>
-                  <p className="text-sm font-black text-[#F0B429] mt-1">{
+                <div className="p-4 bg-[#0D0D1A]/80 rounded-2xl border border-[#1E1E38]/60 backdrop-blur-sm col-span-2 sm:col-span-4">
+                  <p className="text-[9px] text-[#5A5A80] font-black uppercase tracking-[0.15em] mb-1.5">Session Duration</p>
+                  <p className="text-sm font-black text-[#F0B429] mt-0.5">{
                     selectedDayShift.sessionDurationMinutes
                       ? `${Math.floor(selectedDayShift.sessionDurationMinutes / 60)}h ${selectedDayShift.sessionDurationMinutes % 60}m`
                       : selectedDayShift.clockIn && selectedDayShift.clockOut
@@ -438,7 +442,7 @@ export default function PwaPsychologyGuardPage() {
 
               <button 
                 onClick={() => setSelectedDayShift(null)}
-                className="w-full bg-[#1A1A26] hover:bg-[#222234] py-3 rounded-xl text-xs font-black text-zinc-300 transition"
+                className="w-full bg-gradient-to-r from-[#1A1A26] to-[#222234] hover:from-[#222234] hover:to-[#2A2A3A] border border-[#1E1E38]/60 py-3.5 rounded-2xl text-xs font-black text-zinc-300 transition shadow-lg hover:shadow-xl hover:-translate-y-0.5 duration-200"
               >
                 Close Detailed View
               </button>
