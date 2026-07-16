@@ -126,8 +126,21 @@ ${tradeDetails || "No individual trade telemetry recorded."}
     }
 
     if (!summary) {
-      summary = `AI Shift Analysis: ${user.email} completed a session (${sessionDurationText}). ${sessionTrades.length} trades tracked (${sessionTrades.filter((t: any) => t.status === "closed").length} closed). Reported P&L $${realizedPnl}. Discipline: ${postDiscipline}/10. Pre-notes: "${preNotes || "None"}". Emotions: "${emotionsFelt || "None"}". Lesson: "${lessonsLearned || "None"}".`;
-      if (lastErr) summary += ` [Note: Claude API error — ${lastErr}]`;
+      const hrs = sessionDurationText ? sessionDurationText.replace("Session Duration: ", "").replace(".", "") : "unknown";
+      const tradeSummary = sessionTrades.length > 0
+        ? sessionTrades.map((t: any) => `[${t.status.toUpperCase()}] ${t.strategy_name || "Manual"} — Entry $${t.entry_price}, Exit ${t.exit_price ? "$" + t.exit_price : "open"}, P&L $${t.pnl_realized ?? 0}`).join("; ")
+        : "No individual trades recorded.";
+      summary = `AI Risk-Guard Session Report — ${new Date().toISOString().split("T")[0]}\n\n` +
+        `Session Duration: ${hrs}.\n` +
+        `Trades: ${sessionTrades.filter((t: any) => t.status === "closed").length} closed / ${sessionTrades.length} total. ` +
+        `Realized P&L: $${sessionTrades.filter((t: any) => t.status === "closed").reduce((sum: number, t: any) => sum + (t.pnl_realized || 0), 0)}. ` +
+        `Discipline: ${postDiscipline}/10. ` +
+        `Pre-notes: "${preNotes || "None"}". ` +
+        `Emotions: "${emotionsFelt || "None"}". ` +
+        `Lesson: "${lessonsLearned || "None"}".\n\n` +
+        `Trade Details: ${tradeSummary}\n\n` +
+        `(Note: Full Claude AI co-pilot analysis requires ANTHROPIC_API_KEY configured on the server. Please add it to your hosting environment variables.)`;
+      if (lastErr) summary += ` [API error: ${lastErr}]`;
     }
 
     return NextResponse.json({ summary: summary.trim() });
