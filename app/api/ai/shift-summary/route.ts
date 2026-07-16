@@ -99,12 +99,33 @@ ${tradeDetails || "No individual trade telemetry recorded."}
 
     const anthropic = new Anthropic({ apiKey });
 
-    // Try the same model priority as the AI Chat Bot (claude-3-5-sonnet-latest first, then fallbacks)
-    const modelsToTry = [
-      "claude-3-5-sonnet-latest",
+    // Dynamic model discovery — exactly like the working AI Chat Bot
+    let availableIds: string[] = [];
+    try {
+      const modelsRes = await fetch("https://api.anthropic.com/v1/models", {
+        headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      });
+      if (modelsRes.ok) {
+        const modelsData = await modelsRes.json();
+        if (Array.isArray(modelsData?.data)) {
+          availableIds = modelsData.data.map((m: any) => m.id);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not query /v1/models:", e);
+    }
+
+    const modelsToTry = Array.from(new Set([
+      process.env.ANTHROPIC_MODEL,
+      "claude-sonnet-5",
+      ...availableIds.filter((id: string) => id.includes("sonnet")),
+      ...availableIds,
+      "claude-3-7-sonnet-20250219",
+      "claude-3-7-sonnet-latest",
       "claude-3-5-sonnet-20241022",
+      "claude-3-5-sonnet-latest",
       "claude-3-haiku-20240307",
-    ];
+    ].filter(Boolean))) as string[];
 
     let summary = "";
     let lastErr = "";
