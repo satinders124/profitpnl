@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase-client";
 import { 
   Sparkles, Layers, Eye, Cpu, Coins, Info, Check, Trophy
 } from "lucide-react";
@@ -95,16 +96,35 @@ export default function BiasDeskIndicatorProduct() {
                   <span className="text-xs text-zinc-500 font-bold uppercase line-through">$399</span>
                   <span className="text-xs text-[#10b981] font-black uppercase tracking-wider">Save 60%</span>
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-1 font-medium">One-time payment · Instant TradingView Access</p>
-              </div>
+            <p className="text-xs text-zinc-400 mt-1">One-time payment · Instant TradingView Access</p>
+          </div>
 
-              <a 
-                href="/upgrade"
-                className="w-full sm:w-auto gold-gradient px-6 py-3.5 rounded-xl text-xs font-black text-[#080810] flex items-center justify-center gap-2 transition duration-300 hover:shadow-[0_0_24px_rgba(240,180,41,0.45)] active:scale-[0.98] shrink-0"
-              >
-                <Coins size={14} /> Buy Lifetime Licence Now
-              </a>
-            </Card>
+          <button 
+            onClick={async () => {
+              try {
+                const { data: { session } } = await createClient().auth.getSession();
+                const res = await fetch("/api/payments/checkout-indicator", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+                  },
+                });
+                const data = await res.json();
+                if (data.url) {
+                  window.location.href = data.url;
+                } else {
+                  alert(data.error || "Failed to launch Stripe checkout");
+                }
+              } catch {
+                alert("Connection error launching checkout.");
+              }
+            }}
+            className="w-full sm:w-auto gold-gradient px-6 py-3.5 rounded-xl text-xs font-black text-[#080810] flex items-center justify-center gap-2 transition duration-300 hover:shadow-[0_0_24px_rgba(240,180,41,0.45)] active:scale-[0.98] shrink-0"
+          >
+            <Coins size={14} /> Buy Lifetime Licence Now
+          </button>
+        </Card>
           </div>
 
           {/* Right Column: Rule-Desk details card */}

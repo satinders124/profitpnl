@@ -48,6 +48,19 @@ export async function POST(req: Request) {
 
       if (!uid) break;
 
+      // Check if this checkout session is our indicator one-time payment
+      if (session.metadata?.purchase_type === "indicator_license") {
+        await supabase
+          .from("profiles")
+          .update({
+            // Flag that they own the indicator license
+            bias_desk_pro: true
+          })
+          .eq("id", uid);
+        console.log(`[webhook] User ${uid} successfully unlocked BIAS DESK PRO indicator license`);
+        break;
+      }
+
       await supabase
         .from("profiles")
         .update({

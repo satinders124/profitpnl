@@ -85,12 +85,27 @@ export default function BiasDeskProPage() {
               <p className="text-xs text-zinc-400 font-medium">No monthly fees · Unlimited charts · Complete TradingView script profile activation</p>
             </div>
 
-            <a 
-              href="/upgrade"
+            <button 
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/payments/checkout-indicator", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                  });
+                  const data = await res.json();
+                  if (data.url) {
+                    window.location.href = data.url;
+                  } else {
+                    alert(data.error || "Failed to launch Stripe checkout");
+                  }
+                } catch {
+                  alert("Connection error launching checkout.");
+                }
+              }}
               className="w-full md:w-auto gold-gradient px-8 py-4 rounded-2xl text-xs font-black text-[#080810] flex items-center justify-center gap-2 transition duration-300 hover:shadow-[0_0_35px_rgba(240,180,41,0.55)] active:scale-[0.98] shrink-0"
             >
               <Coins size={14} /> Buy Lifetime Licence Now
-            </a>
+            </button>
           </Card>
         </div>
 
