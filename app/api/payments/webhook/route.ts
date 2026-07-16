@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { createServerClient } from "@/lib/supabase-server";
 import { createAffiliateCommission, invoiceSubscriptionId } from "@/lib/affiliate-commissions";
 import sgMail from "@sendgrid/mail";
+import { buyerIndicatorConfirmationEmailHtml } from "@/lib/email-delivery-notification";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe {
@@ -73,29 +74,44 @@ export async function POST(req: Request) {
           const fromEmail = process.env.SENDGRID_FROM_EMAIL;
           const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map(e => e.trim()).filter(Boolean);
 
-          if (process.env.SENDGRID_API_KEY && fromEmail && adminEmails.length > 0) {
+          if (process.env.SENDGRID_API_KEY && fromEmail) {
             sgMail.setApiKey(process.env.SENDGRID_API_KEY);
             const userEmail = session.customer_details?.email || "No email entered";
             const userName = session.customer_details?.name || "Anonymous Guest";
 
-            for (const admin of adminEmails) {
+            // 1. Send secure notification email to the buyer (Congratulations + 2 Hour delivery window guarantee!)
+            if (userEmail && userEmail !== "No email entered") {
+              const buyerHtml = buyerIndicatorConfirmationEmailHtml(userName, tvUsername || "your TradingView username");
               await sgMail.send({
-                to: admin,
-                from: { email: fromEmail, name: "ProfitPnL Alerts" },
-                subject: `🚨 NEW INDICATOR PURCHASE: ${tvUsername || "No Username"}`,
-                text: `New Purchase of Bias Desk Pro!\n\nBuyer Details:\n- Name: ${userName}\n- Email: ${userEmail}\n- ProfitPnL UID: ${uid}\n- TradingView Username: ${tvUsername || "Not provided"}\n\nActions Required:\n1. Open TradingView.\n2. Access 'Bias Desk Pro' indicators.\n3. Add and grant invite-only script access to user: "${tvUsername || "N/A"}"`,
-                html: `
-                  <div style="font-family:sans-serif; padding:24px; background-color:#f4f4f8;">
-                    <h2 style="color:#080810; margin-bottom:16px;">🚨 New Indicator Purchase: Bias Desk Pro</h2>
-                    <div style="background-color:#ffffff; padding:20px; border-radius:12px; border:1px solid #e7e7f0;">
-                      <p><strong>Buyer Name:</strong> ${userName}</p>
-                      <p><strong>Email Address:</strong> ${userEmail}</p>
-                      <p><strong>TradingView Username:</strong> <span style="background-color:#f7f5ef; color:#c8961e; padding:4px 8px; border-radius:4px; font-family:monospace; font-weight:bold;">${tvUsername || "Not provided"}</span></p>
-                    </div>
-                    <p style="color:#5b5b78; font-size:12px; margin-top:16px;">This action is automated. Please log into TradingView and grant invite-only access to this username.</p>
-                  </div>
-                `
+                to: userEmail,
+                from: { email: fromEmail, name: "ProfitPnL Delivery" },
+                subject: "Your Bias Desk Pro Access is in Progress! 🚀",
+                text: `Hi ${userName},\n\nThank you for purchasing Bias Desk Pro! Your private invite-only script access is being set up for TradingView user: "${tvUsername || "Not provided"}". Your chart invite will be fully active within the next 2 Hours!\n\n— The ProfitPnL Team`,
+                html: buyerHtml,
               });
+            }
+
+            // 2. Send notification email to the admins
+            if (adminEmails.length > 0) {
+              for (const admin of adminEmails) {
+                await sgMail.send({
+                  to: admin,
+                  from: { email: fromEmail, name: "ProfitPnL Alerts" },
+                  subject: `🚨 NEW INDICATOR PURCHASE: ${tvUsername || "No Username"}`,
+                  text: `New Purchase of Bias Desk Pro!\n\nBuyer Details:\n- Name: ${userName}\n- Email: ${userEmail}\n- ProfitPnL UID: ${uid}\n- TradingView Username: ${tvUsername || "Not provided"}\n\nActions Required:\n1. Open TradingView.\n2. Access 'Bias Desk Pro' indicators.\n3. Add and grant invite-only script access to user: "${tvUsername || "N/A"}"`,
+                  html: `
+                    <div style="font-family:sans-serif; padding:24px; background-color:#f4f4f8;">
+                      <h2 style="color:#080810; margin-bottom:16px;">🚨 New Indicator Purchase: Bias Desk Pro</h2>
+                      <div style="background-color:#ffffff; padding:20px; border-radius:12px; border:1px solid #e7e7f0;">
+                        <p><strong>Buyer Name:</strong> ${userName}</p>
+                        <p><strong>Email Address:</strong> ${userEmail}</p>
+                        <p><strong>TradingView Username:</strong> <span style="background-color:#f7f5ef; color:#c8961e; padding:4px 8px; border-radius:4px; font-family:monospace; font-weight:bold;">${tvUsername || "Not provided"}</span></p>
+                      </div>
+                      <p style="color:#5b5b78; font-size:12px; margin-top:16px;">This action is automated. Please log into TradingView and grant invite-only access to this username.</p>
+                    </div>
+                  `
+                });
+              }
             }
           }
         } catch (emailErr) {
