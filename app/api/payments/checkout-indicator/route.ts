@@ -13,9 +13,6 @@ function getStripe(): Stripe {
 export async function POST(req: Request) {
   try {
     const user = await getAuthenticatedUser(req).catch(() => null);
-    
-    // Fallback: If user is not logged in, or token has expired, let them buy anonymously / register.
-    // However, to keep it clean and sync their account, we prioritize user ID, or create a guest session.
     const uid = user?.id || null;
 
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -29,16 +26,18 @@ export async function POST(req: Request) {
     const supabase = createServerClient();
 
     let customerId: string | undefined = undefined;
+    let tvUsernameDefault = "";
 
     if (uid) {
-      // Query Stripe Customer ID for authenticated profiles
+      // Query Stripe Customer ID & their current saved TradingView username from database
       const { data: profile } = await supabase
         .from("profiles")
-        .select("stripe_customer_id, email")
+        .select("stripe_customer_id, email, tradingview_username")
         .eq("id", uid)
         .single();
 
       customerId = profile?.stripe_customer_id || undefined;
+      tvUsernameDefault = profile?.tradingview_username || "";
 
       if (!customerId) {
         try {
@@ -73,6 +72,26 @@ export async function POST(req: Request) {
       allow_promotion_codes: true,
       success_url: `${appUrl}/settings?indicator_purchased=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/bias-desk-pro?cancelled=true`,
+      
+      // 🚨 AUTOMATION UPGRADE (Stripe Custom Fields):
+      // Forces Stripe Checkout to render an explicit, required text-input box on the payment form
+      // asking directly for their "TradingView Username". Stripe collects it, includes it in the completion webhook,
+      // and displays it directly in your Stripe dashboard purchase info!
+      custom_fields: [
+        {
+          key: "tradingview_username",
+          label: {
+            type: "custom",
+            custom: "Your TradingView Username (For Indicator Access)",
+          },
+          type: "text",
+          text: {
+            minimum_length: 3,
+            maximum_length: 50,
+          },
+          optional: false, // Required field so they can never skip entering it!
+        },
+      ],
       metadata: {
         supabase_uid: uid || "guest",
         purchase_type: "indicator_license",
@@ -80,7 +99,7 @@ export async function POST(req: Request) {
       },
     };
 
-    // Only append customer if logged in and customer ID is resolved
+    // If logged in, pass customerId to link existing card profiles
     if (customerId) {
       sessionConfig.customer = customerId;
     }
