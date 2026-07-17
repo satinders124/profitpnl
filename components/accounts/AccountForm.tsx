@@ -9,6 +9,16 @@ import { Wallet, Target, ShieldAlert, FileText, Globe, TrendingUp } from "lucide
 const accountTypes = ["Prop", "Funded", "Evaluation", "Personal", "Demo"];
 const statuses = ["Active", "Passed", "Failed", "Paused"];
 
+const propFirmTemplates = [
+  { name: "FTMO", size: "100000", profitTarget: "10", dailyLoss: "5", maxDD: "10", trailingDD: false, notes: "FTMO-style template. Verify exact rules in your firm dashboard." },
+  { name: "Apex", size: "50000", profitTarget: "6", dailyLoss: "", maxDD: "5", trailingDD: true, notes: "Apex-style trailing drawdown template. Verify exact account-specific rules." },
+  { name: "Topstep", size: "50000", profitTarget: "6", dailyLoss: "2", maxDD: "4", trailingDD: false, notes: "Topstep-style template. Confirm daily loss, drawdown, and consistency rules." },
+  { name: "MyFundedFutures", size: "50000", profitTarget: "6", dailyLoss: "3", maxDD: "4", trailingDD: false, notes: "MyFundedFutures-style template. Verify rules before trading." },
+  { name: "FundingPips", size: "50000", profitTarget: "8", dailyLoss: "5", maxDD: "10", trailingDD: false, notes: "FundingPips-style template. Verify exact phase and account rules." },
+  { name: "FundedNext", size: "50000", profitTarget: "8", dailyLoss: "5", maxDD: "10", trailingDD: false, notes: "FundedNext-style template. Verify exact model and phase rules." },
+  { name: "The5ers", size: "50000", profitTarget: "8", dailyLoss: "3", maxDD: "6", trailingDD: false, notes: "The5ers-style template. Verify exact program rules." },
+];
+
 type AccountFormProps = {
   uid: string;
   existing?: TradingAccount | null;
@@ -40,6 +50,22 @@ export function AccountForm({ uid, existing, onSaved, onCancel }: AccountFormPro
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function applyTemplate(template: (typeof propFirmTemplates)[number]) {
+    setForm((prev) => ({
+      ...prev,
+      firm: template.name,
+      name: prev.name || `${template.name} ${Number(template.size).toLocaleString("en-US")}`,
+      type: "Evaluation",
+      size: template.size,
+      startingBalance: prev.startingBalance || template.size,
+      profitTarget: template.profitTarget,
+      dailyLoss: template.dailyLoss,
+      maxDD: template.maxDD,
+      trailingDD: template.trailingDD,
+      notes: prev.notes || template.notes,
+    }));
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name) return;
@@ -68,7 +94,7 @@ export function AccountForm({ uid, existing, onSaved, onCancel }: AccountFormPro
         profitTarget: cleanNumber(form.profitTarget),
       });
       onSaved();
-    } catch (error) {
+    } catch {
       alert("Failed to save account.");
     } finally {
       setSaving(false);
@@ -102,6 +128,31 @@ export function AccountForm({ uid, existing, onSaved, onCancel }: AccountFormPro
             </select>
           </Field>
         </div>
+      </section>
+
+      {/* PROP FIRM TEMPLATES */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Target size={16} className="text-[#F0B429]" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-white">Prop Firm Templates</h3>
+          <div className="h-px flex-1 bg-gradient-to-r from-[#F0B429]/30 to-transparent ml-3" />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {propFirmTemplates.map((template) => (
+            <button
+              type="button"
+              key={template.name}
+              onClick={() => applyTemplate(template)}
+              className="rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] p-3 text-left transition hover:border-[#F0B429]/40 hover:bg-[#F0B429]/5"
+            >
+              <p className="text-sm font-black text-white">{template.name}</p>
+              <p className="mt-1 text-[10px] leading-4 text-[#8080A0]">
+                Target {template.profitTarget}% · Daily {template.dailyLoss || "—"}% · Max DD {template.maxDD}%
+              </p>
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] leading-5 text-[#5A5A80]">Templates are starting points. Always verify the exact rules in your prop firm dashboard.</p>
       </section>
 
       {/* SECTION 2: CAPITAL & TARGETS */}

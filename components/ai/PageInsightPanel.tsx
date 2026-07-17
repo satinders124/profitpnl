@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Sparkles, Zap } from "lucide-react";
+import { Loader2, Lock, Sparkles, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 type Insight = {
   title: string;
@@ -33,33 +34,64 @@ export function PageInsightPanel({
   initialSummary?: string;
   compact?: boolean;
 }) {
+  const { plan } = useAuth();
+  const isFreePlan = plan === "Free Plan";
   const [insight, setInsight] = useState<Insight>({ ...fallbackInsight, title: initialTitle, summary: initialSummary || fallbackInsight.summary });
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
 
+  async function saveAiReport(report: Insight, sessionToken?: string) {
+    if (!report.summary) return;
+    await fetch("/api/ai/reports", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+      },
+      body: JSON.stringify({
+        reportType: kind,
+        sourcePage: kind,
+        context,
+        title: report.title,
+        summary: report.summary,
+        bullets: report.bullets,
+        action: report.action,
+        metadata: { aiGenerated: report.aiGenerated },
+      }),
+    }).catch(() => null);
+  }
+
   async function generate() {
+    if (isFreePlan) {
+      setNotice("AI insights are a Pro feature. Upgrade to unlock AI-generated coaching on this page.");
+      return;
+    }
+
     setLoading(true);
     setNotice("");
     try {
       const { data: { session } } = await createClient().auth.getSession();
+      const token = session?.access_token;
       const res = await fetch("/api/ai/page-insight", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ kind, context }),
       });
       const data = await res.json().catch(() => null) as Partial<Insight> | null;
       if (!res.ok || !data) throw new Error("insight_unavailable");
-      setInsight({
+      const nextInsight = {
         title: data.title || initialTitle,
         summary: data.summary || initialSummary || fallbackInsight.summary,
         bullets: Array.isArray(data.bullets) && data.bullets.length ? data.bullets : fallbackInsight.bullets,
         action: data.action || fallbackInsight.action,
         aiGenerated: Boolean(data.aiGenerated),
-      });
-      if (!data.aiGenerated) setNotice("Showing local intelligence. AI enhancement is available when server AI is enabled.");
+      };
+      setInsight(nextInsight);
+      await saveAiReport(nextInsight, token);
+      setNotice(nextInsight.aiGenerated ? "AI insight saved to your report history." : "Showing local intelligence. AI enhancement is available when server AI is enabled.");
     } catch {
       setNotice("AI insight is temporarily unavailable. Showing local intelligence instead.");
     } finally {
@@ -82,8 +114,8 @@ export function PageInsightPanel({
           disabled={loading}
           className="gold-gradient inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#080810] disabled:opacity-60"
         >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-          {loading ? "Analyzing" : insight.aiGenerated ? "Refresh AI" : "Generate AI"}
+          {loading ? <Loader2 size={14} className="animate-spin" /> : isFreePlan ? <Lock size={14} /> : <Zap size={14} />}
+          {loading ? "Analyzing" : isFreePlan ? "Unlock Pro AI" : insight.aiGenerated ? "Refresh AI" : "Generate AI"}
         </button>
       </div>
 

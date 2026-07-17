@@ -74,6 +74,7 @@ const liveNavGroups: NavGroup[] = [
     label: "Growth & Account",
     items: [
       { label: "Certificates", href: "/certificates", icon: Award },
+      { label: "Onboarding", href: "/onboarding", icon: Sparkles },
       { label: "Mentor Mode", href: "/mentor", icon: GraduationCap },
       { label: "Accounts", href: "/accounts", icon: CreditCard },
       { label: "Settings", href: "/settings", icon: Settings },
