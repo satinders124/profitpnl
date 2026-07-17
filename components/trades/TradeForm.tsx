@@ -5,7 +5,7 @@ import { TradingAccount } from "@/types/account";
 import { PlaybookSetup } from "@/types/playbook";
 import { Trade } from "@/types/trade";
 import { CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
 
@@ -89,7 +89,8 @@ export function TradeForm({
     existing?.setup,
   ]);
 
-  const [form, setForm] = useState<Partial<Trade>>({
+  const draftKey = `profitpnl_trade_form_draft_${uid}`;
+  const defaultForm: Partial<Trade> = {
     date: existing?.date || today,
     account: existing?.account || "",
     instrument: existing?.instrument || "XAUUSD",
@@ -112,11 +113,32 @@ export function TradeForm({
     executionRating: existing?.executionRating || "",
     mistake: existing?.mistake || "",
     lesson: existing?.lesson || "",
+  };
+
+  const [form, setForm] = useState<Partial<Trade>>(() => {
+    if (existing || typeof window === "undefined") return defaultForm;
+    try {
+      const savedDraft = localStorage.getItem(draftKey);
+      if (!savedDraft) return defaultForm;
+      const parsed = JSON.parse(savedDraft) as Partial<Trade>;
+      return { ...defaultForm, ...parsed, date: parsed.date || defaultForm.date };
+    } catch {
+      return defaultForm;
+    }
   });
 
   const [saving, setSaving] = useState(false);
   const { playSuccess } = useSoundEffects();
   const { showCelebrate } = useNotificationCoPilot();
+
+  useEffect(() => {
+    if (existing || typeof window === "undefined") return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(form));
+    } catch {
+      // ignore unavailable storage
+    }
+  }, [draftKey, existing, form]);
 
   function update<K extends keyof Trade>(key: K, value: Trade[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -130,7 +152,7 @@ export function TradeForm({
     setSaving(true);
 
     try {
-      const resId = await saveTrade(uid, {
+      await saveTrade(uid, {
         ...form,
         id: existing?.id,
         entry: cleanNumber(form.entry),
@@ -170,6 +192,14 @@ export function TradeForm({
             `Your trade on ${instr} is safe in your journal. AI analysis pending on your next session check-out!`, 
             "success"
           );
+        }
+      }
+
+      if (!existing && typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {
+          // ignore unavailable storage
         }
       }
 

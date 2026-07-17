@@ -69,15 +69,13 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AppLoader>
-      <AuthProvider>
-        <NotificationProvider>
-          <ModeProvider>
-            <RecoveryLinkHandler />
-            {children}
-          </ModeProvider>
-        </NotificationProvider>
-      </AuthProvider>
-    </AppLoader>
+    <AuthProvider>
+      <NotificationProvider>
+        <ModeProvider>
+          <RecoveryLinkHandler />
+          {children}
+        </ModeProvider>
+      </NotificationProvider>
+    </AuthProvider>
   );
 }
