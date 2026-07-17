@@ -10,6 +10,7 @@ import {
   BarChart3,
   BookOpen,
   Brain,
+  ClipboardCheck,
   CreditCard,
   Home,
   ListChecks,
@@ -38,6 +39,7 @@ const liveMainItems: NavItem[] = [
 
 const liveMoreItemsBase: NavItem[] = [
   { label: "Certificates", href: "/certificates", icon: Award },
+  { label: "Weekly Review", href: "/weekly-review", icon: ClipboardCheck },
   { label: "Playbook", href: "/playbook", icon: BookOpen },
   { label: "Psychology", href: "/psychology", icon: Brain },
   { label: "AI Risk-Guard", href: "/psychology/guard", icon: Brain },
