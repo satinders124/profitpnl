@@ -21,6 +21,10 @@ import {
   Award,
   ArrowUpRight,
   FlaskConical,
+  ShieldCheck,
+  Search,
+  GraduationCap,
+  FileSpreadsheet,
 } from "lucide-react";
 
 type NavItem = {
@@ -40,6 +44,11 @@ const liveMainItems: NavItem[] = [
 const liveMoreItemsBase: NavItem[] = [
   { label: "Certificates", href: "/certificates", icon: Award },
   { label: "Weekly Review", href: "/weekly-review", icon: ClipboardCheck },
+  { label: "AI Leak Finder", href: "/ai-leak-finder", icon: Search },
+  { label: "Trade Review", href: "/trade-review", icon: ClipboardCheck },
+  { label: "Import Center", href: "/import-trades", icon: FileSpreadsheet },
+  { label: "Prop Firm Mode", href: "/prop-firm-challenge", icon: ShieldCheck },
+  { label: "Mentor Mode", href: "/mentor", icon: GraduationCap },
   { label: "Playbook", href: "/playbook", icon: BookOpen },
   { label: "Psychology", href: "/psychology", icon: Brain },
   { label: "AI Risk-Guard", href: "/psychology/guard", icon: Brain },
