@@ -159,7 +159,7 @@ export default function PropFirmChallengePage() {
 
           <PageInsightPanel
             kind="prop-firm"
-            initialTitle="Claude prop firm risk briefing"
+            initialTitle="AI prop firm risk briefing"
             initialSummary="Generate a challenge safety read before you risk more capital."
             context={{
               account: selected,

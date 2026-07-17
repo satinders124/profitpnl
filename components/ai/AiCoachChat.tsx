@@ -230,7 +230,7 @@ export function AiCoachChat({
 
     try {
       const { data: { session } } = await createClient().auth.getSession();
-      const response = await fetch("/api/ai/claude", {
+      const response = await fetch("/api/ai/coach", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

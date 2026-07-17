@@ -437,7 +437,7 @@ export default function WeeklyReviewPage() {
 
           <PageInsightPanel
             kind="weekly-review"
-            initialTitle="Claude weekly coach"
+            initialTitle="AI weekly coach"
             initialSummary="Generate a deeper weekly coaching read that converts performance, leaks, and psychology into next-week rules."
             context={{
               week: formatRange(selectedWeek.start, selectedWeek.end),

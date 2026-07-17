@@ -80,8 +80,8 @@ export function FeatureAnnouncementBanner() {
                 <ShieldCheck size={16} />
               </div>
               <div>
-                <h4 className="text-xs font-black text-white uppercase">Claude-3 AI Humanized Closeouts</h4>
-                <p className="text-xs text-zinc-400 mt-0.5">Receive incredibly detailed, supportive, and analytical behavioral paragraph summaries generated directly by Anthropic's Claude-3 neural engine.</p>
+                <h4 className="text-xs font-black text-white uppercase">AI Humanized Closeouts</h4>
+                <p className="text-xs text-zinc-400 mt-0.5">Receive incredibly detailed, supportive, and analytical behavioral paragraph summaries generated directly by our AI engine.</p>
               </div>
             </div>
           </div>

@@ -130,7 +130,7 @@ export async function POST(req: Request) {
         }
 
         // Prioritize:
-        // 1. User specified environment override or user requested 'claude-sonnet-5'
+        // 1. User specified environment override or preferred model
         // 2. Models dynamically fetched from Anthropic /v1/models authorized for this exact API key
         // 3. Known fallback model identifiers
         const modelsToTry = Array.from(new Set([
@@ -191,7 +191,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Claude API Error:', error);
+    console.error('AI API Error:', error);
     return new Response(JSON.stringify({ error: message }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },

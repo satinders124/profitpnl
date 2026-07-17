@@ -69,7 +69,7 @@ export default function MentorModePage() {
 
           <PageInsightPanel
             kind="mentor"
-            initialTitle="Claude mentor briefing"
+            initialTitle="AI mentor briefing"
             initialSummary="Generate a coaching packet that highlights what a mentor should review first."
             context={{
               trader: displayName || user?.email || "Trader",

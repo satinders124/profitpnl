@@ -491,7 +491,7 @@ export default function ImportTradesPage() {
 
         <PageInsightPanel
           kind="import"
-          initialTitle="Claude import quality check"
+          initialTitle="AI import quality check"
           initialSummary="Generate an import cleanup read after loading a file to catch mapping issues before they affect analytics."
           context={{
             selectedPreset: presetId,

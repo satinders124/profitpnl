@@ -460,8 +460,8 @@ export default function DailyPlanPage() {
 
           <PageInsightPanel
             kind="daily-plan"
-            initialTitle="Claude pre-market briefing"
-            initialSummary="Generate a deeper Claude plan to turn today's guardrails into a clear market permission slip."
+            initialTitle="AI pre-market briefing"
+            initialSummary="Generate a deeper AI plan to turn today's guardrails into a clear market permission slip."
             context={{
               riskLevel: plan.riskLevel,
               maxTrades: plan.maxTrades,

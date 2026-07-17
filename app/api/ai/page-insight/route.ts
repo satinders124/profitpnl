@@ -135,7 +135,7 @@ function extractBalancedJson(raw: string) {
     if (depth === 0) return cleaned.slice(start, i + 1);
   }
 
-  // If Claude is cut off mid-object, return the cleaned raw text so the
+  // If the AI response is cut off mid-object, return the cleaned raw text so the
   // regex extractor below can still recover title/summary/bullets without
   // exposing JSON syntax to the user.
   return cleaned;

@@ -6,6 +6,7 @@ import Modal from "@/components/ui/Modal";
 import { TradeForm } from "@/components/trades/TradeForm";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useMode } from "@/components/providers/ModeProvider";
+import { createClient } from "@/lib/supabase-client";
 import { useRouter } from "next/navigation";
 import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
 import { getDailyPlan } from "@/lib/daily-plans";
@@ -566,14 +567,8 @@ export default function DashboardPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const [activeShift, cloudDailyPlan] = await Promise.all([
-        getActiveShift(user.id),
-        getDailyPlan(user.id, dashboardTodayKey()).catch(() => null),
-      ]);
-      setShiftData(activeShift);
-      setDailyPlanAccepted(Boolean(cloudDailyPlan?.acceptedAt) || (typeof window !== "undefined" && localStorage.getItem(`profitpnl_daily_plan_${dashboardTodayKey()}`) === "accepted"));
-
       if (isBacktest) {
+        setShiftData(null);
         const [m, p] = await Promise.all([getModels(), getProfile()]);
         setModels(m);
         setProfile(p);
@@ -592,17 +587,37 @@ export default function DashboardPage() {
         setPlaybook([]);
         setIsDemo(false);
       } else {
-        const [tradeRows, accountRows, playbookRows] = await Promise.all([
-          getTrades(user.id),
-          getAccounts(user.id),
-          getPlaybook(user.id),
-        ]);
+        try {
+          const { data: { session } } = await createClient().auth.getSession();
+          const res = await fetch(`/api/dashboard/summary?date=${dashboardTodayKey()}`, {
+            headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+          });
+          const summary = await res.json();
+          if (!res.ok) throw new Error(summary.error || "Could not load dashboard summary.");
 
-        setTrades(tradeRows);
-        setAccounts(accountRows);
-        setPlaybook(playbookRows);
-        // Enable demo mode only when user has zero real trades
-        setIsDemo(tradeRows.length === 0);
+          const tradeRows = (summary.trades || []) as Trade[];
+          setShiftData((summary.activeShift || null) as TraderShift | null);
+          setDailyPlanAccepted(Boolean(summary.dailyPlan?.acceptedAt) || (typeof window !== "undefined" && localStorage.getItem(`profitpnl_daily_plan_${dashboardTodayKey()}`) === "accepted"));
+          setTrades(tradeRows);
+          setAccounts((summary.accounts || []) as TradingAccount[]);
+          setPlaybook((summary.playbook || []) as PlaybookSetup[]);
+          setIsDemo(tradeRows.length === 0);
+        } catch (summaryError) {
+          console.error("Dashboard summary API fallback:", summaryError);
+          const [activeShift, cloudDailyPlan, tradeRows, accountRows, playbookRows] = await Promise.all([
+            getActiveShift(user.id),
+            getDailyPlan(user.id, dashboardTodayKey()).catch(() => null),
+            getTrades(user.id),
+            getAccounts(user.id),
+            getPlaybook(user.id),
+          ]);
+          setShiftData(activeShift);
+          setDailyPlanAccepted(Boolean(cloudDailyPlan?.acceptedAt) || (typeof window !== "undefined" && localStorage.getItem(`profitpnl_daily_plan_${dashboardTodayKey()}`) === "accepted"));
+          setTrades(tradeRows);
+          setAccounts(accountRows);
+          setPlaybook(playbookRows);
+          setIsDemo(tradeRows.length === 0);
+        }
       }
     } finally {
       setLoading(false);

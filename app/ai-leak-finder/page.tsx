@@ -110,8 +110,8 @@ export default function AiLeakFinderPage() {
 
           <PageInsightPanel
             kind="leak-finder"
-            initialTitle="Claude leak diagnosis"
-            initialSummary="Generate a Claude diagnosis that turns the highest R-cost pattern into a concrete rule and correction plan."
+            initialTitle="AI leak diagnosis"
+            initialSummary="Generate an AI diagnosis that turns the highest R-cost pattern into a concrete rule and correction plan."
             context={{
               closedTrades: closedCount,
               mainLeak,

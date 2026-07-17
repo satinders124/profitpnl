@@ -629,7 +629,7 @@ export function ActiveShiftTerminal({
         </div>
       )}
 
-      {/* DETAILED DAILY SHIFT OVERLAY SCREEN (Claude-AI Infused) */}
+      {/* DETAILED DAILY SHIFT OVERLAY SCREEN (AI Infused) */}
       {selectedDayShift && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
           <Card className="w-full max-w-2xl bg-[#0F0F1E] border border-[#24243C] p-6 sm:p-8 animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] space-y-6">
@@ -653,11 +653,11 @@ export function ActiveShiftTerminal({
             </div>
 
             <div className="space-y-5">
-              {/* Premium Claude Paragraph summary */}
+              {/* Premium AI paragraph summary */}
               <div className="p-5 rounded-2xl bg-[#14142B] border border-[#24243C] relative overflow-hidden shadow-[0_0_40px_-15px_#F0B429]/10">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#F0B429]/5 to-transparent pointer-events-none" />
                 <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#F0B429] mb-2 flex items-center gap-1.5 relative">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#F0B429] animate-pulse" /> CLAUDE CO-PILOT ADVICE
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#F0B429] animate-pulse" /> AI CO-PILOT ADVICE
                 </p>
                 <p className="text-xs sm:text-sm leading-[1.75] text-zinc-200 italic relative">
                   {getShiftReportSummary(selectedDayShift)}
@@ -719,7 +719,7 @@ export function ActiveShiftTerminal({
                 )}
               </div>
 
-              {/* Claude dynamic recommendation logic */}
+              {/* AI recommendation logic */}
               <div className="p-4 bg-orange-400/5 border border-orange-400/20 rounded-xl">
                 <h5 className="text-[10px] font-black uppercase text-orange-400 tracking-wider mb-1 flex items-center gap-1">
                   <Smile size={12} /> NEXT DAY FOCUS ACTION

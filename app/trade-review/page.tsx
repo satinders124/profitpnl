@@ -96,11 +96,11 @@ function AiReviewPanel({
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#F0B429]">
-            <Sparkles size={13} /> Claude Trade Review
+            <Sparkles size={13} /> AI Trade Review
           </p>
           <h3 className="text-lg font-black text-white">AI execution diagnosis</h3>
           <p className="mt-1 text-xs leading-5 text-[#8080A0]">
-            Claude reviews the selected trade and can auto-fill emotion, mistake, lesson, notes, and reviewed status.
+            AI reviews the selected trade and can auto-fill emotion, mistake, lesson, notes, and reviewed status.
           </p>
         </div>
         <button
@@ -127,7 +127,7 @@ function AiReviewPanel({
               {aiReview.confidence} confidence
             </span>
             <span className="rounded-full border border-[#F0B429]/30 bg-[#F0B429]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#F0B429]">
-              {aiReview.aiGenerated ? "Claude" : "Local"}
+              {aiReview.aiGenerated ? "AI" : "Local"}
             </span>
           </div>
 
@@ -256,7 +256,7 @@ export default function TradeReviewPage() {
       const data = await res.json().catch(() => null) as TradeAiReview | null;
       if (!res.ok || !data) throw new Error("AI trade review failed");
       setAiReview(data);
-      setNotice(data.aiGenerated ? "Claude review generated." : "Local review generated. Claude will enhance this when server AI is available.");
+      setNotice(data.aiGenerated ? "AI review generated." : "Local review generated. AI enhancement is available when server AI is enabled.");
     } catch (error) {
       console.error("AI trade review error:", error);
       setNotice("AI review is temporarily unavailable. You can still complete the review manually.");

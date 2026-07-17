@@ -16,14 +16,14 @@ const fallbackInsight: Insight = {
   title: "ProfitPnL insight",
   summary: "Use this panel to turn the current page data into a clear trading action. The best journal is not just a diary — it creates rules that change the next decision.",
   bullets: ["Identify the main risk.", "Turn the weakness into a rule.", "Track whether the rule improves execution."],
-  action: "Generate a Claude insight when you want a deeper coaching read.",
+  action: "Generate an AI insight when you want a deeper coaching read.",
   aiGenerated: false,
 };
 
 export function PageInsightPanel({
   kind,
   context,
-  initialTitle = "Claude Co-Pilot Insight",
+  initialTitle = "AI Co-Pilot Insight",
   initialSummary,
   compact = false,
 }: {
@@ -59,7 +59,7 @@ export function PageInsightPanel({
         action: data.action || fallbackInsight.action,
         aiGenerated: Boolean(data.aiGenerated),
       });
-      if (!data.aiGenerated) setNotice("Showing local intelligence. Claude enhancement is available when server AI is enabled.");
+      if (!data.aiGenerated) setNotice("Showing local intelligence. AI enhancement is available when server AI is enabled.");
     } catch {
       setNotice("AI insight is temporarily unavailable. Showing local intelligence instead.");
     } finally {
@@ -73,7 +73,7 @@ export function PageInsightPanel({
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#F0B429]">
-            <Sparkles size={13} /> {insight.aiGenerated ? "Claude Co-Pilot Analysis" : "AI Intelligence Layer"}
+            <Sparkles size={13} /> {insight.aiGenerated ? "AI Co-Pilot Analysis" : "AI Intelligence Layer"}
           </p>
           <h3 className="text-lg font-black text-white">{insight.title}</h3>
         </div>
@@ -83,7 +83,7 @@ export function PageInsightPanel({
           className="gold-gradient inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#080810] disabled:opacity-60"
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-          {loading ? "Analyzing" : insight.aiGenerated ? "Refresh AI" : "Generate Claude"}
+          {loading ? "Analyzing" : insight.aiGenerated ? "Refresh AI" : "Generate AI"}
         </button>
       </div>
 

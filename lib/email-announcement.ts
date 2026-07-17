@@ -59,10 +59,10 @@ export function featureAnnouncementEmailHtml(name: string): string {
                 <!-- Feature 3 -->
                 <div style="margin-bottom:24px;">
                   <h3 style="margin:0 0 6px; font-family:${FONT}; font-size:14px; font-weight:900; color:#080810;">
-                    🧠 Claude-3 AI Behavioral Closeouts
+                    🧠 AI Behavioral Closeouts
                   </h3>
                   <p style="margin:0; font-family:${FONT}; font-size:12px; line-height:1.6; color:#5b5b78;">
-                    When you clock out, our direct Claude-3 neural integration evaluates your discipline and generates a highly comprehensive, personalized behavioral summary paragraph detailing your shift.
+                    When you clock out, our AI behavioral engine evaluates your discipline and generates a highly comprehensive, personalized behavioral summary paragraph detailing your shift.
                   </p>
                 </div>
 

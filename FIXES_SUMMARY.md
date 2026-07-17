@@ -211,7 +211,7 @@ This crashed the build on `/_not-found` and every page that imported `createClie
 | `app/settings/page.tsx` | Added upgrade notification popup when returning from checkout |
 | `components/loader/AppLoader.tsx` | Fixed React Error #418 SSR/hydration mismatch |
 | `app/upgrade/page.tsx` | Added Bearer authorization header to checkout API calls |
-| `app/ai-coach/page.tsx` | Added Bearer authorization header to Claude AI API calls |
+| `app/ai-coach/page.tsx` | Added Bearer authorization header to AI API calls |
 | `app/api/payments/verify/route.ts` | Enforced strict JWT authentication and user ownership guards |
 | `app/api/ai/claude/route.ts` | Fixed message role formatting, dynamic system prompt, and API key error reporting |
 | `app/reset-password/page.tsx` | **New** — dedicated password update screen for recovery email links |
