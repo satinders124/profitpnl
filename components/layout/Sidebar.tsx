@@ -43,32 +43,37 @@ type NavGroup = {
 
 const liveNavGroups: NavGroup[] = [
   {
-    label: "Overview",
+    label: "Command",
     items: [
-      { label: "Dashboard", href: "/dashboard", icon: Home },
+      { label: "Trading HQ", href: "/dashboard", icon: Home },
       { label: "Daily Plan", href: "/daily-plan", icon: ClipboardCheck, badge: "AI" },
+      { label: "Weekly Review", href: "/weekly-review", icon: ClipboardCheck, badge: "AI" },
     ],
   },
   {
-    label: "Journal & Analytics",
+    label: "Journal",
     items: [
       { label: "Trade Log", href: "/trades", icon: ListChecks },
-      { label: "Performance", href: "/analytics", icon: BarChart3 },
-      { label: "Certificates", href: "/certificates", icon: Award },
-      { label: "AI Coach", href: "/ai-coach", icon: Sparkles, badge: "Pro" },
-      { label: "Weekly Review", href: "/weekly-review", icon: ClipboardCheck, badge: "AI" },
-      { label: "AI Leak Finder", href: "/ai-leak-finder", icon: Search, badge: "AI" },
       { label: "Trade Review", href: "/trade-review", icon: ClipboardCheck },
       { label: "Import Center", href: "/import-trades", icon: FileSpreadsheet },
-      { label: "Psychology", href: "/psychology", icon: Brain },
-      { label: "AI Risk-Guard", href: "/psychology/guard", icon: Shield, badge: "PWA" },
-      { label: "Prop Firm Mode", href: "/prop-firm-challenge", icon: ShieldCheck },
       { label: "Playbook", href: "/playbook", icon: BookOpen },
     ],
   },
   {
-    label: "Management",
+    label: "AI Intelligence",
     items: [
+      { label: "Analytics", href: "/analytics", icon: BarChart3 },
+      { label: "AI Coach", href: "/ai-coach", icon: Sparkles, badge: "Pro" },
+      { label: "AI Leak Finder", href: "/ai-leak-finder", icon: Search, badge: "AI" },
+      { label: "Psychology", href: "/psychology", icon: Brain },
+      { label: "AI Risk-Guard", href: "/psychology/guard", icon: Shield, badge: "PWA" },
+      { label: "Prop Firm Mode", href: "/prop-firm-challenge", icon: ShieldCheck },
+    ],
+  },
+  {
+    label: "Growth & Account",
+    items: [
+      { label: "Certificates", href: "/certificates", icon: Award },
       { label: "Mentor Mode", href: "/mentor", icon: GraduationCap },
       { label: "Accounts", href: "/accounts", icon: CreditCard },
       { label: "Settings", href: "/settings", icon: Settings },
@@ -78,13 +83,28 @@ const liveNavGroups: NavGroup[] = [
 
 const backtestNavGroups: NavGroup[] = [
   {
-    label: "Backtesting Journal",
+    label: "Command",
+    items: [{ label: "Backtesting HQ", href: "/dashboard", icon: Home }],
+  },
+  {
+    label: "Journal",
     items: [
-      { label: "Dashboard", href: "/dashboard", icon: Home },
       { label: "Trade Log", href: "/trades", icon: ListChecks },
+      { label: "Playbook", href: "/playbook", icon: BookOpen },
+    ],
+  },
+  {
+    label: "AI Intelligence",
+    items: [
       { label: "Analytics", href: "/analytics", icon: BarChart3 },
       { label: "AI Coach", href: "/ai-coach", icon: Sparkles, badge: "Pro" },
-      { label: "Playbook", href: "/playbook", icon: BookOpen },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { label: "Accounts", href: "/accounts", icon: CreditCard },
+      { label: "Settings", href: "/settings", icon: Settings },
     ],
   },
 ];
@@ -134,7 +154,6 @@ function ModeSwitch({ isBacktest }: { isBacktest: boolean }) {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { mode } = useMode();
   const isBacktest = mode === "backtest";
   const {

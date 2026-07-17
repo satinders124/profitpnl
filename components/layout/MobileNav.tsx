@@ -34,45 +34,75 @@ type NavItem = {
   switch?: boolean;
 };
 
+type NavSection = {
+  label: string;
+  items: NavItem[];
+};
+
 const liveMainItems: NavItem[] = [
-  { label: "Overview", href: "/dashboard", icon: Home },
+  { label: "HQ", href: "/dashboard", icon: Home },
+  { label: "Plan", href: "/daily-plan", icon: ClipboardCheck },
   { label: "Trades", href: "/trades", icon: ListChecks },
-  { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "AI Desk", href: "/ai-coach", icon: Sparkles },
 ];
 
-const liveMoreItemsBase: NavItem[] = [
-  { label: "Certificates", href: "/certificates", icon: Award },
-  { label: "Daily Plan", href: "/daily-plan", icon: ClipboardCheck },
-  { label: "Weekly Review", href: "/weekly-review", icon: ClipboardCheck },
-  { label: "AI Leak Finder", href: "/ai-leak-finder", icon: Search },
-  { label: "Trade Review", href: "/trade-review", icon: ClipboardCheck },
-  { label: "Import Center", href: "/import-trades", icon: FileSpreadsheet },
-  { label: "Prop Firm Mode", href: "/prop-firm-challenge", icon: ShieldCheck },
-  { label: "Mentor Mode", href: "/mentor", icon: GraduationCap },
-  { label: "Playbook", href: "/playbook", icon: BookOpen },
-  { label: "Psychology", href: "/psychology", icon: Brain },
-  { label: "AI Risk-Guard", href: "/psychology/guard", icon: Brain },
-  { label: "Accounts", href: "/accounts", icon: CreditCard },
-  { label: "Settings", href: "/settings", icon: Settings },
+const liveMoreSectionsBase: NavSection[] = [
+  {
+    label: "Command",
+    items: [
+      { label: "Weekly Review", href: "/weekly-review", icon: ClipboardCheck },
+    ],
+  },
+  {
+    label: "Journal",
+    items: [
+      { label: "Trade Review", href: "/trade-review", icon: ClipboardCheck },
+      { label: "Import Center", href: "/import-trades", icon: FileSpreadsheet },
+      { label: "Playbook", href: "/playbook", icon: BookOpen },
+    ],
+  },
+  {
+    label: "AI Intelligence",
+    items: [
+      { label: "Analytics", href: "/analytics", icon: BarChart3 },
+      { label: "AI Leak Finder", href: "/ai-leak-finder", icon: Search },
+      { label: "AI Risk-Guard", href: "/psychology/guard", icon: Brain },
+      { label: "Prop Firm Mode", href: "/prop-firm-challenge", icon: ShieldCheck },
+      { label: "Psychology", href: "/psychology", icon: Brain },
+    ],
+  },
+  {
+    label: "Growth & Account",
+    items: [
+      { label: "Certificates", href: "/certificates", icon: Award },
+      { label: "Mentor Mode", href: "/mentor", icon: GraduationCap },
+      { label: "Accounts", href: "/accounts", icon: CreditCard },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
 const backtestMainItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: Home },
+  { label: "HQ", href: "/dashboard", icon: Home },
   { label: "Trades", href: "/trades", icon: ListChecks },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "AI Coach", href: "/ai-coach", icon: Sparkles },
 ];
 
-const backtestMoreItems: NavItem[] = [
-  { label: "Playbook", href: "/playbook", icon: BookOpen },
-  { label: "Accounts", href: "/accounts", icon: CreditCard },
-  { label: "Settings", href: "/settings", icon: Settings },
+const backtestMoreSections: NavSection[] = [
   {
-    label: "Shift to Live Journal",
-    href: "/dashboard",
-    icon: ArrowUpRight,
-    switch: true,
+    label: "Backtesting Journal",
+    items: [
+      { label: "Playbook", href: "/playbook", icon: BookOpen },
+      { label: "Accounts", href: "/accounts", icon: CreditCard },
+      { label: "Settings", href: "/settings", icon: Settings },
+      {
+        label: "Shift to Live Journal",
+        href: "/dashboard",
+        icon: ArrowUpRight,
+        switch: true,
+      },
+    ],
   },
 ];
 
@@ -93,20 +123,30 @@ export function MobileNav() {
 
   const mainItems = isBacktest ? backtestMainItems : liveMainItems;
 
-  const moreItems = isBacktest
-    ? backtestMoreItems
-    : isAffiliate
-      ? [
-          liveMoreItemsBase[0],
-          liveMoreItemsBase[1],
-          liveMoreItemsBase[2],
-          liveMoreItemsBase[3],
-          liveMoreItemsBase[4],
-          { label: "Affiliate", href: "/affiliate", icon: Award },
-          ...liveMoreItemsBase.slice(5),
-          switchItem,
-        ]
-      : [...liveMoreItemsBase, switchItem];
+  const liveMoreSections = isAffiliate
+    ? liveMoreSectionsBase.map((section) =>
+        section.label === "Growth & Account"
+          ? {
+              ...section,
+              items: [
+                section.items[0],
+                section.items[1],
+                { label: "Affiliate", href: "/affiliate", icon: Award },
+                ...section.items.slice(2),
+              ],
+            }
+          : section
+      )
+    : liveMoreSectionsBase;
+
+  const moreSections = isBacktest
+    ? backtestMoreSections
+    : [
+        ...liveMoreSections,
+        { label: "Mode", items: [switchItem] },
+      ];
+
+  const moreItems = moreSections.flatMap((section) => section.items);
 
   const isMoreActive = moreItems.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -228,43 +268,54 @@ export function MobileNav() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 p-4">
-                {moreItems.map((item) => {
-                  const active =
-                    pathname === item.href ||
-                    pathname.startsWith(`${item.href}/`);
-                  const Icon = item.icon;
+              <div className="max-h-[72vh] overflow-y-auto p-4 no-scrollbar">
+                <div className="space-y-5">
+                  {moreSections.map((section) => (
+                    <div key={section.label}>
+                      <div className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
+                        {section.label}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {section.items.map((item) => {
+                          const active =
+                            pathname === item.href ||
+                            pathname.startsWith(`${item.href}/`);
+                          const Icon = item.icon;
 
-                  if (item.switch) {
-                    return (
-                      <button
-                        key={item.label}
-                        onClick={handleSwitch}
-                        className="flex items-center gap-3 rounded-xl border border-[#F0B429]/30 bg-[#F0B429]/[0.06] px-4 py-3.5 text-sm font-semibold text-[#F0B429] transition-all hover:bg-[#F0B429]/10"
-                      >
-                        <Icon size={18} strokeWidth={2.2} />
-                        {item.label}
-                      </button>
-                    );
-                  }
+                          if (item.switch) {
+                            return (
+                              <button
+                                key={item.label}
+                                onClick={handleSwitch}
+                                className="flex items-center gap-3 rounded-xl border border-[#F0B429]/30 bg-[#F0B429]/[0.06] px-4 py-3.5 text-sm font-semibold text-[#F0B429] transition-all hover:bg-[#F0B429]/10"
+                              >
+                                <Icon size={18} strokeWidth={2.2} />
+                                {item.label}
+                              </button>
+                            );
+                          }
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMoreOpen(false)}
-                      className={[
-                        "flex items-center gap-3 rounded-xl border px-4 py-3.5 text-sm font-medium transition-all",
-                        active
-                          ? "border-[#F0B429]/40 bg-[#F0B429]/10 text-[#F0B429] font-semibold"
-                          : "border-[#1F1F2C] bg-[#111120] text-zinc-400 hover:border-[#F0B429]/30 hover:text-white",
-                      ].join(" ")}
-                    >
-                      <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
-                      {item.label}
-                    </Link>
-                  );
-                })}
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setMoreOpen(false)}
+                              className={[
+                                "flex items-center gap-3 rounded-xl border px-4 py-3.5 text-sm font-medium transition-all",
+                                active
+                                  ? "border-[#F0B429]/40 bg-[#F0B429]/10 text-[#F0B429] font-semibold"
+                                  : "border-[#1F1F2C] bg-[#111120] text-zinc-400 hover:border-[#F0B429]/30 hover:text-white",
+                              ].join(" ")}
+                            >
+                              <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </motion.div>
           </>
