@@ -98,11 +98,77 @@ function localInsight(kind: string): AiInsight {
   return { ...fallback, aiGenerated: false };
 }
 
-function parseJsonInsight(raw: string, kind: string): AiInsight {
+function stripMarkdownFences(raw: string) {
+  return raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
+function extractBalancedJson(raw: string) {
+  const cleaned = stripMarkdownFences(raw);
+  const start = cleaned.indexOf("{");
+  if (start < 0) return cleaned;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < cleaned.length; i++) {
+    const char = cleaned[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && inString) {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (char === "{") depth += 1;
+    if (char === "}") depth -= 1;
+    if (depth === 0) return cleaned.slice(start, i + 1);
+  }
+
+  // If Claude is cut off mid-object, return the cleaned raw text so the
+  // regex extractor below can still recover title/summary/bullets without
+  // exposing JSON syntax to the user.
+  return cleaned;
+}
+
+function decodeJsonString(value: string) {
   try {
-    const cleaned = raw.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
-    const parsed = asObject(JSON.parse(cleaned));
-    const fallback = localInsight(kind);
+    return JSON.parse(`"${value}"`);
+  } catch {
+    return value.replace(/\\"/g, '"').replace(/\\n/g, "\n");
+  }
+}
+
+function extractStringField(raw: string, field: "title" | "summary" | "action") {
+  const match = raw.match(new RegExp(`"${field}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)`, "s"));
+  return match ? decodeJsonString(match[1]).trim() : "";
+}
+
+function extractBulletFields(raw: string) {
+  const arrayMatch = raw.match(/"bullets"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
+  if (!arrayMatch) return [];
+  return Array.from(arrayMatch[1].matchAll(/"((?:\\.|[^"\\])*)"/g))
+    .map((match) => decodeJsonString(match[1]).trim())
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+function parseJsonInsight(raw: string, kind: string): AiInsight {
+  const fallback = localInsight(kind);
+  const candidate = extractBalancedJson(raw);
+
+  try {
+    const parsed = asObject(JSON.parse(candidate));
     const bullets = stringArray(parsed.bullets);
     return {
       title: text(parsed.title, fallback.title).slice(0, 90),
@@ -112,13 +178,17 @@ function parseJsonInsight(raw: string, kind: string): AiInsight {
       aiGenerated: true,
     };
   } catch {
-    const fallback = localInsight(kind);
+    const title = extractStringField(candidate, "title") || fallback.title;
+    const summary = extractStringField(candidate, "summary") || fallback.summary;
+    const bullets = extractBulletFields(candidate);
+    const action = extractStringField(candidate, "action") || fallback.action;
+
     return {
-      title: fallback.title,
-      summary: raw.trim() || fallback.summary,
-      bullets: fallback.bullets,
-      action: fallback.action,
-      aiGenerated: true,
+      title: title.slice(0, 90),
+      summary,
+      bullets: bullets.length ? bullets : fallback.bullets,
+      action,
+      aiGenerated: Boolean(title || summary || bullets.length || action),
     };
   }
 }
@@ -172,7 +242,7 @@ export async function POST(req: Request) {
       "claude-3-haiku-20240307",
     ].filter(Boolean))) as string[];
 
-    const system = `You are ProfitPnL's institutional trading performance analyst. You write concise, premium coaching insights for a trading journal product. Never mention APIs, environment variables, servers, or implementation details. Return valid JSON only with: title (short), summary (80-140 words), bullets (3-5 strings), action (one concrete next step). Be specific, direct, and risk-aware.`;
+    const system = `You are ProfitPnL's institutional trading performance analyst. You write concise, premium coaching insights for a trading journal product. Never mention APIs, environment variables, servers, or implementation details. Return ONLY compact valid JSON with no markdown fences and no prose outside JSON. Required keys: title (short), summary (60-110 words), bullets (exactly 3 short strings), action (one concrete next step). Be specific, direct, and risk-aware.`;
     const prompt = `Trader: ${user.email || "unknown"}\nPage kind: ${kind}\nContext JSON:\n${context}`;
 
     let raw = "";
@@ -180,7 +250,7 @@ export async function POST(req: Request) {
       try {
         const response = await anthropic.messages.create({
           model,
-          max_tokens: 650,
+          max_tokens: 1000,
           system,
           messages: [{ role: "user", content: prompt }],
         });
