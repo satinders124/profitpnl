@@ -1889,6 +1889,7 @@ export default function Home() {
         <TickerTape />
         <Hero />
         <Stats />
+        <Pricing />
         <BiasDeskIndicatorProduct />
         <ToolsPreview />
         <Features />
@@ -1898,7 +1899,6 @@ export default function Home() {
         <BacktestingReportsPreview />
         <HowItWorks />
         <Testimonials />
-        <Pricing />
         <FAQ />
         <CTA />
       </main>
