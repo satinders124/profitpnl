@@ -800,7 +800,7 @@ export default function DashboardPage() {
             ? "Your active, real-time strategy verification co-pilot"
             : "Your trading command center"
       }
-      actionLabel={isBacktest ? "+ New Model" : shiftData ? undefined : "+ Log New Trade"}
+      actionLabel={isBacktest ? "New Model" : shiftData ? undefined : "Log New Trade"}
       onAction={
         isBacktest
           ? () => router.push("/playbook")

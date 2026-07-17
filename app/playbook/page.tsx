@@ -1276,7 +1276,7 @@ export default function PlaybookPage() {
           ? `${btModels.length} strategy models · ${btTradesAll.length} backtested trades`
           : `${setups.length} strategy models · ${globalStats.active} active`
       }
-      actionLabel={isBacktest ? "+ New Model" : "+ New Setup"}
+      actionLabel={isBacktest ? "New Model" : "New Setup"}
       onAction={isBacktest ? openCreateModel : openCreate}
     >
       <div className="space-y-5">
