@@ -18,7 +18,19 @@ export async function GET(req: Request, context: RouteContext) {
   const { slug } = await context.params;
   const affiliate = await getAffiliateBySlug(slug);
   const url = new URL(req.url);
-  const destination = new URL(url.searchParams.get("to") || "/", url.origin);
+  const requestedDestination = url.searchParams.get("to") || "/";
+  let destination = new URL("/", url.origin);
+
+  // Keep referral redirects on-site. This prevents /r/:slug from becoming an
+  // open redirect while still allowing campaign links such as /r/tom?to=/upgrade.
+  try {
+    const candidate = new URL(requestedDestination, url.origin);
+    if (candidate.origin === url.origin) {
+      destination = candidate;
+    }
+  } catch {
+    destination = new URL("/", url.origin);
+  }
 
   if (!affiliate) {
     destination.pathname = "/";

@@ -33,6 +33,59 @@ function promotionCodeIdFromInvoice(invoice: InvoiceLike) {
   return null;
 }
 
+function addMonths(date: Date, months: number) {
+  const copy = new Date(date);
+  copy.setMonth(copy.getMonth() + months);
+  return copy;
+}
+
+async function isInsideCommissionWindow({
+  supabase,
+  affiliate,
+  subscriptionId,
+  userId,
+  invoiceCreatedMs,
+}: {
+  supabase: SupabaseServer;
+  affiliate: Affiliate;
+  subscriptionId: string | null;
+  userId?: string | null;
+  invoiceCreatedMs: number;
+}) {
+  const durationMonths = Math.max(1, Math.round(Number(affiliate.commission_duration_months || 1)));
+
+  let query = supabase
+    .from("affiliate_commissions")
+    .select("created_at")
+    .eq("affiliate_id", affiliate.id)
+    .neq("status", "reversed")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (subscriptionId) {
+    query = query.eq("stripe_subscription_id", subscriptionId);
+  } else if (userId) {
+    query = query.eq("user_id", userId);
+  } else {
+    return true;
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("Affiliate commission window lookup error:", error);
+    // Do not block a valid commission because the reporting query failed.
+    return true;
+  }
+
+  const firstCommissionAt = data?.[0]?.created_at;
+  if (!firstCommissionAt) return true;
+
+  const firstDate = new Date(firstCommissionAt);
+  if (Number.isNaN(firstDate.getTime())) return true;
+
+  return invoiceCreatedMs < addMonths(firstDate, durationMonths).getTime();
+}
+
 async function getAffiliateById(supabase: SupabaseServer, affiliateId?: string | null): Promise<Affiliate | null> {
   if (!affiliateId) return null;
   const { data, error } = await supabase
@@ -138,9 +191,22 @@ export async function createAffiliateCommission({
     .maybeSingle();
   if (existing?.id) return { created: false, reason: "already_exists" };
 
+  const invoiceCreatedMs = typeof invoice.created === "number" ? invoice.created * 1000 : Date.now();
+  const insideCommissionWindow = await isInsideCommissionWindow({
+    supabase,
+    affiliate,
+    subscriptionId,
+    userId,
+    invoiceCreatedMs,
+  });
+
+  if (!insideCommissionWindow) {
+    return { created: false, reason: "commission_window_elapsed" };
+  }
+
   const commissionAmountCents = Math.round(grossAmountCents * (Number(affiliate.commission_percent) / 100));
 
-  const { error } = await supabase.from("affiliate_commissions").insert({
+  const { error } = await supabase.from("affiliate_commissions").insert({ 
     affiliate_id: affiliate.id,
     user_id: userId || null,
     stripe_customer_id: typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id || null,
