@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
+import { PageInsightPanel } from "@/components/ai/PageInsightPanel";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getTrades } from "@/lib/db";
 import { getRecentShifts, TraderShift } from "@/lib/shifts-db";
@@ -433,6 +434,24 @@ export default function WeeklyReviewPage() {
               </div>
             </div>
           </Card>
+
+          <PageInsightPanel
+            kind="weekly-review"
+            initialTitle="Claude weekly coach"
+            initialSummary="Generate a deeper weekly coaching read that converts performance, leaks, and psychology into next-week rules."
+            context={{
+              week: formatRange(selectedWeek.start, selectedWeek.end),
+              stats,
+              previousStats,
+              bestSetup,
+              worstSetup,
+              worstLeak,
+              reviewCompletion,
+              reviewQueueCount: reviewQueue.length,
+              nextWeekRules: rules,
+              psychology: { sessions: weekShifts.length, avgDiscipline, avgStress },
+            }}
+          />
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MiniStat label="Net R" value={formatR(stats.totalR)} sub={`Previous: ${formatR(previousStats.totalR)}`} icon={stats.totalR >= previousStats.totalR ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />} tone={stats.totalR >= 0 ? "green" : "red"} />

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
+import { PageInsightPanel } from "@/components/ai/PageInsightPanel";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getTrades, saveTrade } from "@/lib/db";
 import { Trade } from "@/types/trade";
@@ -83,6 +84,23 @@ export default function TradeReviewPage() {
 
             <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-5">
               {!selected ? <p className="rounded-2xl border border-dashed border-[#2A2A3C] bg-[#080810] p-8 text-center text-sm text-zinc-500">Select a trade to review.</p> : <div className="space-y-5"><div className="flex flex-col gap-3 border-b border-[#1E1E38] pb-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-xl font-black text-white">{selected.instrument}</h2><p className="mt-1 text-xs text-[#8080A0]">{selected.date} · {selected.setup || "No setup"} · {formatR(selected.result)}</p></div><button onClick={saveReview} disabled={saving} className="gold-gradient inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-[#080810] disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save Review</button></div>
+                <PageInsightPanel
+                  kind="trade-review"
+                  compact
+                  initialTitle="Claude execution diagnosis"
+                  initialSummary="Generate a Claude review to identify whether this trade was a strategy, execution, risk, or psychology issue."
+                  context={{
+                    trade: selected,
+                    draft,
+                    missing: {
+                      reviewed: !selected.reviewed,
+                      emotion: !draft.emotion,
+                      mistake: !draft.mistake,
+                      lesson: !draft.lesson,
+                    },
+                  }}
+                />
+
                 <div><p className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#F0B429]"><Sparkles size={12} /> Emotion</p><div className="flex flex-wrap gap-2">{emotions.map((emotion) => <button key={emotion} onClick={() => setDraft((d) => ({ ...d, emotion }))} className={`rounded-full border px-3 py-1.5 text-xs font-bold ${draft.emotion === emotion ? "border-[#F0B429]/40 bg-[#F0B429]/15 text-[#F0B429]" : "border-[#1E1E38] bg-[#080810] text-zinc-400"}`}>{emotion}</button>)}</div></div>
                 <div><p className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#F0B429]"><Tag size={12} /> Mistake</p><div className="flex flex-wrap gap-2">{mistakes.map((mistake) => <button key={mistake} onClick={() => setDraft((d) => ({ ...d, mistake }))} className={`rounded-full border px-3 py-1.5 text-xs font-bold ${draft.mistake === mistake ? "border-[#F0B429]/40 bg-[#F0B429]/15 text-[#F0B429]" : "border-[#1E1E38] bg-[#080810] text-zinc-400"}`}>{mistake}</button>)}</div></div>
                 <label className="block"><p className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#F0B429]"><Target size={12} /> Lesson</p><textarea value={String(draft.lesson || "")} onChange={(e) => setDraft((d) => ({ ...d, lesson: e.target.value }))} placeholder="What is the one lesson this trade teaches?" className="h-28 w-full resize-none rounded-2xl border border-[#1E1E38] bg-[#080810] p-4 text-sm text-white outline-none focus:border-[#F0B429]" /></label>

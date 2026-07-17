@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
+import { PageInsightPanel } from "@/components/ai/PageInsightPanel";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getAccounts, getTrades } from "@/lib/db";
 import { TradingAccount } from "@/types/account";
@@ -155,6 +156,31 @@ export default function PropFirmChallengePage() {
             <Stat label="Drawdown Buffer" value={money(drawdownBuffer)} sub={`Floor: ${money(drawdownFloor)}`} icon={<TrendingDown size={20} />} tone={drawdownBuffer > 0 ? "green" : "red"} />
             <Stat label="Consistency Risk" value={profit > 0 ? `${Math.round(consistencyRisk * 100)}%` : "—"} sub={`Biggest win day: ${money(biggestWinningDay)}`} icon={<AlertTriangle size={20} />} tone={consistencyRisk > 0.45 ? "red" : "green"} />
           </div>
+
+          <PageInsightPanel
+            kind="prop-firm"
+            initialTitle="Claude prop firm risk briefing"
+            initialSummary="Generate a challenge safety read before you risk more capital."
+            context={{
+              account: selected,
+              score,
+              grade: g.label,
+              accountSize,
+              startingBalance,
+              currentBalance,
+              profit,
+              profitTarget,
+              progress,
+              dailyLoss,
+              todayPnl,
+              dailyBuffer,
+              maxDrawdown,
+              drawdownFloor,
+              drawdownBuffer,
+              consistencyRisk,
+              biggestWinningDay,
+            }}
+          />
 
           <section className="grid gap-7 xl:grid-cols-[1fr_1fr]">
             <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-5"><h2 className="flex items-center gap-2 text-lg font-black text-white"><Wallet className="text-[#F0B429]" /> Account Snapshot</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Mini label="Starting" value={money(startingBalance)} /><Mini label="Current" value={money(currentBalance)} /><Mini label="Profit Target" value={ruleLabel(selected?.profitTarget, profitTarget, 10)} /><Mini label="Max Drawdown" value={ruleLabel(selected?.maxDD, maxDrawdown, 10)} /></div></Card>

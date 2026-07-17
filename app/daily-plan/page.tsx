@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
+import { PageInsightPanel } from "@/components/ai/PageInsightPanel";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
 import { getRecentShifts, TraderShift } from "@/lib/shifts-db";
@@ -291,6 +292,31 @@ export default function DailyPlanPage() {
               </div>
             </div>
           </Card>
+
+          <PageInsightPanel
+            kind="daily-plan"
+            initialTitle="Claude pre-market briefing"
+            initialSummary="Generate a deeper Claude plan to turn today's guardrails into a clear market permission slip."
+            context={{
+              riskLevel: plan.riskLevel,
+              maxTrades: plan.maxTrades,
+              riskPerTrade: plan.riskPerTrade,
+              riskScale: plan.riskScale,
+              allowedSetups: plan.allowedSetups,
+              avoidList: plan.avoidList,
+              stopRules: plan.stopRules,
+              focus: plan.focus,
+              recentStats: {
+                totalR: stats.totalR,
+                winRate: stats.winRate,
+                expectancy: stats.expectancy,
+                maxDrawdown: stats.maxDD,
+                streak: stats.streak,
+              },
+              account: accounts.find((account) => account.id === accountId) || null,
+              latestShift: shifts[0] || null,
+            }}
+          />
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Mini label="30D Net R" value={formatR(stats.totalR)} icon={<Target size={20} />} tone={stats.totalR >= 0 ? "green" : "red"} />

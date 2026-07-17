@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
+import { PageInsightPanel } from "@/components/ai/PageInsightPanel";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getTrades } from "@/lib/db";
 import { Trade } from "@/types/trade";
@@ -106,6 +107,17 @@ export default function AiLeakFinderPage() {
       {loading ? <div className="flex min-h-[420px] items-center justify-center text-sm text-[#8080A0]"><Loader2 className="mr-2 animate-spin" /> Scanning journal leaks…</div> : (
         <div className="mx-auto max-w-6xl space-y-7 pb-24">
           <Card className="relative overflow-hidden border-[#F0B429]/25 bg-[#07070D] p-0 shadow-2xl shadow-black/40"><div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(240,180,41,0.20),transparent_34%),radial-gradient(circle_at_88%_0%,rgba(255,69,101,0.12),transparent_30%)]" /><div className="relative grid gap-7 p-6 lg:grid-cols-[1.3fr_0.8fr] lg:p-8"><div><div className="inline-flex items-center gap-2 rounded-full border border-[#F0B429]/30 bg-[#F0B429]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#F0B429]"><Sparkles size={12} /> AI Leak Intelligence</div><h1 className="mt-5 text-4xl font-black tracking-tighter text-white sm:text-5xl">AI Leak Finder</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-[#A0A0C0]">ProfitPnL scans setup, instrument, session, emotion, mistake, weekday, and time windows to show where your edge is bleeding.</p></div><div className="rounded-[2rem] border border-[#FF4565]/25 bg-[#FF4565]/10 p-5"><p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#FF9AAA]">Primary Leak</p><p className="mt-2 text-2xl font-black text-white">{mainLeak ? mainLeak.name : "No leak yet"}</p><p className="mt-2 text-xs leading-6 text-zinc-300">{topPatternText(mainLeak)}</p></div></div></Card>
+
+          <PageInsightPanel
+            kind="leak-finder"
+            initialTitle="Claude leak diagnosis"
+            initialSummary="Generate a Claude diagnosis that turns the highest R-cost pattern into a concrete rule and correction plan."
+            context={{
+              closedTrades: closedCount,
+              mainLeak,
+              topLeaks: leaks.slice(0, 8),
+            }}
+          />
 
           <section className="grid gap-4 md:grid-cols-3"><Stat label="Closed Trades" value={String(closedCount)} icon={<Target size={20} />} /><Stat label="Leaks Found" value={String(leaks.length)} icon={<ShieldAlert size={20} />} tone="red" /><Stat label="Worst Cost" value={mainLeak ? formatR(mainLeak.totalR) : "—"} icon={<Flame size={20} />} tone="red" /></section>
 

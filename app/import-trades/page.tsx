@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
+import { PageInsightPanel } from "@/components/ai/PageInsightPanel";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getTrades, saveTrade } from "@/lib/db";
 import { Trade } from "@/types/trade";
@@ -212,6 +213,19 @@ export default function ImportTradesPage() {
         </Card>
 
         {message && <div className="rounded-2xl border border-[#F0B429]/25 bg-[#F0B429]/10 px-4 py-3 text-sm font-bold text-[#F0B429]">{message}</div>}
+
+        <PageInsightPanel
+          kind="import"
+          initialTitle="Claude import quality check"
+          initialSummary="Generate an import cleanup read after loading a file to catch mapping issues before they affect analytics."
+          context={{
+            headers,
+            rowCount: rows.length,
+            mappedFields: mapping,
+            validPreviewRows: preview.length,
+            sampleRows: preview.slice(0, 5),
+          }}
+        />
 
         <section className="grid gap-7 xl:grid-cols-[0.8fr_1.2fr]">
           <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-5">
