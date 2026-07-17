@@ -2,10 +2,56 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { getActiveShift, clockIn, TraderShift } from "@/lib/shifts-db";
+import { getActiveShift, clockIn } from "@/lib/shifts-db";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Clock, HelpCircle, Activity, Info } from "lucide-react";
+import { Brain, Clock } from "lucide-react";
 import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
+
+
+function parseCurrencyInput(value: string) {
+  const cleaned = value.replace(/[^0-9.]/g, "");
+  if (!cleaned) return 0;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function currencyDisplay(value: number) {
+  return value > 0 ? String(value) : "";
+}
+
+function CurrencyField({
+  label,
+  value,
+  onChange,
+  accent = "#F0B429",
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  accent?: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col">
+      <label className="mb-2 flex min-h-[2rem] items-end text-[10px] font-black uppercase leading-tight tracking-widest text-[#5A5A80]">
+        {label}
+      </label>
+      <div
+        className="flex h-12 items-center rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-4 transition-colors focus-within:border-[var(--field-accent)]"
+        style={{ "--field-accent": accent } as React.CSSProperties}
+      >
+        <span className="mr-3 shrink-0 text-xs font-black" style={{ color: accent }}>$</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={currencyDisplay(value)}
+          onChange={(event) => onChange(parseCurrencyInput(event.target.value))}
+          placeholder="0"
+          className="h-full min-w-0 flex-1 bg-transparent text-xs font-black text-white outline-none placeholder:text-[#3A3A5A]"
+        />
+      </div>
+    </div>
+  );
+}
 
 export function ActiveTraderCheckinModal() {
   const { user } = useAuth();
@@ -105,25 +151,19 @@ export function ActiveTraderCheckinModal() {
 
           <div className="space-y-4">
             {/* Target Profit & Max Drawdown Row — fully aligned on desktop and mobile */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-2 leading-none">Today's Profit Target ($)</label>
-                <input 
-                  type="number"
-                  value={targetProfit}
-                  onChange={e => setTargetProfit(Number(e.target.value))}
-                  className="w-full h-11 bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-2 leading-none">Daily Loss Limit ($)</label>
-                <input 
-                  type="number"
-                  value={maxDrawdownLimit}
-                  onChange={e => setMaxDrawdownLimit(Number(e.target.value))}
-                  className="w-full h-11 bg-[#0D0D1A] border border-[#1E1E38] rounded-xl px-4 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
-                />
-              </div>
+            <div className="grid grid-cols-2 items-end gap-4">
+              <CurrencyField
+                label="Today's Profit Target"
+                value={targetProfit}
+                onChange={setTargetProfit}
+                accent="#F0B429"
+              />
+              <CurrencyField
+                label="Daily Loss Limit"
+                value={maxDrawdownLimit}
+                onChange={setMaxDrawdownLimit}
+                accent="#FF4565"
+              />
             </div>
 
             {/* Sliders Container */}

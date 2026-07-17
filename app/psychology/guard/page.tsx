@@ -268,6 +268,52 @@ function MetricTile({ label, value, icon }: { label: string; value: string; icon
   );
 }
 
+
+function parseCurrencyInput(value: string) {
+  const cleaned = value.replace(/[^0-9.]/g, "");
+  if (!cleaned) return 0;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function currencyDisplay(value: number) {
+  return value > 0 ? String(value) : "";
+}
+
+function CurrencyField({
+  label,
+  value,
+  onChange,
+  accent = "#F0B429",
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  accent?: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col">
+      <label className="mb-2 flex min-h-[2rem] items-end text-[10px] font-black uppercase leading-tight tracking-[0.18em] text-[#5A5A80]">
+        {label}
+      </label>
+      <div
+        className="group flex h-14 items-center rounded-2xl border border-[#1E1E38] bg-[#080810] px-4 transition-colors focus-within:border-[var(--field-accent)]"
+        style={{ "--field-accent": accent } as React.CSSProperties}
+      >
+        <span className="mr-3 shrink-0 text-sm font-black" style={{ color: accent }}>$</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={currencyDisplay(value)}
+          onChange={(event) => onChange(parseCurrencyInput(event.target.value))}
+          placeholder="0"
+          className="h-full min-w-0 flex-1 bg-transparent text-sm font-black text-white outline-none placeholder:text-[#3A3A5A]"
+        />
+      </div>
+    </div>
+  );
+}
+
 function SliderRow({
   label,
   value,
@@ -458,31 +504,19 @@ export default function PwaPsychologyGuardPage() {
 
                 <div className="grid gap-6 p-5 sm:p-6 xl:grid-cols-[1.1fr_0.9fr]">
                   <div className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">Today&apos;s Profit Target</label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-[#F0B429]">$</span>
-                          <input
-                            type="number"
-                            value={targetProfit}
-                            onChange={(event) => setTargetProfit(Number(event.target.value))}
-                            className="h-12 w-full rounded-2xl border border-[#1E1E38] bg-[#080810] pl-8 pr-4 text-sm font-black text-white outline-none transition focus:border-[#F0B429]"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">Daily Loss Limit</label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-[#FF4565]">$</span>
-                          <input
-                            type="number"
-                            value={maxDrawdownLimit}
-                            onChange={(event) => setMaxDrawdownLimit(Number(event.target.value))}
-                            className="h-12 w-full rounded-2xl border border-[#1E1E38] bg-[#080810] pl-8 pr-4 text-sm font-black text-white outline-none transition focus:border-[#FF4565]"
-                          />
-                        </div>
-                      </div>
+                    <div className="grid items-end gap-4 sm:grid-cols-2">
+                      <CurrencyField
+                        label="Today's Profit Target"
+                        value={targetProfit}
+                        onChange={setTargetProfit}
+                        accent="#F0B429"
+                      />
+                      <CurrencyField
+                        label="Daily Loss Limit"
+                        value={maxDrawdownLimit}
+                        onChange={setMaxDrawdownLimit}
+                        accent="#FF4565"
+                      />
                     </div>
 
                     <SliderRow label="Sleep Quality" value={sleep} onChange={setSleep} lowLabel="Fatigued" highLabel="Sharp" />
