@@ -122,6 +122,12 @@ export default function AdminAffiliatesPage() {
     return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
   }, []);
 
+  const adminForbiddenMessage = useCallback(async () => {
+    const { data: { session } } = await createClient().auth.getSession();
+    const email = session?.user?.email || "this login";
+    return `Forbidden: ${email} is not configured as an admin. Add this email to ADMIN_EMAILS in Vercel, then redeploy.`;
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -129,14 +135,16 @@ export default function AdminAffiliatesPage() {
       const headers = await authHeaders();
       const res = await fetch("/api/admin/affiliates", { headers });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not load affiliates.");
+      if (!res.ok) {
+        throw new Error(res.status === 403 ? await adminForbiddenMessage() : json.error || "Could not load affiliates.");
+      }
       setAffiliates(json.affiliates || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load affiliates.");
     } finally {
       setLoading(false);
     }
-  }, [authHeaders]);
+  }, [authHeaders, adminForbiddenMessage]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -180,7 +188,9 @@ export default function AdminAffiliatesPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not create affiliate.");
+      if (!res.ok) {
+        throw new Error(res.status === 403 ? await adminForbiddenMessage() : json.error || "Could not create affiliate.");
+      }
       setForm(initialForm);
       await load();
     } catch (err) {
@@ -200,7 +210,7 @@ export default function AdminAffiliatesPage() {
     });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      setError(json.error || "Could not mark paid.");
+      setError(res.status === 403 ? await adminForbiddenMessage() : json.error || "Could not mark paid.");
     }
     await load();
   }

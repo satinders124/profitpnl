@@ -72,18 +72,43 @@ export function maskEmail(email?: string | null) {
   return `${start}${"*".repeat(Math.max(2, Math.min(5, name.length - 2)))}@${domain}`;
 }
 
-export function isAdminEmail(email?: string | null) {
-  const configured = (process.env.ADMIN_EMAILS || "")
+function configuredAdminEmails() {
+  return [
+    process.env.ADMIN_EMAILS,
+    process.env.ADMIN_EMAIL,
+    process.env.OWNER_EMAIL,
+    // Fallbacks for projects that accidentally configured the public-prefixed
+    // variable name in Vercel. Prefer ADMIN_EMAILS for production.
+    process.env.NEXT_PUBLIC_ADMIN_EMAILS,
+    process.env.NEXT_PUBLIC_ADMIN_EMAIL,
+  ]
+    .filter(Boolean)
+    .join(",")
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
+}
 
+export function isAdminEmail(email?: string | null) {
+  const configured = configuredAdminEmails();
   if (!configured.length || !email) return false;
   return configured.includes(email.toLowerCase());
 }
 
+function hasAdminAppMetadata(user: User) {
+  const appMetadata = user.app_metadata || {};
+  const roles = Array.isArray(appMetadata.roles) ? appMetadata.roles : [];
+
+  return (
+    appMetadata.role === "admin" ||
+    appMetadata.admin === true ||
+    appMetadata.is_admin === true ||
+    roles.includes("admin")
+  );
+}
+
 export function requireAdmin(user: User) {
-  if (!isAdminEmail(user.email)) {
+  if (!isAdminEmail(user.email) && !hasAdminAppMetadata(user)) {
     throw new Error("Forbidden");
   }
 }
