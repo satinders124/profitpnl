@@ -90,6 +90,7 @@ const backtestNavGroups: NavGroup[] = [
     label: "Journal",
     items: [
       { label: "Trade Log", href: "/trades", icon: ListChecks },
+      { label: "Reports", href: "/backtesting/reports", icon: ClipboardCheck, badge: "Share" },
       { label: "Playbook", href: "/playbook", icon: BookOpen },
     ],
   },

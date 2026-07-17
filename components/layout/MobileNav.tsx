@@ -93,6 +93,7 @@ const backtestMoreSections: NavSection[] = [
   {
     label: "Backtesting Journal",
     items: [
+      { label: "Reports", href: "/backtesting/reports", icon: ClipboardCheck },
       { label: "Playbook", href: "/playbook", icon: BookOpen },
       { label: "Accounts", href: "/accounts", icon: CreditCard },
       { label: "Settings", href: "/settings", icon: Settings },
