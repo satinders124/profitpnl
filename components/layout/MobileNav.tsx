@@ -175,6 +175,7 @@ export function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={[
                 "relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium tracking-tight transition-colors",
                 active
@@ -299,6 +300,7 @@ export function MobileNav() {
                             <Link
                               key={item.href}
                               href={item.href}
+                              prefetch={false}
                               onClick={() => setMoreOpen(false)}
                               className={[
                                 "flex items-center gap-3 rounded-xl border px-4 py-3.5 text-sm font-medium transition-all",
