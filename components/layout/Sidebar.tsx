@@ -44,7 +44,10 @@ type NavGroup = {
 const liveNavGroups: NavGroup[] = [
   {
     label: "Overview",
-    items: [{ label: "Dashboard", href: "/dashboard", icon: Home }],
+    items: [
+      { label: "Dashboard", href: "/dashboard", icon: Home },
+      { label: "Daily Plan", href: "/daily-plan", icon: ClipboardCheck, badge: "AI" },
+    ],
   },
   {
     label: "Journal & Analytics",

@@ -33,6 +33,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Brain,
+  ClipboardCheck,
   Crosshair,
   Flame,
   LineChart,
@@ -242,6 +243,7 @@ function TradingHQHero({
   onLogTrade,
   onOpenRiskGuard,
   onOpenAnalytics,
+  onOpenDailyPlan,
 }: {
   traderName: string;
   isBacktest: boolean;
@@ -259,6 +261,7 @@ function TradingHQHero({
   onLogTrade: () => void;
   onOpenRiskGuard: () => void;
   onOpenAnalytics: () => void;
+  onOpenDailyPlan: () => void;
 }) {
   const state = getTradingState({ stats, edgeScore, openTrades });
   const stateStyle = toneClass(state.tone);
@@ -303,8 +306,9 @@ function TradingHQHero({
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <HQActionButton icon={<PlusCircle size={15} />} label="Log Trade" onClick={onLogTrade} primary />
+            <HQActionButton icon={<ClipboardCheck size={15} />} label="Daily Plan" onClick={onOpenDailyPlan} />
             <HQActionButton icon={<Shield size={15} />} label="Risk Guard" onClick={onOpenRiskGuard} />
             <HQActionButton icon={<BarChart3 size={15} />} label="Analytics" onClick={onOpenAnalytics} />
           </div>
@@ -683,6 +687,7 @@ export default function DashboardPage() {
             onLogTrade={() => setTradeModalOpen(true)}
             onOpenRiskGuard={() => router.push("/psychology/guard")}
             onOpenAnalytics={() => router.push("/analytics")}
+            onOpenDailyPlan={() => router.push("/daily-plan")}
           />
 
           {/* --- INTERACTIVE EQUITY CURVE & RISK DESK (MOVED TO TOP) --- */}

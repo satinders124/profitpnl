@@ -43,6 +43,7 @@ const liveMainItems: NavItem[] = [
 
 const liveMoreItemsBase: NavItem[] = [
   { label: "Certificates", href: "/certificates", icon: Award },
+  { label: "Daily Plan", href: "/daily-plan", icon: ClipboardCheck },
   { label: "Weekly Review", href: "/weekly-review", icon: ClipboardCheck },
   { label: "AI Leak Finder", href: "/ai-leak-finder", icon: Search },
   { label: "Trade Review", href: "/trade-review", icon: ClipboardCheck },
