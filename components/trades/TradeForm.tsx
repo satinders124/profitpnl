@@ -4,8 +4,8 @@ import { saveTrade } from "@/lib/db";
 import { TradingAccount } from "@/types/account";
 import { PlaybookSetup } from "@/types/playbook";
 import { Trade } from "@/types/trade";
-import { CheckCircle2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCircle2, RotateCcw, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
 
@@ -62,6 +62,49 @@ const mistakes = [
   "None",
 ];
 
+const draftMeaningfulKeys: Array<keyof Trade> = [
+  "account",
+  "instrument",
+  "direction",
+  "setup",
+  "session",
+  "timeframe",
+  "entry",
+  "sl",
+  "tp",
+  "rr",
+  "result",
+  "pnl",
+  "notes",
+  "tags",
+  "chartUrl",
+  "time",
+  "executionRating",
+  "mistake",
+  "lesson",
+];
+
+function hasMeaningfulDraft(form: Partial<Trade>, defaults: Partial<Trade>) {
+  return draftMeaningfulKeys.some((key) => {
+    const value = form[key];
+    const defaultValue = defaults[key];
+    return String(value ?? "").trim() !== "" && String(value ?? "") !== String(defaultValue ?? "");
+  });
+}
+
+function loadSavedDraft(draftKey: string, defaults: Partial<Trade>) {
+  if (typeof window === "undefined") return { form: defaults, restored: false };
+  try {
+    const savedDraft = localStorage.getItem(draftKey);
+    if (!savedDraft) return { form: defaults, restored: false };
+    const parsed = JSON.parse(savedDraft) as Partial<Trade>;
+    const restored = hasMeaningfulDraft(parsed, defaults);
+    return { form: { ...defaults, ...parsed, date: parsed.date || defaults.date }, restored };
+  } catch {
+    return { form: defaults, restored: false };
+  }
+}
+
 type TradeFormProps = {
   uid: string;
   existing?: Trade | null;
@@ -90,7 +133,7 @@ export function TradeForm({
   ]);
 
   const draftKey = `profitpnl_trade_form_draft_${uid}`;
-  const defaultForm: Partial<Trade> = {
+  const defaultForm: Partial<Trade> = useMemo(() => ({
     date: existing?.date || today,
     account: existing?.account || "",
     instrument: existing?.instrument || "XAUUSD",
@@ -113,19 +156,16 @@ export function TradeForm({
     executionRating: existing?.executionRating || "",
     mistake: existing?.mistake || "",
     lesson: existing?.lesson || "",
-  };
+  }), [existing, today]);
 
-  const [form, setForm] = useState<Partial<Trade>>(() => {
-    if (existing || typeof window === "undefined") return defaultForm;
-    try {
-      const savedDraft = localStorage.getItem(draftKey);
-      if (!savedDraft) return defaultForm;
-      const parsed = JSON.parse(savedDraft) as Partial<Trade>;
-      return { ...defaultForm, ...parsed, date: parsed.date || defaultForm.date };
-    } catch {
-      return defaultForm;
-    }
-  });
+  const initialDraft = useMemo(
+    () => (existing ? { form: defaultForm, restored: false } : loadSavedDraft(draftKey, defaultForm)),
+    [draftKey, existing, defaultForm]
+  );
+
+  const [form, setForm] = useState<Partial<Trade>>(initialDraft.form);
+  const [draftRestored, setDraftRestored] = useState(initialDraft.restored);
+  const [draftCleared, setDraftCleared] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const { playSuccess } = useSoundEffects();
@@ -134,13 +174,29 @@ export function TradeForm({
   useEffect(() => {
     if (existing || typeof window === "undefined") return;
     try {
-      localStorage.setItem(draftKey, JSON.stringify(form));
+      if (hasMeaningfulDraft(form, defaultForm)) {
+        localStorage.setItem(draftKey, JSON.stringify(form));
+      } else if (!draftRestored) {
+        localStorage.removeItem(draftKey);
+      }
     } catch {
       // ignore unavailable storage
     }
-  }, [draftKey, existing, form]);
+  }, [defaultForm, draftKey, draftRestored, existing, form]);
+
+  function clearDraft() {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {
+      // ignore unavailable storage
+    }
+    setForm(defaultForm);
+    setDraftRestored(false);
+    setDraftCleared(true);
+  }
 
   function update<K extends keyof Trade>(key: K, value: Trade[K]) {
+    setDraftCleared(false);
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -211,6 +267,33 @@ export function TradeForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      {!existing && (draftRestored || draftCleared) && (
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${draftRestored ? "border-[#F0B429]/30 bg-[#F0B429]/10 text-[#F0B429]" : "border-[#00D084]/30 bg-[#00D084]/10 text-[#00D084]"}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2">
+              {draftRestored ? <RotateCcw size={16} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={16} className="mt-0.5 shrink-0" />}
+              <div>
+                <p className="font-black">{draftRestored ? "Draft restored from your last session." : "Draft cleared."}</p>
+                <p className="mt-0.5 text-xs opacity-80">
+                  {draftRestored
+                    ? "You can continue logging this trade or clear it to start fresh."
+                    : "You are now starting from a clean trade ticket."}
+                </p>
+              </div>
+            </div>
+            {draftRestored && (
+              <button
+                type="button"
+                onClick={clearDraft}
+                className="rounded-xl border border-[#F0B429]/30 px-3 py-2 text-xs font-black transition hover:bg-[#F0B429]/10"
+              >
+                Clear Draft
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <Section
         title="Trade Setup"
         description="Core trade details and strategy context."
@@ -481,6 +564,13 @@ export function TradeForm({
           {form.reviewed ? "Reviewed" : "Mark as Reviewed"}
         </button>
       </Section>
+
+      {!existing && (
+        <div className="flex items-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#0D0D1A] px-4 py-3 text-xs font-bold text-[#8080A0]">
+          <ShieldCheck size={15} className="text-[#00D084]" />
+          Draft saved automatically on this device while you type.
+        </div>
+      )}
 
       <div className="flex gap-3 border-t border-[#1E1E38] pt-5">
         <button
