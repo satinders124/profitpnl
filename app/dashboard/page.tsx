@@ -380,6 +380,148 @@ function HQMiniStat({ label, value, tone }: { label: string; value: string; tone
   );
 }
 
+type CommandFeedItem = {
+  title: string;
+  status: string;
+  body: string;
+  href: string;
+  action: string;
+  tone: "green" | "gold" | "red" | "blue";
+  icon: React.ReactNode;
+};
+
+function commandToneClasses(tone: CommandFeedItem["tone"]) {
+  if (tone === "green") return { text: "text-[#00D084]", border: "border-[#00D084]/30", bg: "bg-[#00D084]/10" };
+  if (tone === "red") return { text: "text-[#FF4565]", border: "border-[#FF4565]/30", bg: "bg-[#FF4565]/10" };
+  if (tone === "blue") return { text: "text-[#8BB0FF]", border: "border-[#4C82FB]/30", bg: "bg-[#4C82FB]/10" };
+  return { text: "text-[#F0B429]", border: "border-[#F0B429]/30", bg: "bg-[#F0B429]/10" };
+}
+
+function dashboardNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function dashboardTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function dashboardStartOfWeek() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function isThisWeekTrade(trade: Trade) {
+  if (!trade.date) return false;
+  const parsed = new Date(`${trade.date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return parsed >= dashboardStartOfWeek();
+}
+
+function dashboardRuleAmount(value: unknown, accountSize: number, fallbackPercent: number) {
+  const parsed = dashboardNumber(value, 0);
+  if (parsed > 0) return parsed <= 100 ? accountSize * (parsed / 100) : parsed;
+  return accountSize * (fallbackPercent / 100);
+}
+
+function dashboardMoney(value: number) {
+  return `${value >= 0 ? "" : "-"}$${Math.abs(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+function dashboardBiggestLeak(trades: Trade[]) {
+  const groups = new Map<string, { name: string; totalR: number; count: number }>();
+  for (const trade of trades) {
+    const result = dashboardNumber(trade.result, 0);
+    if (!Number.isFinite(result) || result >= 0) continue;
+    const name = String(trade.mistake || trade.emotion || trade.tags || trade.setup || "Unclassified loss").trim() || "Unclassified loss";
+    const current = groups.get(name) || { name, totalR: 0, count: 0 };
+    current.totalR += result;
+    current.count += 1;
+    groups.set(name, current);
+  }
+  return Array.from(groups.values()).sort((a, b) => a.totalR - b.totalR)[0] || null;
+}
+
+function dashboardPropFirmStatus(accounts: TradingAccount[], trades: Trade[]) {
+  if (!accounts.length) {
+    return { status: "No account", tone: "blue" as const, body: "Add a prop or personal account so ProfitPnL can monitor challenge buffers." };
+  }
+
+  const accountStatuses = accounts.map((account) => {
+    const accountSize = dashboardNumber(account.size, dashboardNumber(account.startingBalance, 0));
+    const startingBalance = dashboardNumber(account.startingBalance, accountSize);
+    const accountTrades = trades.filter((trade) => !trade.account || trade.account === account.name);
+    const pnl = accountTrades.reduce((sum, trade) => sum + (tradeDollarOrNull(trade) ?? 0), 0);
+    const currentBalance = account.currentBalance !== "" && account.currentBalance !== null && account.currentBalance !== undefined
+      ? dashboardNumber(account.currentBalance, startingBalance + pnl)
+      : startingBalance + pnl;
+    const maxDrawdown = dashboardRuleAmount(account.maxDD, accountSize || startingBalance, 10);
+    const drawdownFloor = startingBalance - maxDrawdown;
+    const buffer = currentBalance - drawdownFloor;
+    const bufferPercent = maxDrawdown > 0 ? buffer / maxDrawdown : 1;
+    return { account, buffer, bufferPercent };
+  }).sort((a, b) => a.bufferPercent - b.bufferPercent);
+
+  const tightest = accountStatuses[0];
+  if (!tightest) return { status: "No account", tone: "blue" as const, body: "Add an account to unlock risk monitoring." };
+  if (tightest.buffer <= 0) {
+    return { status: "Breach risk", tone: "red" as const, body: `${tightest.account.name} is at or below drawdown floor. Stop trading and review risk.` };
+  }
+  if (tightest.bufferPercent <= 0.3) {
+    return { status: "Tight buffer", tone: "red" as const, body: `${tightest.account.name} has only ${dashboardMoney(tightest.buffer)} drawdown buffer left.` };
+  }
+  if (tightest.bufferPercent <= 0.6) {
+    return { status: "Caution", tone: "gold" as const, body: `${tightest.account.name} buffer is ${dashboardMoney(tightest.buffer)}. Keep size reduced.` };
+  }
+  return { status: "Healthy", tone: "green" as const, body: `${tightest.account.name} has ${dashboardMoney(tightest.buffer)} drawdown buffer available.` };
+}
+
+function AICommandFeed({ items, onOpen }: { items: CommandFeedItem[]; onOpen: (href: string) => void }) {
+  return (
+    <Card className="relative overflow-hidden border-[#1E1E38] bg-[#0D0D1A]/95 p-5 shadow-lg shadow-black/20">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(240,180,41,0.10),transparent_32%)] pointer-events-none" />
+      <div className="relative mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F0B429]">AI Command Feed</p>
+          <h2 className="mt-1 text-xl font-black tracking-tight text-white">What needs attention today</h2>
+        </div>
+        <span className="rounded-full border border-[#F0B429]/25 bg-[#F0B429]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#F0B429]">
+          {items.length} signals
+        </span>
+      </div>
+
+      <div className="relative grid gap-3 lg:grid-cols-5">
+        {items.map((item) => {
+          const tone = commandToneClasses(item.tone);
+          return (
+            <button
+              key={item.title}
+              onClick={() => onOpen(item.href)}
+              className={`group rounded-[1.35rem] border ${tone.border} bg-[#080810] p-4 text-left transition hover:-translate-y-0.5 hover:bg-[#101020]`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.bg} ${tone.text}`}>
+                  {item.icon}
+                </div>
+                <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${tone.border} ${tone.bg} ${tone.text}`}>
+                  {item.status}
+                </span>
+              </div>
+              <h3 className="mt-3 text-sm font-black text-white">{item.title}</h3>
+              <p className="mt-2 line-clamp-3 min-h-[3.75rem] text-xs leading-5 text-[#A0A0C0]">{item.body}</p>
+              <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-[#F0B429] group-hover:underline">{item.action} →</p>
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const { user, displayName } = useAuth();
   const { mode } = useMode();
@@ -409,6 +551,13 @@ export default function DashboardPage() {
   const [strategyFilter, setStrategyFilter] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [calendarView, setCalendarView] = useState<PnlViewMode>("r");
+  const [dailyPlanAccepted, setDailyPlanAccepted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDailyPlanAccepted(localStorage.getItem(`profitpnl_daily_plan_${dashboardTodayKey()}`) === "accepted");
+  }, []);
 
   const loadData = async () => {
     if (!user) return;
@@ -551,6 +700,74 @@ export default function DashboardPage() {
     )
     .slice(0, 6);
 
+  const reviewQueueCount = useMemo(
+    () => filteredTrades.filter((trade) => !trade.reviewed || !trade.emotion || !trade.lesson).length,
+    [filteredTrades]
+  );
+
+  const biggestLeak = useMemo(() => dashboardBiggestLeak(filteredTrades), [filteredTrades]);
+  const propFirmStatus = useMemo(() => dashboardPropFirmStatus(accounts, effectiveTrades), [accounts, effectiveTrades]);
+  const thisWeekClosedCount = useMemo(
+    () => filteredTrades.filter((trade) => hasResult(trade) && isThisWeekTrade(trade)).length,
+    [filteredTrades]
+  );
+
+  const commandFeedItems = useMemo<CommandFeedItem[]>(() => [
+    {
+      title: "Daily Plan",
+      status: dailyPlanAccepted ? "Accepted" : "Open",
+      body: dailyPlanAccepted
+        ? "Today's plan is accepted. Keep execution aligned with your max trades, allowed setups, and stop rules."
+        : "Pre-market plan has not been accepted yet. Generate guardrails before taking the next trade.",
+      href: "/daily-plan",
+      action: dailyPlanAccepted ? "Review plan" : "Build plan",
+      tone: dailyPlanAccepted ? "green" : "gold",
+      icon: <ClipboardCheck size={18} />,
+    },
+    {
+      title: "Review Queue",
+      status: reviewQueueCount ? `${reviewQueueCount}` : "Clean",
+      body: reviewQueueCount
+        ? `${reviewQueueCount} trade${reviewQueueCount === 1 ? "" : "s"} need emotion, mistake, lesson, or review completion.`
+        : "All visible trades have review coverage. Keep the journal clean before adding more risk.",
+      href: "/trade-review",
+      action: reviewQueueCount ? "Review trades" : "Open queue",
+      tone: reviewQueueCount ? "red" : "green",
+      icon: <AlertTriangle size={18} />,
+    },
+    {
+      title: "Biggest Leak",
+      status: biggestLeak ? formatR(biggestLeak.totalR) : "None",
+      body: biggestLeak
+        ? `${biggestLeak.name} is the highest R-cost pattern in this view across ${biggestLeak.count} trade${biggestLeak.count === 1 ? "" : "s"}.`
+        : "No negative pattern detected in the current filter. Keep tagging mistakes and emotions.",
+      href: "/ai-leak-finder",
+      action: "Find leak",
+      tone: biggestLeak ? "red" : "blue",
+      icon: <Brain size={18} />,
+    },
+    {
+      title: "Prop Firm Risk",
+      status: propFirmStatus.status,
+      body: propFirmStatus.body,
+      href: "/prop-firm-challenge",
+      action: "Check buffers",
+      tone: propFirmStatus.tone,
+      icon: <Shield size={18} />,
+    },
+    {
+      title: "Weekly Review",
+      status: thisWeekClosedCount ? "Ready" : "Pending",
+      body: thisWeekClosedCount
+        ? `${thisWeekClosedCount} closed trade${thisWeekClosedCount === 1 ? "" : "s"} this week are ready for AI review.`
+        : "No closed trades this week yet. Weekly review will activate once data is logged.",
+      href: "/weekly-review",
+      action: "Open review",
+      tone: thisWeekClosedCount ? "gold" : "blue",
+      icon: <CalendarIcon size={18} />,
+    },
+  ], [dailyPlanAccepted, reviewQueueCount, biggestLeak, propFirmStatus, thisWeekClosedCount]);
+
   return (
     <AppShell
       title={isBacktest ? "Backtesting HQ" : shiftData ? "AI Co-pilot Active Terminal" : "Trading HQ"}
@@ -689,6 +906,8 @@ export default function DashboardPage() {
             onOpenAnalytics={() => router.push("/analytics")}
             onOpenDailyPlan={() => router.push("/daily-plan")}
           />
+
+          <AICommandFeed items={commandFeedItems} onOpen={(href) => router.push(href)} />
 
           {/* --- INTERACTIVE EQUITY CURVE & RISK DESK (MOVED TO TOP) --- */}
           <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
