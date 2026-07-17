@@ -22,6 +22,7 @@ export function Header({
   const { mode, setMode } = useMode();
   const router = useRouter();
   const isBacktest = mode === "backtest";
+  const cleanActionLabel = actionLabel?.replace(/^\+\s*/, "");
 
   function toggleMode() {
     if (isBacktest) {
@@ -81,7 +82,7 @@ export function Header({
             className="inline-flex items-center gap-2 rounded-lg bg-[#F0B429] hover:bg-[#d99f1e] px-4 py-2 text-xs font-semibold text-black transition-all shadow-sm active:scale-[0.98]"
           >
             <Plus size={15} strokeWidth={2.5} />
-            <span>{actionLabel}</span>
+            <span>{cleanActionLabel}</span>
           </button>
         )}
       </div>
