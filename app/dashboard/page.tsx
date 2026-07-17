@@ -8,6 +8,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useMode } from "@/components/providers/ModeProvider";
 import { useRouter } from "next/navigation";
 import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
+import { getDailyPlan } from "@/lib/daily-plans";
 import {
   getModels,
   getProfile,
@@ -403,7 +404,9 @@ function dashboardNumber(value: unknown, fallback = 0) {
 }
 
 function dashboardTodayKey() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
 }
 
 function dashboardStartOfWeek() {
@@ -563,8 +566,12 @@ export default function DashboardPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const activeShift = await getActiveShift(user.id);
+      const [activeShift, cloudDailyPlan] = await Promise.all([
+        getActiveShift(user.id),
+        getDailyPlan(user.id, dashboardTodayKey()).catch(() => null),
+      ]);
       setShiftData(activeShift);
+      setDailyPlanAccepted(Boolean(cloudDailyPlan?.acceptedAt) || (typeof window !== "undefined" && localStorage.getItem(`profitpnl_daily_plan_${dashboardTodayKey()}`) === "accepted"));
 
       if (isBacktest) {
         const [m, p] = await Promise.all([getModels(), getProfile()]);

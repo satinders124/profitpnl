@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { PageInsightPanel } from "@/components/ai/PageInsightPanel";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
+import { acceptDailyPlan, getDailyPlan, type DailyPlanRecord } from "@/lib/daily-plans";
 import { getRecentShifts, TraderShift } from "@/lib/shifts-db";
 import { calcStats, formatPct, formatR, hasResult } from "@/lib/stats";
 import { Trade } from "@/types/trade";
@@ -47,8 +48,13 @@ function money(value: number) {
   return `${value >= 0 ? "" : "-"}$${Math.abs(value).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
+function dateKey(date = new Date()) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return dateKey();
 }
 
 function lastNDays(trades: Trade[], days: number) {
@@ -186,6 +192,125 @@ function toneClasses(tone: Plan["tone"]) {
   return { text: "text-[#F0B429]", border: "border-[#F0B429]/35", bg: "bg-[#F0B429]/10", color: "#F0B429" };
 }
 
+function cleanText(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function planRecordToPayload(record: DailyPlanRecord): Plan {
+  return {
+    riskLevel: record.riskLevel as Plan["riskLevel"],
+    tone: record.tone as Plan["tone"],
+    maxTrades: record.maxTrades,
+    riskPerTrade: record.riskPerTrade,
+    riskScale: record.riskScale,
+    allowedSetups: record.allowedSetups,
+    avoidList: record.avoidList,
+    stopRules: record.stopRules,
+    focus: record.focus,
+  };
+}
+
+function tradeIsAllowed(trade: Trade, allowedSetups: string[]) {
+  if (!allowedSetups.length) return true;
+  if (allowedSetups.some((setup) => cleanText(setup).includes("only a+"))) return true;
+  const setup = cleanText(trade.setup || "");
+  if (!setup) return false;
+  return allowedSetups.some((allowed) => {
+    const clean = cleanText(allowed);
+    return setup === clean || setup.includes(clean) || clean.includes(setup);
+  });
+}
+
+function tradeTriggersAvoid(trade: Trade, avoidList: string[]) {
+  if (!avoidList.length) return false;
+  const haystack = cleanText([trade.setup, trade.emotion, trade.mistake, trade.tags, trade.notes].filter(Boolean).join(" "));
+  return avoidList.some((avoid) => {
+    const clean = cleanText(avoid);
+    if (!clean) return false;
+    if (haystack.includes(clean)) return true;
+    if (clean.includes("revenge") && haystack.includes("revenge")) return true;
+    if (clean.includes("fomo") && haystack.includes("fomo")) return true;
+    return false;
+  });
+}
+
+function tradeLoss(trade: Trade) {
+  const result = Number(trade.result);
+  if (Number.isFinite(result) && result < 0) return true;
+  const pnl = Number(trade.pnl);
+  return Number.isFinite(pnl) && pnl < 0;
+}
+
+function buildExecutionScore(trades: Trade[], plan: Plan) {
+  const tradesTaken = trades.length;
+  const extraTrades = Math.max(0, tradesTaken - plan.maxTrades);
+  const nonAllowed = trades.filter((trade) => !tradeIsAllowed(trade, plan.allowedSetups)).length;
+  const avoidHits = trades.filter((trade) => tradeTriggersAvoid(trade, plan.avoidList)).length;
+  const losses = trades.filter(tradeLoss).length;
+  const unreviewed = trades.filter((trade) => !trade.reviewed || !trade.emotion || !trade.lesson).length;
+  const score = Math.max(0, Math.min(100, 100 - extraTrades * 22 - nonAllowed * 18 - avoidHits * 18 - Math.max(0, losses - 1) * 10 - unreviewed * 5));
+  const tone: "green" | "gold" | "red" = score >= 80 ? "green" : score >= 55 ? "gold" : "red";
+  const label = score >= 80 ? "On Plan" : score >= 55 ? "Watch" : "Off Plan";
+  return { tradesTaken, extraTrades, nonAllowed, avoidHits, losses, unreviewed, score, tone, label };
+}
+
+function PlanVsExecution({ plan, trades, accepted }: { plan: Plan; trades: Trade[]; accepted: boolean }) {
+  const execution = buildExecutionScore(trades, plan);
+  const tone = toneClasses(execution.tone);
+
+  return (
+    <Card className="relative overflow-hidden border-[#1E1E38] bg-[#0D0D1A]/95 p-5 shadow-lg shadow-black/20">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(240,180,41,0.10),transparent_32%)] pointer-events-none" />
+      <div className="relative mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F0B429]">Plan vs Execution</p>
+          <h2 className="mt-1 text-xl font-black tracking-tight text-white">Today&apos;s accountability score</h2>
+          <p className="mt-1 text-xs text-[#8080A0]">
+            {accepted ? "Tracking accepted plan against today&apos;s logged trades." : "Accept the plan to lock your rules before trading."}
+          </p>
+        </div>
+        <div className={`rounded-2xl border ${tone.border} ${tone.bg} px-4 py-3 text-right`}>
+          <p className={`text-3xl font-black ${tone.text}`}>{execution.score}</p>
+          <p className={`text-[10px] font-black uppercase tracking-wider ${tone.text}`}>{execution.label}</p>
+        </div>
+      </div>
+
+      <div className="relative grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <ExecutionMini label="Trades" value={`${execution.tradesTaken}/${plan.maxTrades}`} tone={execution.extraTrades ? "red" : "green"} />
+        <ExecutionMini label="Extra Trades" value={String(execution.extraTrades)} tone={execution.extraTrades ? "red" : "green"} />
+        <ExecutionMini label="Off-Setup" value={String(execution.nonAllowed)} tone={execution.nonAllowed ? "red" : "green"} />
+        <ExecutionMini label="Avoid Hits" value={String(execution.avoidHits)} tone={execution.avoidHits ? "red" : "green"} />
+        <ExecutionMini label="Losses" value={String(execution.losses)} tone={execution.losses > 1 ? "red" : execution.losses ? "gold" : "green"} />
+        <ExecutionMini label="Needs Review" value={String(execution.unreviewed)} tone={execution.unreviewed ? "gold" : "green"} />
+      </div>
+
+      {trades.length === 0 ? (
+        <p className="relative mt-4 rounded-2xl border border-dashed border-[#2A2A3C] bg-[#080810] p-4 text-sm text-[#8080A0]">
+          No trades logged today yet. Once trades are logged, ProfitPnL will score execution against this plan.
+        </p>
+      ) : (
+        <p className="relative mt-4 rounded-2xl border border-[#1E1E38] bg-[#080810] p-4 text-sm leading-6 text-zinc-300">
+          {execution.score >= 80
+            ? "Clean alignment so far. Keep following the same guardrails and avoid adding unnecessary trades."
+            : execution.score >= 55
+              ? "Execution is drifting. Review off-plan trades before taking another setup."
+              : "Plan discipline is broken. Stop trading and process the review queue before risking more capital."}
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function ExecutionMini({ label, value, tone }: { label: string; value: string; tone: "green" | "gold" | "red" }) {
+  const classes = toneClasses(tone);
+  return (
+    <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-3">
+      <p className="text-[9px] font-black uppercase tracking-wider text-[#5A5A80]">{label}</p>
+      <p className={`mt-1 text-lg font-black ${classes.text}`}>{value}</p>
+    </div>
+  );
+}
+
 function PlanCard({ title, items, icon }: { title: string; items: string[]; icon: React.ReactNode }) {
   return (
     <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-5">
@@ -212,6 +337,9 @@ export default function DailyPlanPage() {
   const [accountId, setAccountId] = useState("");
   const [accepted, setAccepted] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [savedPlan, setSavedPlan] = useState<DailyPlanRecord | null>(null);
+  const [planNotice, setPlanNotice] = useState("");
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -228,7 +356,9 @@ export default function DailyPlanPage() {
       setPlaybook(playbookRows);
       setShifts(shiftRows);
       setAccountId((current) => current || accountRows[0]?.id || "");
-      setAccepted(localStorage.getItem(`profitpnl_daily_plan_${todayKey()}`) === "accepted");
+      const cloudPlan = await getDailyPlan(user.id, todayKey());
+      setSavedPlan(cloudPlan);
+      setAccepted(Boolean(cloudPlan?.acceptedAt) || localStorage.getItem(`profitpnl_daily_plan_${todayKey()}`) === "accepted");
     } finally {
       setLoading(false);
     }
@@ -242,10 +372,45 @@ export default function DailyPlanPage() {
   const plan = useMemo(() => buildPlan({ trades, accounts, playbook, shifts, accountId }), [trades, accounts, playbook, shifts, accountId]);
   const stats = useMemo(() => calcStats(lastNDays(trades, 30)), [trades]);
   const tone = toneClasses(plan.tone);
+  const trackedPlan = savedPlan ? planRecordToPayload(savedPlan) : plan;
+  const todaysTrades = useMemo(() => trades.filter((trade) => trade.date === todayKey()), [trades]);
 
-  function acceptPlan() {
-    localStorage.setItem(`profitpnl_daily_plan_${todayKey()}`, "accepted");
-    setAccepted(true);
+  function planContext() {
+    return {
+      account: accounts.find((account) => account.id === accountId) || null,
+      recentStats: {
+        totalR: stats.totalR,
+        winRate: stats.winRate,
+        expectancy: stats.expectancy,
+        maxDrawdown: stats.maxDD,
+        streak: stats.streak,
+      },
+      latestShift: shifts[0] || null,
+    };
+  }
+
+  async function acceptPlan() {
+    if (!user) return;
+    setSavingPlan(true);
+    setPlanNotice("");
+    try {
+      const record = await acceptDailyPlan(user.id, todayKey(), plan, planContext());
+      if (record) {
+        setSavedPlan(record);
+        setPlanNotice("Daily plan saved to your ProfitPnL account.");
+      } else {
+        setPlanNotice("Daily plan accepted locally. Run the daily_plans migration to sync across devices.");
+      }
+      localStorage.setItem(`profitpnl_daily_plan_${todayKey()}`, "accepted");
+      setAccepted(true);
+    } catch (error) {
+      console.error("Accept daily plan error:", error);
+      localStorage.setItem(`profitpnl_daily_plan_${todayKey()}`, "accepted");
+      setAccepted(true);
+      setPlanNotice("Daily plan accepted locally. Cloud sync failed temporarily.");
+    } finally {
+      setSavingPlan(false);
+    }
   }
 
   async function copyPlan() {
@@ -318,6 +483,14 @@ export default function DailyPlanPage() {
             }}
           />
 
+          <PlanVsExecution plan={trackedPlan} trades={todaysTrades} accepted={accepted} />
+
+          {planNotice && (
+            <div className="rounded-2xl border border-[#F0B429]/25 bg-[#F0B429]/10 px-4 py-3 text-sm font-bold text-[#F0B429]">
+              {planNotice}
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Mini label="30D Net R" value={formatR(stats.totalR)} icon={<Target size={20} />} tone={stats.totalR >= 0 ? "green" : "red"} />
             <Mini label="30D Win Rate" value={stats.count ? formatPct(stats.winRate) : "—"} icon={<Gauge size={20} />} />
@@ -336,7 +509,7 @@ export default function DailyPlanPage() {
               <h3 className="mb-4 flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-[#F0B429]"><Brain size={14} /> AI Focus Note</h3>
               <p className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-5 text-sm italic leading-8 text-zinc-200">{plan.focus}</p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <button onClick={acceptPlan} className="gold-gradient inline-flex flex-1 items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-[#080810]"><CheckCircle2 size={16} /> Accept Plan</button>
+                <button onClick={acceptPlan} disabled={savingPlan} className="gold-gradient inline-flex flex-1 items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-[#080810] disabled:opacity-60"><CheckCircle2 size={16} /> {savingPlan ? "Saving..." : accepted ? "Plan Accepted" : "Accept Plan"}</button>
                 <button onClick={copyPlan} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#111124] px-5 py-3 text-sm font-black text-zinc-300 hover:text-white"><Copy size={16} /> {copied ? "Copied" : "Copy Plan"}</button>
               </div>
             </Card>
