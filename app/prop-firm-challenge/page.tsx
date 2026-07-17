@@ -19,6 +19,22 @@ function money(value: number) {
   return `${value >= 0 ? "" : "-"}$${Math.abs(value).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
+function ruleAmount(value: unknown, accountSize: number, defaultPercent: number) {
+  const parsed = num(value, 0);
+  if (parsed > 0) {
+    // Account form stores prop rules as percentages (e.g. 6 = 6%).
+    // If an older/manual account has a large dollar amount, keep it as dollars.
+    return parsed <= 100 ? accountSize * (parsed / 100) : parsed;
+  }
+  return accountSize * (defaultPercent / 100);
+}
+
+function ruleLabel(value: unknown, amount: number, defaultPercent: number) {
+  const parsed = num(value, 0);
+  const percent = parsed > 0 && parsed <= 100 ? parsed : parsed > 100 ? null : defaultPercent;
+  return percent ? `${money(amount)} (${percent}%)` : money(amount);
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -94,15 +110,17 @@ export default function PropFirmChallengePage() {
   const totals = useMemo(() => dayTotals(accountTrades), [accountTrades]);
   const realizedPnl = pnlForTrades(accountTrades);
 
-  const startingBalance = selected ? num(selected.startingBalance, num(selected.size, 0)) : 0;
-  const accountSize = selected ? num(selected.size, startingBalance) : 0;
+  const rawAccountSize = selected ? num(selected.size, 0) : 0;
+  const startingBalance = selected ? num(selected.startingBalance, rawAccountSize) : 0;
+  const accountSize = rawAccountSize || startingBalance;
   const currentBalance = selected && selected.currentBalance !== "" && selected.currentBalance !== null && selected.currentBalance !== undefined
     ? num(selected.currentBalance, startingBalance + realizedPnl)
     : startingBalance + realizedPnl;
-  const profitTarget = selected ? num(selected.profitTarget, accountSize * 0.1) : 0;
-  const dailyLoss = selected ? num(selected.dailyLoss, accountSize * 0.05) : 0;
-  const maxDrawdown = selected ? num(selected.maxDD, accountSize * 0.1) : 0;
+  const profitTarget = selected ? ruleAmount(selected.profitTarget, accountSize, 10) : 0;
+  const dailyLoss = selected ? ruleAmount(selected.dailyLoss, accountSize, 5) : 0;
+  const maxDrawdown = selected ? ruleAmount(selected.maxDD, accountSize, 10) : 0;
   const profit = currentBalance - startingBalance;
+  const targetBalance = startingBalance + profitTarget;
   const progress = profitTarget > 0 ? Math.max(0, Math.min(1, profit / profitTarget)) : 0;
   const todayPnl = totals.find((day) => day.date === todayIso())?.pnl || 0;
   const dailyBuffer = dailyLoss + todayPnl;
@@ -132,14 +150,14 @@ export default function PropFirmChallengePage() {
           </Card>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Stat label="Target Progress" value={`${Math.round(progress * 100)}%`} sub={`${money(Math.max(0, profitTarget - profit))} remaining`} icon={<Target size={20} />} tone={progress >= 1 ? "green" : "gold"} />
-            <Stat label="Daily Buffer" value={money(dailyBuffer)} sub={`Today's P&L: ${money(todayPnl)}`} icon={<Gauge size={20} />} tone={dailyBuffer > 0 ? "green" : "red"} />
+            <Stat label="Target Progress" value={`${Math.round(progress * 100)}%`} sub={`${money(Math.max(0, targetBalance - currentBalance))} remaining`} icon={<Target size={20} />} tone={progress >= 1 ? "green" : "gold"} />
+            <Stat label="Daily Buffer" value={money(dailyBuffer)} sub={`Limit: ${ruleLabel(selected?.dailyLoss, dailyLoss, 5)} · Today: ${money(todayPnl)}`} icon={<Gauge size={20} />} tone={dailyBuffer > 0 ? "green" : "red"} />
             <Stat label="Drawdown Buffer" value={money(drawdownBuffer)} sub={`Floor: ${money(drawdownFloor)}`} icon={<TrendingDown size={20} />} tone={drawdownBuffer > 0 ? "green" : "red"} />
             <Stat label="Consistency Risk" value={profit > 0 ? `${Math.round(consistencyRisk * 100)}%` : "—"} sub={`Biggest win day: ${money(biggestWinningDay)}`} icon={<AlertTriangle size={20} />} tone={consistencyRisk > 0.45 ? "red" : "green"} />
           </div>
 
           <section className="grid gap-7 xl:grid-cols-[1fr_1fr]">
-            <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-5"><h2 className="flex items-center gap-2 text-lg font-black text-white"><Wallet className="text-[#F0B429]" /> Account Snapshot</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Mini label="Starting" value={money(startingBalance)} /><Mini label="Current" value={money(currentBalance)} /><Mini label="Profit Target" value={money(profitTarget)} /><Mini label="Max Drawdown" value={money(maxDrawdown)} /></div></Card>
+            <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-5"><h2 className="flex items-center gap-2 text-lg font-black text-white"><Wallet className="text-[#F0B429]" /> Account Snapshot</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Mini label="Starting" value={money(startingBalance)} /><Mini label="Current" value={money(currentBalance)} /><Mini label="Profit Target" value={ruleLabel(selected?.profitTarget, profitTarget, 10)} /><Mini label="Max Drawdown" value={ruleLabel(selected?.maxDD, maxDrawdown, 10)} /></div></Card>
             <Card className="border-[#F0B429]/20 bg-[#0D0D1A]/95 p-5"><h2 className="flex items-center gap-2 text-lg font-black text-white"><CheckCircle2 className="text-[#F0B429]" /> AI Rule Verdict</h2><div className="mt-5 space-y-3 text-sm leading-7 text-zinc-300"><p>{dailyBuffer <= 0 ? "Stop trading today. Daily loss buffer is breached or too close." : "Daily loss buffer is available, but keep risk fixed and avoid scaling up."}</p><p>{drawdownBuffer <= maxDrawdown * 0.25 ? "Maximum drawdown buffer is tight. Reduce risk until the account recovers." : "Max drawdown buffer is healthy enough for planned risk."}</p><p>{consistencyRisk > 0.45 ? "Consistency warning: one day is carrying too much of the profit. Avoid oversized wins that risk payout rules." : "Consistency profile is acceptable based on logged P&L."}</p></div></Card>
           </section>
         </div>
