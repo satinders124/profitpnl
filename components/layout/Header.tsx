@@ -45,28 +45,21 @@ export function Header({
             <button
               type="button"
               onClick={toggleMode}
-              title={
+              title={isBacktest ? "Switch to Live Journal workspace" : "Switch to Backtesting workspace"}
+              className={[
+                "hidden sm:inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] transition-all",
                 isBacktest
-                  ? "You are in Backtesting Mode — click to return to the live Journal"
-                  : "Switch to Backtesting Mode"
-              }
-              className={
-                isBacktest
-                  ? "hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium bg-[#F0B429]/10 text-[#F0B429] border border-[#F0B429]/30 transition-colors hover:bg-[#F0B429]/20"
-                  : "hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium bg-[#181824] text-zinc-300 border border-[#282838] transition-colors hover:border-[#F0B429]/40 hover:text-[#F0B429]"
-              }
+                  ? "border-[#F0B429]/35 bg-[#F0B429]/10 text-[#F0B429] hover:bg-[#F0B429]/15"
+                  : "border-[#00D084]/25 bg-[#00D084]/10 text-[#00D084] hover:bg-[#00D084]/15",
+              ].join(" ")}
             >
               {isBacktest ? (
-                <>
-                  <FlaskConical size={11} />
-                  <span>Backtesting Mode</span>
-                </>
+                <FlaskConical size={12} />
               ) : (
-                <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Live System</span>
-                </>
+                <span className="h-1.5 w-1.5 rounded-full bg-[#00D084] shadow-[0_0_8px_#00D084]" />
               )}
+              <span>{isBacktest ? "Backtesting" : "Live Journal"}</span>
+              <span className="rounded-full bg-black/20 px-2 py-0.5 text-[9px] text-white/80">Switch</span>
             </button>
           </div>
           <p className="mt-0.5 truncate text-xs font-normal text-zinc-400">

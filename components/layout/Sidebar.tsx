@@ -130,25 +130,36 @@ function ModeSwitch({ isBacktest }: { isBacktest: boolean }) {
         setMode(isBacktest ? "live" : "backtest");
         router.push("/dashboard");
       }}
-      className="group flex w-full items-center justify-between gap-2 rounded-xl border border-[#262636] bg-[#0E0E14] px-3 py-2.5 text-xs font-semibold transition-all hover:border-[#F0B429]/40"
+      className={[
+        "group relative w-full overflow-hidden rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5",
+        isBacktest
+          ? "border-[#F0B429]/30 bg-[#F0B429]/10"
+          : "border-[#00D084]/25 bg-[#00D084]/10",
+      ].join(" ")}
     >
-      <span className="flex min-w-0 items-center gap-2">
-        <span
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
-            isBacktest
-              ? "bg-[#F0B429]/15 text-[#F0B429]"
-              : "bg-[#181824] text-zinc-400"
-          }`}
-        >
-          <FlaskConical size={14} />
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-3">
+          <span
+            className={[
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+              isBacktest
+                ? "border-[#F0B429]/30 bg-[#F0B429]/10 text-[#F0B429]"
+                : "border-[#00D084]/30 bg-[#00D084]/10 text-[#00D084]",
+            ].join(" ")}
+          >
+            {isBacktest ? <FlaskConical size={16} /> : <span className="h-2 w-2 rounded-full bg-[#00D084] shadow-[0_0_8px_#00D084]" />}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[9px] font-black uppercase tracking-[0.22em] text-zinc-500">Workspace</span>
+            <span className="block truncate text-xs font-black text-white">
+              {isBacktest ? "Backtesting" : "Live Journal"}
+            </span>
+          </span>
         </span>
-        <span className="truncate text-zinc-200">
-          {isBacktest ? "Backtesting Mode" : "Live Journal"}
+        <span className="shrink-0 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-zinc-300 group-hover:text-[#F0B429]">
+          Switch
         </span>
-      </span>
-      <span className="shrink-0 rounded-md bg-[#181824] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-300 group-hover:text-[#F0B429]">
-        {isBacktest ? "Live" : "BT"}
-      </span>
+      </div>
     </button>
   );
 }

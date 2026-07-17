@@ -309,10 +309,21 @@ function TradingHQHero({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-4">
-            <HQActionButton icon={<PlusCircle size={15} />} label="Log Trade" onClick={onLogTrade} primary />
-            <HQActionButton icon={<ClipboardCheck size={15} />} label="Daily Plan" onClick={onOpenDailyPlan} />
-            <HQActionButton icon={<Shield size={15} />} label="Risk Guard" onClick={onOpenRiskGuard} />
-            <HQActionButton icon={<BarChart3 size={15} />} label="Analytics" onClick={onOpenAnalytics} />
+            {isBacktest ? (
+              <>
+                <HQActionButton icon={<PlusCircle size={15} />} label="Trade Log" onClick={onLogTrade} primary />
+                <HQActionButton icon={<ClipboardCheck size={15} />} label="Reports" onClick={onOpenDailyPlan} />
+                <HQActionButton icon={<Shield size={15} />} label="Models" onClick={onOpenRiskGuard} />
+                <HQActionButton icon={<BarChart3 size={15} />} label="Analytics" onClick={onOpenAnalytics} />
+              </>
+            ) : (
+              <>
+                <HQActionButton icon={<PlusCircle size={15} />} label="Log Trade" onClick={onLogTrade} primary />
+                <HQActionButton icon={<ClipboardCheck size={15} />} label="Daily Plan" onClick={onOpenDailyPlan} />
+                <HQActionButton icon={<Shield size={15} />} label="Risk Guard" onClick={onOpenRiskGuard} />
+                <HQActionButton icon={<BarChart3 size={15} />} label="Analytics" onClick={onOpenAnalytics} />
+              </>
+            )}
           </div>
         </div>
 
@@ -734,61 +745,119 @@ export default function DashboardPage() {
     [filteredTrades]
   );
 
-  const commandFeedItems = useMemo<CommandFeedItem[]>(() => [
-    {
-      title: "Daily Plan",
-      status: dailyPlanAccepted ? "Accepted" : "Open",
-      body: dailyPlanAccepted
-        ? "Today's plan is accepted. Keep execution aligned with your max trades, allowed setups, and stop rules."
-        : "Pre-market plan has not been accepted yet. Generate guardrails before taking the next trade.",
-      href: "/daily-plan",
-      action: dailyPlanAccepted ? "Review plan" : "Build plan",
-      tone: dailyPlanAccepted ? "green" : "gold",
-      icon: <ClipboardCheck size={18} />,
-    },
-    {
-      title: "Review Queue",
-      status: reviewQueueCount ? `${reviewQueueCount}` : "Clean",
-      body: reviewQueueCount
-        ? `${reviewQueueCount} trade${reviewQueueCount === 1 ? "" : "s"} need emotion, mistake, lesson, or review completion.`
-        : "All visible trades have review coverage. Keep the journal clean before adding more risk.",
-      href: "/trade-review",
-      action: reviewQueueCount ? "Review trades" : "Open queue",
-      tone: reviewQueueCount ? "red" : "green",
-      icon: <AlertTriangle size={18} />,
-    },
-    {
-      title: "Biggest Leak",
-      status: biggestLeak ? formatR(biggestLeak.totalR) : "None",
-      body: biggestLeak
-        ? `${biggestLeak.name} is the highest R-cost pattern in this view across ${biggestLeak.count} trade${biggestLeak.count === 1 ? "" : "s"}.`
-        : "No negative pattern detected in the current filter. Keep tagging mistakes and emotions.",
-      href: "/ai-leak-finder",
-      action: "Find leak",
-      tone: biggestLeak ? "red" : "blue",
-      icon: <Brain size={18} />,
-    },
-    {
-      title: "Prop Firm Risk",
-      status: propFirmStatus.status,
-      body: propFirmStatus.body,
-      href: "/prop-firm-challenge",
-      action: "Check buffers",
-      tone: propFirmStatus.tone,
-      icon: <Shield size={18} />,
-    },
-    {
-      title: "Weekly Review",
-      status: thisWeekClosedCount ? "Ready" : "Pending",
-      body: thisWeekClosedCount
-        ? `${thisWeekClosedCount} closed trade${thisWeekClosedCount === 1 ? "" : "s"} this week are ready for AI review.`
-        : "No closed trades this week yet. Weekly review will activate once data is logged.",
-      href: "/weekly-review",
-      action: "Open review",
-      tone: thisWeekClosedCount ? "gold" : "blue",
-      icon: <CalendarIcon size={18} />,
-    },
-  ], [dailyPlanAccepted, reviewQueueCount, biggestLeak, propFirmStatus, thisWeekClosedCount]);
+  const commandFeedItems = useMemo<CommandFeedItem[]>(() => {
+    if (isBacktest) {
+      return [
+        {
+          title: "Backtest Reports",
+          status: stats.count ? "Ready" : "Pending",
+          body: stats.count
+            ? `${stats.count} closed backtest trade${stats.count === 1 ? "" : "s"} are ready for AI analysis, PDF export, and public sharing.`
+            : "Add backtest trades first, then generate a shareable report with QR verification.",
+          href: "/backtesting/reports",
+          action: "Open reports",
+          tone: stats.count ? "gold" : "blue",
+          icon: <ClipboardCheck size={18} />,
+        },
+        {
+          title: "Backtest Models",
+          status: `${models.length}`,
+          body: models.length
+            ? `${models.length} model${models.length === 1 ? "" : "s"} available. Keep rules tight and compare performance by model.`
+            : "Create your first backtest model in Playbook before logging model-specific trades.",
+          href: "/playbook",
+          action: models.length ? "Manage models" : "Create model",
+          tone: models.length ? "green" : "gold",
+          icon: <Shield size={18} />,
+        },
+        {
+          title: "Backtest Trade Log",
+          status: stats.count ? `${stats.count}` : "Empty",
+          body: stats.count
+            ? `Current backtest sample is ${formatR(stats.totalR)} with ${stats.count ? formatPct(stats.winRate) : "—"} win rate.`
+            : "Log or import backtest trades to build a statistically useful sample.",
+          href: "/trades",
+          action: "Open trades",
+          tone: stats.count ? "green" : "blue",
+          icon: <PlusCircle size={18} />,
+        },
+        {
+          title: "Backtest Analytics",
+          status: `Grade ${grade}`,
+          body: `Review expectancy, drawdown, direction performance, and model quality before trusting the edge live.`,
+          href: "/analytics",
+          action: "Open analytics",
+          tone: edgeScore >= 62 ? "green" : edgeScore >= 40 ? "gold" : "red",
+          icon: <BarChart3 size={18} />,
+        },
+        {
+          title: "AI Coach",
+          status: "Coach",
+          body: "Ask the AI coach to challenge the assumptions in this backtest sample before risking real capital.",
+          href: "/ai-coach",
+          action: "Ask AI",
+          tone: "blue",
+          icon: <Brain size={18} />,
+        },
+      ];
+    }
+
+    return [
+      {
+        title: "Daily Plan",
+        status: dailyPlanAccepted ? "Accepted" : "Open",
+        body: dailyPlanAccepted
+          ? "Today's plan is accepted. Keep execution aligned with your max trades, allowed setups, and stop rules."
+          : "Pre-market plan has not been accepted yet. Generate guardrails before taking the next trade.",
+        href: "/daily-plan",
+        action: dailyPlanAccepted ? "Review plan" : "Build plan",
+        tone: dailyPlanAccepted ? "green" : "gold",
+        icon: <ClipboardCheck size={18} />,
+      },
+      {
+        title: "Review Queue",
+        status: reviewQueueCount ? `${reviewQueueCount}` : "Clean",
+        body: reviewQueueCount
+          ? `${reviewQueueCount} trade${reviewQueueCount === 1 ? "" : "s"} need emotion, mistake, lesson, or review completion.`
+          : "All visible trades have review coverage. Keep the journal clean before adding more risk.",
+        href: "/trade-review",
+        action: reviewQueueCount ? "Review trades" : "Open queue",
+        tone: reviewQueueCount ? "red" : "green",
+        icon: <AlertTriangle size={18} />,
+      },
+      {
+        title: "Biggest Leak",
+        status: biggestLeak ? formatR(biggestLeak.totalR) : "None",
+        body: biggestLeak
+          ? `${biggestLeak.name} is the highest R-cost pattern in this view across ${biggestLeak.count} trade${biggestLeak.count === 1 ? "" : "s"}.`
+          : "No negative pattern detected in the current filter. Keep tagging mistakes and emotions.",
+        href: "/ai-leak-finder",
+        action: "Find leak",
+        tone: biggestLeak ? "red" : "blue",
+        icon: <Brain size={18} />,
+      },
+      {
+        title: "Prop Firm Risk",
+        status: propFirmStatus.status,
+        body: propFirmStatus.body,
+        href: "/prop-firm-challenge",
+        action: "Check buffers",
+        tone: propFirmStatus.tone,
+        icon: <Shield size={18} />,
+      },
+      {
+        title: "Weekly Review",
+        status: thisWeekClosedCount ? "Ready" : "Pending",
+        body: thisWeekClosedCount
+          ? `${thisWeekClosedCount} closed trade${thisWeekClosedCount === 1 ? "" : "s"} this week are ready for AI review.`
+          : "No closed trades this week yet. Weekly review will activate once data is logged.",
+        href: "/weekly-review",
+        action: "Open review",
+        tone: thisWeekClosedCount ? "gold" : "blue",
+        icon: <CalendarIcon size={18} />,
+      },
+    ];
+  }, [isBacktest, stats, models.length, grade, edgeScore, dailyPlanAccepted, reviewQueueCount, biggestLeak, propFirmStatus, thisWeekClosedCount]);
 
   return (
     <AppShell
@@ -923,10 +992,10 @@ export default function DashboardPage() {
             }
             openTrades={openTrades.length}
             isDemo={isDemo}
-            onLogTrade={() => setTradeModalOpen(true)}
-            onOpenRiskGuard={() => router.push("/psychology/guard")}
+            onLogTrade={() => isBacktest ? router.push("/trades") : setTradeModalOpen(true)}
+            onOpenRiskGuard={() => isBacktest ? router.push("/playbook") : router.push("/psychology/guard")}
             onOpenAnalytics={() => router.push("/analytics")}
-            onOpenDailyPlan={() => router.push("/daily-plan")}
+            onOpenDailyPlan={() => isBacktest ? router.push("/backtesting/reports") : router.push("/daily-plan")}
           />
 
           <AICommandFeed items={commandFeedItems} onOpen={(href) => router.push(href)} />
