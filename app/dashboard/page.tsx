@@ -28,7 +28,6 @@ import { Trade } from "@/types/trade";
 import { TradingAccount } from "@/types/account";
 import { PlaybookSetup } from "@/types/playbook";
 import {
-  Activity,
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
@@ -37,9 +36,10 @@ import {
   Crosshair,
   Flame,
   LineChart,
+  PlusCircle,
   Shield,
+  Sparkles,
   Target,
-  Trophy,
   Calendar as CalendarIcon,
   Layers,
   ChevronLeft,
@@ -130,6 +130,252 @@ function DemoBanner({ onLogTrade }: { onLogTrade: () => void }) {
   );
 }
 
+type TradingState = {
+  label: string;
+  tone: "green" | "gold" | "red";
+  headline: string;
+  advice: string;
+};
+
+function getTradingState({
+  stats,
+  edgeScore,
+  openTrades,
+}: {
+  stats: ReturnType<typeof calcStats>;
+  edgeScore: number;
+  openTrades: number;
+}): TradingState {
+  if (openTrades > 2) {
+    return {
+      label: "Exposure Watch",
+      tone: "red",
+      headline: "Too many open decisions.",
+      advice: "Reduce decision-load before adding another position. Manage open exposure first.",
+    };
+  }
+
+  if (stats.streak <= -2 || stats.maxDD >= 3 || edgeScore < 40) {
+    return {
+      label: "Caution",
+      tone: "red",
+      headline: "Protect capital first.",
+      advice: "Trade smaller, take only A+ setups, and use AI Risk-Guard before the next session.",
+    };
+  }
+
+  if (stats.expectancy <= 0 || stats.profitFactor < 1 || edgeScore < 62) {
+    return {
+      label: "Review Mode",
+      tone: "gold",
+      headline: "Edge needs confirmation.",
+      advice: "Focus on your best setup and stop trading anything with weak expectancy.",
+    };
+  }
+
+  return {
+    label: "Cleared",
+    tone: "green",
+    headline: "Execution window is healthy.",
+    advice: "Keep risk fixed, repeat your best playbook, and do not increase size emotionally.",
+  };
+}
+
+function toneClass(tone: "green" | "gold" | "red") {
+  if (tone === "green") return { text: "text-[#00D084]", bg: "bg-[#00D084]/10", border: "border-[#00D084]/35", glow: "shadow-[0_0_45px_-20px_#00D084]" };
+  if (tone === "red") return { text: "text-[#FF4565]", bg: "bg-[#FF4565]/10", border: "border-[#FF4565]/35", glow: "shadow-[0_0_45px_-20px_#FF4565]" };
+  return { text: "text-[#F0B429]", bg: "bg-[#F0B429]/10", border: "border-[#F0B429]/35", glow: "shadow-[0_0_45px_-20px_#F0B429]" };
+}
+
+function signedDollar(value: number) {
+  return `${value >= 0 ? "+" : "-"}$${Math.abs(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function buildAiDeskInsight({
+  stats,
+  bestSetup,
+  worstSetup,
+  hasDollarData,
+  isDemo,
+}: {
+  stats: ReturnType<typeof calcStats>;
+  bestSetup: string;
+  worstSetup: string;
+  hasDollarData: boolean;
+  isDemo: boolean;
+}) {
+  if (isDemo) {
+    return "You are viewing demo telemetry. Log your first real trade to unlock personalized AI desk guidance.";
+  }
+  if (!stats.count) {
+    return "No closed trades yet. Start by logging three clean trades with setup, risk, emotion, and lesson so ProfitPnL can identify your edge.";
+  }
+  if (stats.expectancy > 0 && stats.profitFactor >= 1.25) {
+    return `Your edge is forming around ${bestSetup}. Keep size consistent and protect this pattern from overtrading.`;
+  }
+  if (worstSetup !== "No major leak") {
+    return `${worstSetup} is dragging performance. Review screenshots and rules before taking that setup again.`;
+  }
+  if (!hasDollarData) {
+    return "Your R tracking is active, but dollar P&L is missing on some trades. Add P&L to make risk telemetry more institutional.";
+  }
+  return "Your journal is building. The next improvement is tighter tagging: setup, session, mistake, emotion, and review status on every trade.";
+}
+
+function TradingHQHero({
+  traderName,
+  isBacktest,
+  stats,
+  dollarProfit,
+  hasDollarData,
+  tradesMissingPnl,
+  edgeScore,
+  grade,
+  gradeColor,
+  bestSetup,
+  worstSetup,
+  openTrades,
+  isDemo,
+  onLogTrade,
+  onOpenRiskGuard,
+  onOpenAnalytics,
+}: {
+  traderName: string;
+  isBacktest: boolean;
+  stats: ReturnType<typeof calcStats>;
+  dollarProfit: number;
+  hasDollarData: boolean;
+  tradesMissingPnl: number;
+  edgeScore: number;
+  grade: string;
+  gradeColor: string;
+  bestSetup: string;
+  worstSetup: string;
+  openTrades: number;
+  isDemo: boolean;
+  onLogTrade: () => void;
+  onOpenRiskGuard: () => void;
+  onOpenAnalytics: () => void;
+}) {
+  const state = getTradingState({ stats, edgeScore, openTrades });
+  const stateStyle = toneClass(state.tone);
+  const aiInsight = buildAiDeskInsight({ stats, bestSetup, worstSetup, hasDollarData, isDemo });
+  const edgeProgress = Math.max(3, Math.min(100, edgeScore));
+
+  return (
+    <Card className="relative overflow-hidden border-[#F0B429]/25 bg-[#07070D] p-0 shadow-2xl shadow-black/40">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(240,180,41,0.18),transparent_35%),radial-gradient(circle_at_86%_0%,rgba(0,208,132,0.10),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_45%)]" />
+      <div className="absolute left-0 top-0 h-px w-full bg-gradient-to-r from-transparent via-[#F0B429]/70 to-transparent" />
+
+      <div className="relative grid gap-7 p-5 sm:p-7 xl:grid-cols-[1.35fr_0.75fr]">
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#F0B429]/30 bg-[#F0B429]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#F0B429]">
+              <Sparkles size={12} /> {isBacktest ? "Backtesting HQ" : "Trading HQ"}
+            </span>
+            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${stateStyle.border} ${stateStyle.bg} ${stateStyle.text}`}>
+              <span className="h-1.5 w-1.5 rounded-full bg-current shadow-[0_0_10px_currentColor]" /> {state.label}
+            </span>
+          </div>
+
+          <div>
+            <h2 className="text-3xl font-black tracking-tighter text-white sm:text-5xl">
+              Welcome back, {traderName}.
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-[#A0A0C0]">
+              Your command center for edge quality, risk posture, recent execution, and the next action that protects your capital.
+            </p>
+          </div>
+
+          <div className={`rounded-[1.5rem] border ${stateStyle.border} ${stateStyle.bg} p-4 ${stateStyle.glow}`}>
+            <div className="flex items-start gap-3">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black/20 ${stateStyle.text}`}>
+                <Brain size={20} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#A0A0C0]">AI Desk Briefing</p>
+                <h3 className="mt-1 text-base font-black text-white">{state.headline}</h3>
+                <p className="mt-1 text-xs leading-6 text-zinc-300">{aiInsight} {state.advice}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <HQActionButton icon={<PlusCircle size={15} />} label="Log Trade" onClick={onLogTrade} primary />
+            <HQActionButton icon={<Shield size={15} />} label="Risk Guard" onClick={onOpenRiskGuard} />
+            <HQActionButton icon={<BarChart3 size={15} />} label="Analytics" onClick={onOpenAnalytics} />
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] border border-[#1E1E38] bg-[#0B0B16]/90 p-5 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#5A5A80]">Edge Rating</p>
+              <p className="mt-1 text-4xl font-black tracking-tighter" style={{ color: gradeColor }}>Grade {grade}</p>
+            </div>
+            <div className="relative grid h-20 w-20 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${gradeColor} ${edgeProgress * 3.6}deg, #1E1E38 0deg)` }}>
+              <div className="absolute inset-2 rounded-full bg-[#080810]" />
+              <span className="relative text-xl font-black" style={{ color: gradeColor }}>{Math.round(edgeScore)}</span>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <HQMiniStat label="Net P&L" value={hasDollarData ? signedDollar(dollarProfit) : "No $"} tone={hasDollarData ? (dollarProfit >= 0 ? "green" : "red") : "gold"} />
+            <HQMiniStat label="Total R" value={formatR(stats.totalR)} tone={stats.totalR >= 0 ? "green" : "red"} />
+            <HQMiniStat label="Win Rate" value={stats.count ? formatPct(stats.winRate) : "—"} tone="gold" />
+            <HQMiniStat label="Open Risk" value={`${openTrades} open`} tone={openTrades > 2 ? "red" : openTrades > 0 ? "gold" : "green"} />
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="font-bold text-[#8080A0]">Best setup</span>
+              <span className="max-w-[150px] truncate font-black text-[#00D084]" title={bestSetup}>{bestSetup}</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+              <span className="font-bold text-[#8080A0]">Review focus</span>
+              <span className="max-w-[150px] truncate font-black text-[#F0B429]" title={worstSetup}>{worstSetup}</span>
+            </div>
+            {tradesMissingPnl > 0 && (
+              <p className="mt-3 text-[10px] leading-5 text-[#8080A0]">
+                {tradesMissingPnl} trade{tradesMissingPnl === 1 ? "" : "s"} missing dollar P&L.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function HQActionButton({ icon, label, onClick, primary = false }: { icon: React.ReactNode; label: string; onClick: () => void; primary?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        "flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-wider transition active:scale-95",
+        primary
+          ? "gold-gradient text-[#080810] shadow-[0_0_30px_-12px_#F0B429]"
+          : "border border-[#1E1E38] bg-[#111124] text-[#A0A0C0] hover:border-[#F0B429]/40 hover:text-white",
+      ].join(" ")}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
+function HQMiniStat({ label, value, tone }: { label: string; value: string; tone: "green" | "gold" | "red" }) {
+  const colors = toneClass(tone);
+  return (
+    <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-3">
+      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">{label}</p>
+      <p className={`mt-1 truncate text-sm font-black ${colors.text}`}>{value}</p>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user, displayName } = useAuth();
   const { mode } = useMode();
@@ -144,7 +390,7 @@ export default function DashboardPage() {
 
   // Backtesting-mode state
   const [models, setModels] = useState<BacktestModel[]>([]);
-  const [profile, setProfile] = useState<BacktestProfile | null>(null);
+  const [, setProfile] = useState<BacktestProfile | null>(null);
   const [acct, setAcct] = useState("0");
   const [acctCurrency, setAcctCurrency] = useState("USD");
   const [savingAcct, setSavingAcct] = useState(false);
@@ -303,13 +549,13 @@ export default function DashboardPage() {
 
   return (
     <AppShell
-      title={isBacktest ? "Backtesting" : shiftData ? "AI Co-pilot Active Terminal" : "Overview"}
+      title={isBacktest ? "Backtesting HQ" : shiftData ? "AI Co-pilot Active Terminal" : "Trading HQ"}
       subtitle={
         isBacktest
           ? `${models.length} models · ${trades.length} backtested trades`
           : shiftData 
             ? "Your active, real-time strategy verification co-pilot"
-            : `Welcome back${displayName ? `, ${displayName}` : ""}`
+            : "Your trading command center"
       }
       actionLabel={isBacktest ? "+ New Model" : shiftData ? undefined : "+ Log New Trade"}
       onAction={
@@ -415,84 +661,29 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          {/* --- INSTITUTIONAL COMMAND HUD & TOP METRICS --- */}
-          <div className="relative overflow-hidden rounded-2xl border border-[#F0B429]/30 bg-gradient-to-r from-[#121224] via-[#16162C] to-[#1A1A34] p-5 shadow-2xl">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#242444] pb-4 mb-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F0B429]/20 border border-[#F0B429]/40 text-[#F0B429] shrink-0 shadow-[0_0_15px_rgba(240,180,41,0.3)]">
-                  <Flame size={22} className="animate-pulse" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-black text-white tracking-tight">Institutional Performance Desk</h2>
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#00D084]/20 border border-[#00D084]/40 text-[#00D084] text-[10px] font-black uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#00D084] animate-ping" />{" "}
-                      {isBacktest ? "Backtesting" : "Live Terminal"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#A0A0C0] mt-0.5">Real-time edge attribution, quantitative expectancy & risk telemetry</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-[#A0A0C0]">
-                <span>Status: <strong className="text-white">Active Edge</strong></span>
-                <span className="text-zinc-600">|</span>
-                <span>Trades: <strong className="text-[#F0B429]">{stats.count} Closed</strong></span>
-              </div>
-            </div>
-
-            <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                icon={<Trophy size={18} />}
-                label="Net Profit"
-                value={
-                  tradesWithPnl.length
-                    ? `${dollarProfit >= 0 ? "+" : "-"}$${Math.abs(
-                        dollarProfit
-                      ).toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}`
-                    : "—"
-                }
-                sub={
-                  tradesMissingPnl > 0
-                    ? `${formatR(stats.totalR)} · ${tradesMissingPnl} trade${
-                        tradesMissingPnl === 1 ? "" : "s"
-                      } missing $`
-                    : `${formatR(stats.totalR)} · actual P/L`
-                }
-                tone={dollarProfit >= 0 ? "green" : "red"}
-              />
-
-              <MetricCard
-                icon={<Target size={18} />}
-                label="Win Rate"
-                value={stats.count ? formatPct(stats.winRate) : "—"}
-                sub={`${stats.wins}W / ${stats.losses}L`}
-                tone="gold"
-              />
-
-              <MetricCard
-                icon={<Activity size={18} />}
-                label="Expectancy"
-                value={formatR(stats.expectancy)}
-                sub="average per trade"
-                tone={stats.expectancy >= 0 ? "green" : "red"}
-              />
-
-              <MetricCard
-                icon={<BarChart3 size={18} />}
-                label="Profit Factor"
-                value={
-                  stats.profitFactor >= 99 ? "∞" : stats.profitFactor.toFixed(2)
-                }
-                sub={
-                  stats.profitFactor >= 1.5 ? "strong edge" : "needs improvement"
-                }
-                tone={stats.profitFactor >= 1 ? "green" : "red"}
-              />
-            </div>
-          </div>
+          {/* --- TRADING HQ EXECUTIVE COMMAND CENTER --- */}
+          <TradingHQHero
+            traderName={displayName || user?.email?.split("@")[0] || "Trader"}
+            isBacktest={isBacktest}
+            stats={stats}
+            dollarProfit={dollarProfit}
+            hasDollarData={tradesWithPnl.length > 0}
+            tradesMissingPnl={tradesMissingPnl}
+            edgeScore={edgeScore}
+            grade={grade}
+            gradeColor={gradeColor}
+            bestSetup={bestSetup?.name || stats.bestSetup || "No setup yet"}
+            worstSetup={
+              worstSetup?.totalR && worstSetup.totalR < 0
+                ? worstSetup.name
+                : "No major leak"
+            }
+            openTrades={openTrades.length}
+            isDemo={isDemo}
+            onLogTrade={() => setTradeModalOpen(true)}
+            onOpenRiskGuard={() => router.push("/psychology/guard")}
+            onOpenAnalytics={() => router.push("/analytics")}
+          />
 
           {/* --- INTERACTIVE EQUITY CURVE & RISK DESK (MOVED TO TOP) --- */}
           <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -1335,48 +1526,6 @@ function FilterSelect({
         ))}
       </select>
     </div>
-  );
-}
-
-function MetricCard({
-  icon,
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
-  tone: "green" | "red" | "gold";
-}) {
-  const color =
-    tone === "green" ? "#00D084" : tone === "red" ? "#FF4565" : "#F0B429";
-
-  return (
-    <Card className="min-w-0 glass-panel border-none p-5 transition-all duration-300 hover:scale-[1.01] hover:border-white/25">
-      <div className="flex items-center justify-between gap-2">
-        <div className="truncate text-xs font-semibold uppercase tracking-wider text-[#8080A0]">
-          {label}
-        </div>
-        <div className="shrink-0" style={{ color }}>
-          {icon}
-        </div>
-      </div>
-
-      <div
-        className="mt-3 truncate text-2xl font-bold tabular-nums tracking-tight md:text-3xl"
-        style={{ color }}
-        title={value}
-      >
-        {value}
-      </div>
-
-      <div className="mt-1 truncate text-xs font-medium text-[#8080A0]" title={sub}>
-        {sub}
-      </div>
-    </Card>
   );
 }
 
