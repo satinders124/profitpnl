@@ -288,6 +288,7 @@ export function ActiveShiftTerminal({
         sessionDurationMinutes,
       });
 
+      window.dispatchEvent(new Event("profitpnl:shift-updated"));
       showCelebrate("Shift Complete! ⏱️", `Outstanding check-out. AI evaluation saved!`, "success");
       onStateChange();
     } catch (e) {

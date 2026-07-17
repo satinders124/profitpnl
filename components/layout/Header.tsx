@@ -1,9 +1,11 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useMode } from "@/components/providers/ModeProvider";
+import { getActiveShift, type TraderShift } from "@/lib/shifts-db";
 import { useRouter } from "next/navigation";
-import { Plus, FlaskConical } from "lucide-react";
+import { Clock3, FlaskConical, Plus } from "lucide-react";
 
 type HeaderProps = {
   title: string;
@@ -11,6 +13,15 @@ type HeaderProps = {
   actionLabel?: string;
   onAction?: () => void;
 };
+
+function formatShiftElapsed(clockIn: string, nowMs: number) {
+  const start = new Date(clockIn).getTime();
+  if (!Number.isFinite(start)) return "0m";
+  const totalMinutes = Math.max(0, Math.floor((nowMs - start) / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${minutes}m`;
+}
 
 export function Header({
   title,
@@ -23,6 +34,35 @@ export function Header({
   const router = useRouter();
   const isBacktest = mode === "backtest";
   const cleanActionLabel = actionLabel?.replace(/^\+\s*/, "");
+  const [activeShift, setActiveShift] = useState<TraderShift | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const refreshActiveShift = useCallback(async () => {
+    if (!user || isBacktest) {
+      setActiveShift(null);
+      return;
+    }
+    try {
+      const shift = await getActiveShift(user.id);
+      setActiveShift(shift);
+    } catch {
+      setActiveShift(null);
+    }
+  }, [user, isBacktest]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshActiveShift();
+    const handler = () => refreshActiveShift();
+    window.addEventListener("profitpnl:shift-updated", handler);
+    return () => window.removeEventListener("profitpnl:shift-updated", handler);
+  }, [refreshActiveShift]);
+
+  useEffect(() => {
+    if (!activeShift) return;
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [activeShift]);
 
   function toggleMode() {
     if (isBacktest) {
@@ -68,7 +108,20 @@ export function Header({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex shrink-0 items-center gap-3">
+        {activeShift && !isBacktest && (
+          <button
+            onClick={() => router.push("/psychology/guard")}
+            className="inline-flex items-center gap-2 rounded-full border border-[#00D084]/30 bg-[#00D084]/10 px-3 py-2 text-xs font-black text-[#00D084] transition hover:bg-[#00D084]/15"
+            title="Active AI Risk-Guard shift timer"
+          >
+            <span className="h-2 w-2 rounded-full bg-[#00D084] shadow-[0_0_10px_#00D084] animate-pulse" />
+            <Clock3 size={14} />
+            <span className="hidden sm:inline">Shift</span>
+            <span className="font-mono tabular-nums">{formatShiftElapsed(activeShift.clockIn, nowMs)}</span>
+          </button>
+        )}
+
         {actionLabel && (
           <button
             onClick={onAction}
