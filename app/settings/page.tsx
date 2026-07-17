@@ -61,7 +61,21 @@ import {
   Loader2 as LoaderIcon,
 } from "lucide-react";
 
-type SettingsTab = "preferences" | "brokers" | "tags" | "risk" | "account";
+type SettingsTab = "preferences" | "notifications" | "brokers" | "tags" | "risk" | "account";
+
+function Toggle({ enabled, onClick }: { enabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-all ${enabled ? "bg-[#F0B429]" : "bg-[#242436]"}`}
+    >
+      <span
+        className={`absolute top-[3px] h-4.5 w-4.5 rounded-full bg-white shadow-sm transition-all ${enabled ? "right-[3px]" : "left-[3px]"}`}
+      />
+    </button>
+  );
+}
 
 export default function SettingsPage() {
   const { user, plan, planSource, trialEndsAtMs, hasUsedTrial, logout, refreshPlan } =
@@ -107,6 +121,10 @@ export default function SettingsPage() {
     timezone: "UTC",
     notifications: true,
     soundEffects: true,
+    dailyPlanRemindersEnabled: true,
+    dailyPlanReminderTime: "08:00",
+    weeklyReviewRemindersEnabled: true,
+    emailReportsEnabled: true,
     tradingviewUsername: "", // Tradingview custom username to authorize settings
 
     // Trading Preferences
@@ -168,6 +186,10 @@ export default function SettingsPage() {
             timezone: data.timezone || "UTC",
             notifications: data.notifications ?? true,
             soundEffects: data.sound_effects ?? true,
+            dailyPlanRemindersEnabled: data.daily_plan_reminders_enabled ?? true,
+            dailyPlanReminderTime: data.daily_plan_reminder_time || "08:00",
+            weeklyReviewRemindersEnabled: data.weekly_review_reminders_enabled ?? true,
+            emailReportsEnabled: data.email_reports_enabled ?? true,
             tradingviewUsername: data.tradingview_username || "",
             initialAccountSize: Number(data.initial_account_size) || 50000,
             defaultRiskPercentage: Number(data.default_risk_percentage) || 1.0,
@@ -207,6 +229,10 @@ export default function SettingsPage() {
         timezone: settings.timezone,
         notifications: settings.notifications,
         sound_effects: settings.soundEffects,
+        daily_plan_reminders_enabled: settings.dailyPlanRemindersEnabled,
+        daily_plan_reminder_time: settings.dailyPlanReminderTime,
+        weekly_review_reminders_enabled: settings.weeklyReviewRemindersEnabled,
+        email_reports_enabled: settings.emailReportsEnabled,
         tradingview_username: settings.tradingviewUsername,
         initial_account_size: settings.initialAccountSize,
         default_risk_percentage: settings.defaultRiskPercentage,
@@ -393,9 +419,10 @@ export default function SettingsPage() {
 
       // Sign out locally
       await logout();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Account deletion error:", err);
-      alert(err.message || "Failed to delete account. Please contact support.");
+      const message = err instanceof Error ? err.message : "Failed to delete account. Please contact support.";
+      alert(message);
       setShowDeleteConfirm(false);
       setDeleteConfirmText("");
     } finally {
@@ -459,7 +486,8 @@ export default function SettingsPage() {
     icon: typeof Sliders;
     badge?: string;
   }[] = [
-    { id: "preferences", label: "Trading Preferences", icon: Sliders },
+    { id: "preferences", label: "Trading Profile", icon: Sliders },
+    { id: "notifications", label: "Notifications", icon: Bell, badge: "Daily Plan" },
     {
       id: "brokers",
       label: "Broker Connections",
@@ -846,6 +874,120 @@ export default function SettingsPage() {
                       className={`w-4.5 h-4.5 bg-white rounded-full absolute top-[3px] transition-all shadow-sm ${settings.soundEffects ? "right-[3px]" : "left-[3px]"}`}
                     />
                   </button>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════
+              2. NOTIFICATIONS TAB
+          ═══════════════════════════════════════════════════ */}
+          {activeTab === "notifications" && (
+            <div className="space-y-6">
+              <Card className="relative overflow-hidden border-[#F0B429]/25 bg-[#0D0D1A] p-6">
+                <div className="absolute -right-24 -top-24 h-48 w-48 rounded-full bg-[#F0B429]/10 blur-3xl" />
+                <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F0B429]">Reminder System</p>
+                    <h3 className="mt-1 text-xl font-black text-white">Daily trading discipline reminders</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8080A0]">
+                      Configure the reminders that keep ProfitPnL in your daily trading routine. Email delivery can be connected to the cron reminder system next.
+                    </p>
+                  </div>
+                  <Bell className="text-[#F0B429]" size={28} />
+                </div>
+              </Card>
+
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Card className="p-6 space-y-5 border-[#1E1E38] bg-[#0D0D1A]/95">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-white font-bold text-base flex items-center gap-2">
+                        <Clock size={16} className="text-[#F0B429]" />
+                        Daily Plan Reminder
+                      </h3>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">
+                        Prompt yourself to open your Daily Plan before your trading session.
+                      </p>
+                    </div>
+                    <Toggle
+                      enabled={settings.dailyPlanRemindersEnabled}
+                      onClick={() => setSettings({ ...settings, dailyPlanRemindersEnabled: !settings.dailyPlanRemindersEnabled })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-zinc-300 text-xs font-semibold">Reminder Time</label>
+                    <input
+                      type="time"
+                      value={settings.dailyPlanReminderTime}
+                      onChange={(e) => setSettings({ ...settings, dailyPlanReminderTime: e.target.value })}
+                      className="w-full rounded-xl border border-[#1E1E38] bg-[#080810] px-4 py-3 text-sm font-black text-white outline-none focus:border-[#F0B429] [color-scheme:dark]"
+                    />
+                    <p className="text-[11px] text-zinc-600">Uses your selected timezone: {settings.timezone}.</p>
+                  </div>
+                </Card>
+
+                <Card className="p-6 space-y-5 border-[#1E1E38] bg-[#0D0D1A]/95">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-white font-bold text-base flex items-center gap-2">
+                        <Receipt size={16} className="text-[#F0B429]" />
+                        Weekly Review Reminder
+                      </h3>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">
+                        Get prompted to review the week, find leaks, and set next-week rules.
+                      </p>
+                    </div>
+                    <Toggle
+                      enabled={settings.weeklyReviewRemindersEnabled}
+                      onClick={() => setSettings({ ...settings, weeklyReviewRemindersEnabled: !settings.weeklyReviewRemindersEnabled })}
+                    />
+                  </div>
+
+                  <div className="flex items-start justify-between gap-4 rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+                    <div>
+                      <p className="text-sm font-black text-white">Email AI report summaries</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">Receive saved AI report summaries and review prompts by email.</p>
+                    </div>
+                    <Toggle
+                      enabled={settings.emailReportsEnabled}
+                      onClick={() => setSettings({ ...settings, emailReportsEnabled: !settings.emailReportsEnabled })}
+                    />
+                  </div>
+                </Card>
+              </div>
+
+              <Card className="p-6 border-[#1E1E38] bg-[#0D0D1A]/95">
+                <h3 className="text-white font-bold text-base flex items-center gap-2">
+                  <Volume2 size={16} className="text-[#F0B429]" />
+                  In-App Notification Preferences
+                </h3>
+                <div className="mt-5 space-y-4">
+                  <div className="flex items-center justify-between rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+                    <div>
+                      <p className="text-sm font-black text-white">Daily limit alerts</p>
+                      <p className="mt-1 text-xs text-zinc-500">Alerts when nearing daily max loss or target goals.</p>
+                    </div>
+                    <Toggle
+                      enabled={settings.notifications}
+                      onClick={() => setSettings({ ...settings, notifications: !settings.notifications })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+                    <div>
+                      <p className="text-sm font-black text-white">Sound effects</p>
+                      <p className="mt-1 text-xs text-zinc-500">Play audio cues on trade saves, goals, and review moments.</p>
+                    </div>
+                    <Toggle
+                      enabled={settings.soundEffects}
+                      onClick={() => {
+                        const next = !settings.soundEffects;
+                        setSettings({ ...settings, soundEffects: next });
+                        if (next) playClick();
+                      }}
+                    />
+                  </div>
                 </div>
               </Card>
             </div>
