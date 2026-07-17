@@ -31,7 +31,6 @@ type NavItem = {
   label: string;
   href: string;
   icon: typeof Home;
-  switch?: boolean;
 };
 
 type NavSection = {
@@ -65,6 +64,7 @@ const liveMoreSectionsBase: NavSection[] = [
     label: "AI Intelligence",
     items: [
       { label: "Analytics", href: "/analytics", icon: BarChart3 },
+      { label: "AI Reports", href: "/ai-reports", icon: ClipboardCheck },
       { label: "AI Leak Finder", href: "/ai-leak-finder", icon: Search },
       { label: "AI Risk-Guard", href: "/psychology/guard", icon: Brain },
       { label: "Prop Firm Mode", href: "/prop-firm-challenge", icon: ShieldCheck },
@@ -98,22 +98,10 @@ const backtestMoreSections: NavSection[] = [
       { label: "Playbook", href: "/playbook", icon: BookOpen },
       { label: "Accounts", href: "/accounts", icon: CreditCard },
       { label: "Settings", href: "/settings", icon: Settings },
-      {
-        label: "Shift to Live Journal",
-        href: "/dashboard",
-        icon: ArrowUpRight,
-        switch: true,
-      },
     ],
   },
 ];
 
-const switchItem: NavItem = {
-  label: "Switch to Backtesting mode",
-  href: "/dashboard",
-  icon: FlaskConical,
-  switch: true,
-};
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -141,12 +129,7 @@ export function MobileNav() {
       )
     : liveMoreSectionsBase;
 
-  const moreSections = isBacktest
-    ? backtestMoreSections
-    : [
-        ...liveMoreSections,
-        { label: "Mode", items: [switchItem] },
-      ];
+  const moreSections = isBacktest ? backtestMoreSections : liveMoreSections;
 
   const moreItems = moreSections.flatMap((section) => section.items);
 
@@ -285,19 +268,6 @@ export function MobileNav() {
                             pathname.startsWith(`${item.href}/`);
                           const Icon = item.icon;
 
-                          if (item.switch) {
-                            return (
-                              <button
-                                key={item.label}
-                                onClick={handleSwitch}
-                                className="flex items-center gap-3 rounded-xl border border-[#F0B429]/30 bg-[#F0B429]/[0.06] px-4 py-3.5 text-sm font-semibold text-[#F0B429] transition-all hover:bg-[#F0B429]/10"
-                              >
-                                <Icon size={18} strokeWidth={2.2} />
-                                {item.label}
-                              </button>
-                            );
-                          }
-
                           return (
                             <Link
                               key={item.href}
@@ -319,6 +289,47 @@ export function MobileNav() {
                       </div>
                     </div>
                   ))}
+                  <div>
+                    <div className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
+                      Workspace
+                    </div>
+                    <button
+                      onClick={handleSwitch}
+                      className={[
+                        "relative w-full overflow-hidden rounded-2xl border p-4 text-left transition active:scale-[0.99]",
+                        isBacktest
+                          ? "border-[#F0B429]/35 bg-[#F0B429]/10 shadow-[0_0_35px_-24px_#F0B429]"
+                          : "border-[#00D084]/30 bg-[#00D084]/10 shadow-[0_0_35px_-24px_#00D084]",
+                      ].join(" ")}
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span
+                            className={[
+                              "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border",
+                              isBacktest
+                                ? "border-[#F0B429]/30 bg-[#F0B429]/10 text-[#F0B429]"
+                                : "border-[#00D084]/30 bg-[#00D084]/10 text-[#00D084]",
+                            ].join(" ")}
+                          >
+                            {isBacktest ? <FlaskConical size={18} /> : <span className="h-2.5 w-2.5 rounded-full bg-[#00D084] shadow-[0_0_10px_#00D084]" />}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Current mode</span>
+                            <span className="block truncate text-sm font-black text-white">
+                              {isBacktest ? "Backtesting Workspace" : "Live Journal Workspace"}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-zinc-500">
+                              Switch to {isBacktest ? "Live Journal" : "Backtesting"}
+                            </span>
+                          </span>
+                        </span>
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-zinc-200">
+                          Switch <ArrowUpRight size={12} />
+                        </span>
+                      </div>
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
