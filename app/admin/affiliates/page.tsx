@@ -274,7 +274,7 @@ export default function AdminAffiliatesPage() {
                   className="gold-gradient inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-[#080810] disabled:opacity-60"
                 >
                   {broadcasting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                  {broadcasting ? "Sending Broadcast..." : "Send What&apos;s New Email"}
+                  {broadcasting ? "Sending Broadcast..." : "Send What’s New Email"}
                 </button>
                 <a
                   href="/whats-new"
