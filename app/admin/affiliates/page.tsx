@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BadgeDollarSign,
+  CheckCircle2,
   Copy,
   ExternalLink,
   Loader2,
+  Mail,
   MousePointerClick,
   Plus,
   RefreshCw,
   Search,
+  Send,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -112,8 +115,12 @@ export default function AdminAffiliatesPage() {
   const [affiliates, setAffiliates] = useState<AffiliateAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
   const [broadcasting, setBroadcasting] = useState(false);
+  const [testEmailSent, setTestEmailSent] = useState(false);
+  const [testEmailApproved, setTestEmailApproved] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState("");
+  const [testEmail, setTestEmail] = useState("");
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -224,9 +231,42 @@ export default function AdminAffiliatesPage() {
     setTimeout(() => setCopiedId(null), 1600);
   }
 
+  async function sendWhatsNewTestEmail() {
+    if (testingEmail) return;
+    const cleanEmail = testEmail.trim();
+    if (!cleanEmail) {
+      setError("Enter your testing email first.");
+      return;
+    }
+
+    setTestingEmail(true);
+    setTestEmailSent(false);
+    setTestEmailApproved(false);
+    setBroadcastResult("");
+    setError("");
+    try {
+      const headers = await authHeaders();
+      const res = await fetch("/api/admin/broadcast-features", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ mode: "test", testEmail: cleanEmail }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(res.status === 403 ? await adminForbiddenMessage() : json.error || "Could not send test email.");
+      }
+      setTestEmailSent(true);
+      setBroadcastResult(`Test email sent to ${json.testEmail || cleanEmail}. Check inbox/spam, then click Approve Test to unlock the all-user send.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send test email.");
+    } finally {
+      setTestingEmail(false);
+    }
+  }
+
   async function sendWhatsNewBroadcast() {
-    if (broadcasting) return;
-    const ok = confirm("Send the What's New email to all registered users? This cannot be undone.");
+    if (broadcasting || !testEmailApproved) return;
+    const ok = confirm("Only continue if the test email looks perfect. Send the What's New email to all registered users now? This cannot be undone.");
     if (!ok) return;
 
     setBroadcasting(true);
@@ -237,6 +277,7 @@ export default function AdminAffiliatesPage() {
       const res = await fetch("/api/admin/broadcast-features", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ mode: "broadcast", confirmBroadcast: true }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -267,22 +308,61 @@ export default function AdminAffiliatesPage() {
               <p className="mt-3 max-w-2xl text-sm leading-7 text-[#A0A0C0]">
                 Manage creator partners, track clicks-to-customer conversion, and keep commission payouts controlled from one command center.
               </p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  onClick={sendWhatsNewBroadcast}
-                  disabled={broadcasting}
-                  className="gold-gradient inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-[#080810] disabled:opacity-60"
-                >
-                  {broadcasting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                  {broadcasting ? "Sending Broadcast..." : "Send What’s New Email"}
-                </button>
-                <a
-                  href="/whats-new"
-                  target="_blank"
-                  className="inline-flex items-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#111124] px-5 py-3 text-sm font-black text-zinc-300 hover:text-white"
-                >
-                  Preview What&apos;s New <ExternalLink size={15} />
-                </a>
+              <div className="mt-5 rounded-[1.5rem] border border-[#1E1E38] bg-[#080810]/80 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F0B429]">Safe email launch</p>
+                    <p className="mt-1 text-xs text-[#8080A0]">Step 1: send to your testing email. Step 2: approve it, then unlock the all-user broadcast.</p>
+                  </div>
+                  {testEmailApproved ? <CheckCircle2 className="shrink-0 text-[#00D084]" size={22} /> : <Mail className="shrink-0 text-[#5A5A80]" size={22} />}
+                </div>
+                <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]">
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5A5A80]" size={16} />
+                    <input
+                      value={testEmail}
+                      onChange={(e) => {
+                        setTestEmail(e.target.value);
+                        setTestEmailSent(false);
+                        setTestEmailApproved(false);
+                      }}
+                      placeholder="testing@email.com"
+                      inputMode="email"
+                      className="w-full rounded-2xl border border-[#1E1E38] bg-[#050509] py-3 pl-11 pr-4 text-sm font-semibold text-white outline-none transition focus:border-[#F0B429]"
+                    />
+                  </div>
+                  <button
+                    onClick={sendWhatsNewTestEmail}
+                    disabled={testingEmail || broadcasting}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#F0B429]/35 bg-[#F0B429]/10 px-5 py-3 text-sm font-black text-[#F0B429] transition hover:bg-[#F0B429]/15 disabled:opacity-60"
+                  >
+                    {testingEmail ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    {testingEmail ? "Sending Test..." : "Send Test Email"}
+                  </button>
+                  <button
+                    onClick={() => setTestEmailApproved(true)}
+                    disabled={!testEmailSent || testingEmail || broadcasting || testEmailApproved}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#00D084]/30 bg-[#00D084]/10 px-5 py-3 text-sm font-black text-[#00D084] transition hover:bg-[#00D084]/15 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <CheckCircle2 size={16} /> {testEmailApproved ? "Test Approved" : "Approve Test"}
+                  </button>
+                  <button
+                    onClick={sendWhatsNewBroadcast}
+                    disabled={broadcasting || testingEmail || !testEmailApproved}
+                    title={!testEmailApproved ? "Send and approve a test email first" : "Send to every registered user"}
+                    className="gold-gradient inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-[#080810] disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {broadcasting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                    {broadcasting ? "Sending Broadcast..." : "Send To All Users"}
+                  </button>
+                  <a
+                    href="/whats-new"
+                    target="_blank"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#111124] px-5 py-3 text-sm font-black text-zinc-300 hover:text-white"
+                  >
+                    Preview <ExternalLink size={15} />
+                  </a>
+                </div>
               </div>
             </div>
             <div className="rounded-[2rem] border border-[#1E1E38] bg-[#0B0B16]/90 p-5">

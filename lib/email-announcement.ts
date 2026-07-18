@@ -1,5 +1,7 @@
 import { escapeHtml, renderEmailLayout } from "@/lib/email-templates";
 
+export const WHATS_NEW_EMAIL_SUBJECT = "🚀 What’s New in ProfitPnL: Daily Plan, AI Reports, Backtesting PDFs & More";
+
 const releaseItems = [
   {
     title: "Trading HQ Command Feed",
@@ -35,9 +37,32 @@ const releaseItems = [
   },
 ];
 
+function getSiteUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com";
+}
+
+export function whatsNewEmailText(name: string): string {
+  const traderName = name || "Trader";
+  const siteUrl = getSiteUrl();
+  const releaseSummary = releaseItems.map((item) => `- ${item.title}: ${item.text}`).join("\n");
+
+  return `Hi ${traderName},
+
+ProfitPnL just received a major upgrade. It now connects planning, journaling, AI review, backtesting reports, prop-firm risk, imports, and reminders into one workflow.
+
+New in this release:
+${releaseSummary}
+
+See what is new: ${siteUrl}/whats-new
+
+Open ProfitPnL and start with Trading HQ or your Daily Plan.
+
+— The ProfitPnL Team`;
+}
+
 export function whatsNewEmailHtml(name: string): string {
   const safeName = escapeHtml(name || "Trader");
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com";
+  const siteUrl = getSiteUrl();
 
   const body = `
     <h1 style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:21px;font-weight:900;color:#080810;letter-spacing:-0.02em;">
