@@ -1,93 +1,97 @@
-/**
- * Premium email template announcing the new AI Risk-Guard features to all users.
- */
-export function featureAnnouncementEmailHtml(name: string): string {
-  const safeName = name || "there";
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com";
+import { escapeHtml, renderEmailLayout } from "@/lib/email-templates";
 
-  const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif";
+const releaseItems = [
+  {
+    title: "Trading HQ Command Feed",
+    text: "Your dashboard now tells you what needs attention today: Daily Plan, review queue, biggest leak, prop firm risk, and weekly review status.",
+  },
+  {
+    title: "Daily Plan + Plan vs Execution",
+    text: "Build your pre-market rules, accept the plan, then compare actual trades against the plan after the session.",
+  },
+  {
+    title: "AI Reports Library",
+    text: "Generated AI insights can now be saved and reviewed later from the AI Reports page.",
+  },
+  {
+    title: "Trade Review AI Actions",
+    text: "AI Trade Review can now suggest emotion, mistake, lesson, next rule, and apply the review to your journal.",
+  },
+  {
+    title: "Backtesting Report Center",
+    text: "Create backtesting reports with CSV export, public share links, PDF download, and QR verification.",
+  },
+  {
+    title: "Import Center + Broker Presets",
+    text: "Import CSVs with presets for MT4, MT5, TradingView, Tradovate, NinjaTrader, TopstepX, cTrader, and generic spreadsheets.",
+  },
+  {
+    title: "Prop Firm Mode + Templates",
+    text: "Track target progress, daily buffer, max drawdown, and consistency risk with prop-firm account templates.",
+  },
+  {
+    title: "Notifications Foundation",
+    text: "Daily Plan and Weekly Review reminder settings are now available from Settings → Notifications.",
+  },
+];
 
-  return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f8" style="background-color:#f4f4f8; padding:32px 16px;">
+export function whatsNewEmailHtml(name: string): string {
+  const safeName = escapeHtml(name || "Trader");
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com";
+
+  const body = `
+    <h1 style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:21px;font-weight:900;color:#080810;letter-spacing:-0.02em;">
+      ProfitPnL just became a full trading operating system
+    </h1>
+    <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.7;color:#5b5b78;">
+      Hi ${safeName}, we have shipped a major product upgrade. ProfitPnL now connects planning, journaling, AI review, backtesting reports, prop-firm risk, imports, and reminders into one workflow.
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f7f5ef" style="background-color:#f7f5ef;border:1px solid #e7e7f0;border-radius:14px;margin:0 0 20px;">
       <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:550px;">
-            <tr>
-              <td style="padding-bottom:20px; text-align:center;">
-                <span style="font-family:${FONT}; font-size:18px; font-weight:900; color:#080810;">ProfitPnL Update</span>
-              </td>
-            </tr>
-            <tr>
-              <td bgcolor="#ffffff" style="background-color:#ffffff; border:1px solid #e7e7f0; border-radius:20px; padding:32px 28px; box-shadow:0 4px 12px rgba(8,8,16,0.03);">
-                
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
-                  <tr>
-                    <td bgcolor="#f7f5ef" style="padding:4px 12px; border-radius:30px;">
-                      <span style="font-family:${FONT}; font-size:10px; font-weight:900; color:#c8961e; letter-spacing:0.1em; text-transform:uppercase;">🔥 BRAND NEW RELEASE</span>
-                    </td>
-                  </tr>
-                </table>
-
-                <h1 style="margin:0 0 8px; font-family:${FONT}; font-size:22px; font-weight:900; color:#080810; letter-spacing:-0.02em;">
-                  The AI Risk-Guard Terminal is Live!
-                </h1>
-                
-                <p style="margin:0 0 20px; font-family:${FONT}; font-size:13px; line-height:1.7; color:#5b5b78;">
-                  Hi ${safeName}, we've just rolled out the single biggest, game-changing feature in the history of trading journals: **The AI Risk-Guard & Cognitive Shift Cockpit**.
-                </p>
-
-                <!-- Feature 1 -->
-                <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #e7e7f0;">
-                  <h3 style="margin:0 0 6px; font-family:${FONT}; font-size:14px; font-weight:900; color:#080810;">
-                    ⏱️ Active Trader Clock-In/Clock-Out
-                  </h3>
-                  <p style="margin:0; font-family:${FONT}; font-size:12px; line-height:1.6; color:#5b5b78;">
-                    Lock in your daily profit targets and loss limits before every session. Your dashboard transforms into an active cockpit monitoring live risk parameters in real-time.
-                  </p>
-                </div>
-
-                <!-- Feature 2 -->
-                <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #e7e7f0;">
-                  <h3 style="margin:0 0 6px; font-family:${FONT}; font-size:14px; font-weight:900; color:#080810;">
-                    📒 Playbook Rule Checklist
-                  </h3>
-                  <p style="margin:0; font-family:${FONT}; font-size:12px; line-height:1.6; color:#5b5b78;">
-                    Verify your setups! When registering running positions, the app pulls your strategy rules and demands checklist verification before execution. No more impulse trades.
-                  </p>
-                </div>
-
-                <!-- Feature 3 -->
-                <div style="margin-bottom:24px;">
-                  <h3 style="margin:0 0 6px; font-family:${FONT}; font-size:14px; font-weight:900; color:#080810;">
-                    🧠 AI Behavioral Closeouts
-                  </h3>
-                  <p style="margin:0; font-family:${FONT}; font-size:12px; line-height:1.6; color:#5b5b78;">
-                    When you clock out, our AI behavioral engine evaluates your discipline and generates a highly comprehensive, personalized behavioral summary paragraph detailing your shift.
-                  </p>
-                </div>
-
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px; width:100%;">
-                  <tr>
-                    <td bgcolor="#f0b429" style="border-radius:12px; background-color:#f0b429; text-align:center;">
-                      <a href="${siteUrl}/dashboard" style="display:block; padding:14px 24px; font-family:${FONT}; font-size:13px; font-weight:900; color:#080810; text-decoration:none;">
-                        Enter AI Risk-Guard Cockpit →
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-
-              </td>
-            </tr>
-            <tr>
-              <td style="padding-top:20px; text-align:center;">
-                <p style="margin:0; font-family:${FONT}; font-size:10px; color:#8a8aa3;">
-                  © ${new Date().getFullYear()} ProfitPnL. Built for the 1%.
-                </p>
-              </td>
-            </tr>
-          </table>
+        <td style="padding:18px;">
+          <p style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#8a8aa3;">
+            New command workflow
+          </p>
+          <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.7;color:#080810;">
+            Plan before the session, execute with discipline, review trades with AI, find leaks, and share verified backtesting results.
+          </p>
         </td>
       </tr>
     </table>
-  `;
+
+    ${releaseItems.map((item) => `
+      <div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #e7e7f0;">
+        <h3 style="margin:0 0 5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:900;color:#080810;">
+          ${escapeHtml(item.title)}
+        </h3>
+        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:1.6;color:#5b5b78;">
+          ${escapeHtml(item.text)}
+        </p>
+      </div>
+    `).join("")}
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:22px;margin-bottom:18px;">
+      <tr>
+        <td bgcolor="#f0b429" style="border-radius:12px;background-color:#f0b429;background-image:linear-gradient(135deg,#f0b429,#c8961e);">
+          <a href="${escapeHtml(siteUrl)}/whats-new" style="display:inline-block;padding:13px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:900;color:#080810;text-decoration:none;">
+            See What’s New →
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:1.7;color:#8a8aa3;">
+      Open ProfitPnL and start with Trading HQ or your Daily Plan.
+    </p>`;
+
+  return renderEmailLayout({
+    preheader: "New ProfitPnL features: Daily Plan, AI Reports, Backtesting PDFs, Prop Firm Mode and more.",
+    bodyHtml: body,
+  });
+}
+
+// Backwards-compatible export used by the existing admin broadcast route.
+export function featureAnnouncementEmailHtml(name: string): string {
+  return whatsNewEmailHtml(name);
 }

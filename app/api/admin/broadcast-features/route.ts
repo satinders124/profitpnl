@@ -48,14 +48,15 @@ export async function POST(req: Request) {
           await sgMail.send({
             to: email,
             from: { email: fromEmail, name: "ProfitPnL Performance Desk" },
-            subject: "🚨 BRAND NEW: AI Risk-Guard & Cognitive Shifts are Live!",
-            text: `Hi ${recipient.display_name || "Trader"},\n\nWe have just released the AI Risk-Guard & Cognitive Shift Cockpit. Head over to your dashboard to clock-in your next trading session!\n\n— The ProfitPnL Team`,
+            subject: "🚀 What’s New in ProfitPnL: Daily Plan, AI Reports, Backtesting PDFs & More",
+            text: `Hi ${recipient.display_name || "Trader"},\n\nProfitPnL just received a major upgrade: Trading HQ Command Feed, Daily Plan, Plan vs Execution, AI Reports, AI Trade Review, Backtesting Reports with PDF/QR, Import Center presets, Prop Firm Mode, Onboarding, and reminders. See what is new: ${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com"}/whats-new\n\n— The ProfitPnL Team`,
             html,
           });
           emailsSent++;
         }
-      } catch (err: any) {
-        errors.push(`${email}: ${err?.message || String(err)}`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        errors.push(`${email}: ${message}`);
       }
     }
 
@@ -65,8 +66,9 @@ export async function POST(req: Request) {
       emailsSent,
       errors
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Broadcast features error:", err);
-    return NextResponse.json({ error: err?.message || "Forbidden" }, { status: 403 });
+    const message = err instanceof Error ? err.message : "Forbidden";
+    return NextResponse.json({ error: message }, { status: 403 });
   }
 }

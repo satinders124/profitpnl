@@ -46,6 +46,7 @@ const liveNavGroups: NavGroup[] = [
     label: "Command",
     items: [
       { label: "Trading HQ", href: "/dashboard", icon: Home },
+      { label: "What's New", href: "/whats-new", icon: Sparkles, badge: "New" },
       { label: "Daily Plan", href: "/daily-plan", icon: ClipboardCheck, badge: "AI" },
       { label: "Weekly Review", href: "/weekly-review", icon: ClipboardCheck, badge: "AI" },
     ],

@@ -49,6 +49,7 @@ const liveMoreSectionsBase: NavSection[] = [
   {
     label: "Command",
     items: [
+      { label: "What's New", href: "/whats-new", icon: Sparkles },
       { label: "Weekly Review", href: "/weekly-review", icon: ClipboardCheck },
     ],
   },
