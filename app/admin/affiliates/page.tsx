@@ -112,6 +112,8 @@ export default function AdminAffiliatesPage() {
   const [affiliates, setAffiliates] = useState<AffiliateAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [broadcastResult, setBroadcastResult] = useState("");
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -222,10 +224,37 @@ export default function AdminAffiliatesPage() {
     setTimeout(() => setCopiedId(null), 1600);
   }
 
+  async function sendWhatsNewBroadcast() {
+    if (broadcasting) return;
+    const ok = confirm("Send the What's New email to all registered users? This cannot be undone.");
+    if (!ok) return;
+
+    setBroadcasting(true);
+    setBroadcastResult("");
+    setError("");
+    try {
+      const headers = await authHeaders();
+      const res = await fetch("/api/admin/broadcast-features", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(res.status === 403 ? await adminForbiddenMessage() : json.error || "Could not send broadcast.");
+      }
+      setBroadcastResult(`Broadcast sent to ${json.emailsSent || 0}/${json.totalRecipientCount || 0} users${json.errors?.length ? ` with ${json.errors.length} error(s)` : ""}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send broadcast.");
+    } finally {
+      setBroadcasting(false);
+    }
+  }
+
   return (
     <AppShell title="Affiliate Ops Center" subtitle="Create partner codes, track funnel performance, and manage payouts.">
       <div className="space-y-7 pb-24">
         {error ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div> : null}
+        {broadcastResult ? <div className="rounded-2xl border border-[#00D084]/30 bg-[#00D084]/10 px-4 py-3 text-sm font-bold text-[#00D084]">{broadcastResult}</div> : null}
 
         <Card className="relative overflow-hidden border-[#F0B429]/25 bg-[#07070D] p-0 shadow-2xl shadow-black/40">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(240,180,41,0.20),transparent_34%),radial-gradient(circle_at_90%_0%,rgba(0,208,132,0.10),transparent_30%)]" />
@@ -238,6 +267,23 @@ export default function AdminAffiliatesPage() {
               <p className="mt-3 max-w-2xl text-sm leading-7 text-[#A0A0C0]">
                 Manage creator partners, track clicks-to-customer conversion, and keep commission payouts controlled from one command center.
               </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  onClick={sendWhatsNewBroadcast}
+                  disabled={broadcasting}
+                  className="gold-gradient inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-[#080810] disabled:opacity-60"
+                >
+                  {broadcasting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {broadcasting ? "Sending Broadcast..." : "Send What&apos;s New Email"}
+                </button>
+                <a
+                  href="/whats-new"
+                  target="_blank"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#111124] px-5 py-3 text-sm font-black text-zinc-300 hover:text-white"
+                >
+                  Preview What&apos;s New <ExternalLink size={15} />
+                </a>
+              </div>
             </div>
             <div className="rounded-[2rem] border border-[#1E1E38] bg-[#0B0B16]/90 p-5">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#5A5A80]">Total Commission</p>
