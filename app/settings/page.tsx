@@ -124,6 +124,8 @@ export default function SettingsPage() {
     dailyPlanRemindersEnabled: true,
     dailyPlanReminderTime: "08:00",
     weeklyReviewRemindersEnabled: true,
+    weeklyReviewReminderDay: "Fri",
+    weeklyReviewReminderTime: "17:00",
     emailReportsEnabled: true,
     tradingviewUsername: "", // Tradingview custom username to authorize settings
 
@@ -189,6 +191,8 @@ export default function SettingsPage() {
             dailyPlanRemindersEnabled: data.daily_plan_reminders_enabled ?? true,
             dailyPlanReminderTime: data.daily_plan_reminder_time || "08:00",
             weeklyReviewRemindersEnabled: data.weekly_review_reminders_enabled ?? true,
+            weeklyReviewReminderDay: data.weekly_review_reminder_day || "Fri",
+            weeklyReviewReminderTime: data.weekly_review_reminder_time || "17:00",
             emailReportsEnabled: data.email_reports_enabled ?? true,
             tradingviewUsername: data.tradingview_username || "",
             initialAccountSize: Number(data.initial_account_size) || 50000,
@@ -232,6 +236,8 @@ export default function SettingsPage() {
         daily_plan_reminders_enabled: settings.dailyPlanRemindersEnabled,
         daily_plan_reminder_time: settings.dailyPlanReminderTime,
         weekly_review_reminders_enabled: settings.weeklyReviewRemindersEnabled,
+        weekly_review_reminder_day: settings.weeklyReviewReminderDay,
+        weekly_review_reminder_time: settings.weeklyReviewReminderTime,
         email_reports_enabled: settings.emailReportsEnabled,
         tradingview_username: settings.tradingviewUsername,
         initial_account_size: settings.initialAccountSize,
@@ -943,6 +949,28 @@ export default function SettingsPage() {
                       enabled={settings.weeklyReviewRemindersEnabled}
                       onClick={() => setSettings({ ...settings, weeklyReviewRemindersEnabled: !settings.weeklyReviewRemindersEnabled })}
                     />
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-zinc-300 text-xs font-semibold">Weekly Review Day</label>
+                      <select
+                        value={settings.weeklyReviewReminderDay}
+                        onChange={(e) => setSettings({ ...settings, weeklyReviewReminderDay: e.target.value })}
+                        className="w-full rounded-xl border border-[#1E1E38] bg-[#080810] px-4 py-3 text-sm font-black text-white outline-none focus:border-[#F0B429]"
+                      >
+                        {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((day) => <option key={day} value={day}>{day}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-zinc-300 text-xs font-semibold">Weekly Review Time</label>
+                      <input
+                        type="time"
+                        value={settings.weeklyReviewReminderTime}
+                        onChange={(e) => setSettings({ ...settings, weeklyReviewReminderTime: e.target.value })}
+                        className="w-full rounded-xl border border-[#1E1E38] bg-[#080810] px-4 py-3 text-sm font-black text-white outline-none focus:border-[#F0B429] [color-scheme:dark]"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-start justify-between gap-4 rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">

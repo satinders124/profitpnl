@@ -35,6 +35,8 @@ export async function updateProfile(uid: string, updates: Record<string, unknown
     "daily_plan_reminders_enabled",
     "daily_plan_reminder_time",
     "weekly_review_reminders_enabled",
+    "weekly_review_reminder_day",
+    "weekly_review_reminder_time",
     "email_reports_enabled",
     "tradingview_username",
     "initial_account_size",
