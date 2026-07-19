@@ -124,6 +124,18 @@ function mapShift(row: Row | null | undefined): TraderShift | null {
 
 function mapDailyPlan(row: Row | null | undefined): DailyPlanRecord | null {
   if (!row) return null;
+  const aiSummary = str(row.ai_summary).trim();
+  const aiBrief = aiSummary
+    ? {
+        title: str(row.ai_title) || "AI pre-market briefing",
+        summary: aiSummary,
+        bullets: list(row.ai_bullets).slice(0, 3),
+        action: str(row.ai_action) || "Follow the locked Daily Plan before taking the next trade.",
+        aiGenerated: true,
+        generatedAt: row.ai_generated_at == null ? null : str(row.ai_generated_at),
+      }
+    : null;
+
   return {
     id: str(row.id),
     userId: str(row.user_id),
@@ -138,6 +150,7 @@ function mapDailyPlan(row: Row | null | undefined): DailyPlanRecord | null {
     stopRules: list(row.stop_rules),
     focus: str(row.focus),
     sourceContext: (row.source_context && typeof row.source_context === "object" && !Array.isArray(row.source_context)) ? row.source_context as Record<string, unknown> : {},
+    aiBrief,
     acceptedAt: row.accepted_at == null ? null : str(row.accepted_at),
     createdAt: str(row.created_at),
     updatedAt: str(row.updated_at),

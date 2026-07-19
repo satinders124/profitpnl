@@ -5,7 +5,7 @@ import { Loader2, Lock, Sparkles, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 import { useAuth } from "@/components/providers/AuthProvider";
 
-type Insight = {
+export type PageInsight = {
   title: string;
   summary: string;
   bullets: string[];
@@ -13,11 +13,11 @@ type Insight = {
   aiGenerated: boolean;
 };
 
-type PersistedInsight = Insight & {
+type PersistedInsight = PageInsight & {
   savedAt: string;
 };
 
-const fallbackInsight: Insight = {
+const fallbackInsight: PageInsight = {
   title: "ProfitPnL insight",
   summary: "Use this panel to turn the current page data into a clear trading action. The best journal is not just a diary — it creates rules that change the next decision.",
   bullets: ["Identify the main risk.", "Turn the weakness into a rule.", "Track whether the rule improves execution."],
@@ -25,9 +25,9 @@ const fallbackInsight: Insight = {
   aiGenerated: false,
 };
 
-function isInsight(value: unknown): value is Insight {
+function isInsight(value: unknown): value is PageInsight {
   if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<Insight>;
+  const candidate = value as Partial<PageInsight>;
   return (
     typeof candidate.title === "string" &&
     typeof candidate.summary === "string" &&
@@ -56,6 +56,8 @@ export function PageInsightPanel({
   initialSummary,
   compact = false,
   persistenceKey,
+  initialInsight,
+  onInsightGenerated,
 }: {
   kind: string;
   context: unknown;
@@ -63,13 +65,15 @@ export function PageInsightPanel({
   initialSummary?: string;
   compact?: boolean;
   persistenceKey?: string;
+  initialInsight?: PageInsight | null;
+  onInsightGenerated?: (insight: PageInsight) => Promise<void> | void;
 }) {
   const { plan, user } = useAuth();
   const isFreePlan = plan === "Free Plan";
-  const defaultInsight = useMemo<Insight>(() => ({ ...fallbackInsight, title: initialTitle, summary: initialSummary || fallbackInsight.summary }), [initialTitle, initialSummary]);
+  const defaultInsight = useMemo<PageInsight>(() => initialInsight || ({ ...fallbackInsight, title: initialTitle, summary: initialSummary || fallbackInsight.summary }), [initialInsight, initialTitle, initialSummary]);
   const userId = user?.id || "";
   const insightStorageKey = userId && persistenceKey ? `profitpnl_page_insight_${userId}_${persistenceKey}` : "";
-  const [insight, setInsight] = useState<Insight>(defaultInsight);
+  const [insight, setInsight] = useState<PageInsight>(defaultInsight);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -91,7 +95,7 @@ export function PageInsightPanel({
     setNotice("");
   }, [defaultInsight, insightStorageKey]);
 
-  function persistInsight(report: Insight) {
+  function persistInsight(report: PageInsight) {
     if (!insightStorageKey || typeof window === "undefined") return;
     try {
       const payload: PersistedInsight = { ...report, savedAt: new Date().toISOString() };
@@ -101,7 +105,7 @@ export function PageInsightPanel({
     }
   }
 
-  async function saveAiReport(report: Insight, sessionToken?: string) {
+  async function saveAiReport(report: PageInsight, sessionToken?: string) {
     if (!report.summary) return;
     await fetch("/api/ai/reports", {
       method: "POST",
@@ -141,7 +145,7 @@ export function PageInsightPanel({
         },
         body: JSON.stringify({ kind, context }),
       });
-      const data = await res.json().catch(() => null) as Partial<Insight> | null;
+      const data = await res.json().catch(() => null) as Partial<PageInsight> | null;
       if (!res.ok || !data) throw new Error("insight_unavailable");
       const nextInsight = {
         title: data.title || initialTitle,
@@ -152,8 +156,11 @@ export function PageInsightPanel({
       };
       setInsight(nextInsight);
       persistInsight(nextInsight);
-      await saveAiReport(nextInsight, token);
-      setNotice(nextInsight.aiGenerated ? "AI insight saved to your report history." : "Showing local intelligence. AI enhancement is available when server AI is enabled.");
+      await Promise.allSettled([
+        saveAiReport(nextInsight, token),
+        Promise.resolve(onInsightGenerated?.(nextInsight)),
+      ]);
+      setNotice(nextInsight.aiGenerated ? "AI insight saved to your plan and report history." : "Showing local intelligence. AI enhancement is available when server AI is enabled.");
     } catch {
       setNotice("AI insight is temporarily unavailable. Showing local intelligence instead.");
     } finally {

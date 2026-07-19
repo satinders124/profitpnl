@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
-import { PageInsightPanel } from "@/components/ai/PageInsightPanel";
+import { PageInsightPanel, type PageInsight } from "@/components/ai/PageInsightPanel";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getAccounts, getPlaybook, getTrades } from "@/lib/db";
-import { acceptDailyPlan, getDailyPlan, type DailyPlanRecord } from "@/lib/daily-plans";
+import { acceptDailyPlan, getDailyPlan, saveDailyPlanInsight, type DailyPlanRecord } from "@/lib/daily-plans";
 import { getRecentShifts, TraderShift } from "@/lib/shifts-db";
 import { calcStats, formatPct, formatR, hasResult } from "@/lib/stats";
 import { Trade } from "@/types/trade";
@@ -327,6 +327,72 @@ function PlanCard({ title, items, icon }: { title: string; items: string[]; icon
   );
 }
 
+function DailyPlanWorkflowStatus({
+  briefGenerated,
+  accepted,
+  tradesToday,
+  cloudSynced,
+}: {
+  briefGenerated: boolean;
+  accepted: boolean;
+  tradesToday: number;
+  cloudSynced: boolean;
+}) {
+  const steps = [
+    {
+      label: "Guardrails ready",
+      description: "Risk, setups, avoid list and stop rules are calculated from your journal.",
+      done: true,
+      icon: <ShieldCheck size={16} />,
+    },
+    {
+      label: "AI briefing generated",
+      description: briefGenerated ? "Pre-market paragraph is saved for today." : "Generate the AI briefing before the first trade.",
+      done: briefGenerated,
+      icon: <Sparkles size={16} />,
+    },
+    {
+      label: "Plan locked",
+      description: accepted ? "Accepted plan is active for execution scoring." : "Click Accept Plan to lock today’s rules.",
+      done: accepted,
+      icon: <ClipboardCheck size={16} />,
+    },
+    {
+      label: "Execution tracking",
+      description: tradesToday > 0 ? `${tradesToday} trade${tradesToday === 1 ? "" : "s"} scored against the plan.` : "Trades logged today will be scored automatically.",
+      done: accepted && tradesToday > 0,
+      icon: <Gauge size={16} />,
+    },
+  ];
+
+  return (
+    <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-5 shadow-lg shadow-black/20">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#F0B429]">Daily Plan Reliability</p>
+          <h2 className="mt-1 text-lg font-black text-white">Today’s pre-market workflow</h2>
+        </div>
+        <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${cloudSynced ? "border-[#00D084]/30 bg-[#00D084]/10 text-[#00D084]" : "border-[#F0B429]/30 bg-[#F0B429]/10 text-[#F0B429]"}`}>
+          {cloudSynced ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+          {cloudSynced ? "Cloud sync active" : "Local fallback"}
+        </span>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {steps.map((step, index) => (
+          <div key={step.label} className={`rounded-2xl border p-4 ${step.done ? "border-[#00D084]/25 bg-[#00D084]/10" : "border-[#1E1E38] bg-[#080810]"}`}>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${step.done ? "border-[#00D084]/30 bg-[#00D084]/10 text-[#00D084]" : "border-[#2A2A3C] bg-[#111124] text-[#8080A0]"}`}>{step.icon}</span>
+              <span className="font-mono text-[10px] font-black text-[#5A5A80]">0{index + 1}</span>
+            </div>
+            <p className={`text-sm font-black ${step.done ? "text-white" : "text-zinc-400"}`}>{step.label}</p>
+            <p className="mt-1 text-xs leading-5 text-[#8080A0]">{step.description}</p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export default function DailyPlanPage() {
   const { user, displayName } = useAuth();
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -339,6 +405,8 @@ export default function DailyPlanPage() {
   const [copied, setCopied] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
   const [savedPlan, setSavedPlan] = useState<DailyPlanRecord | null>(null);
+  const [briefGenerated, setBriefGenerated] = useState(false);
+  const [cloudPlanAvailable, setCloudPlanAvailable] = useState(false);
   const [planNotice, setPlanNotice] = useState("");
 
   const loadData = useCallback(async () => {
@@ -358,6 +426,8 @@ export default function DailyPlanPage() {
       setAccountId((current) => current || accountRows[0]?.id || "");
       const cloudPlan = await getDailyPlan(user.id, todayKey());
       setSavedPlan(cloudPlan);
+      setCloudPlanAvailable(Boolean(cloudPlan));
+      setBriefGenerated(Boolean(cloudPlan?.aiBrief?.summary));
       setAccepted(Boolean(cloudPlan?.acceptedAt) || localStorage.getItem(`profitpnl_daily_plan_${todayKey()}`) === "accepted");
     } finally {
       setLoading(false);
@@ -389,6 +459,24 @@ export default function DailyPlanPage() {
     };
   }
 
+  async function saveGeneratedBrief(insight: PageInsight) {
+    if (!user) return;
+    setBriefGenerated(true);
+    try {
+      const record = await saveDailyPlanInsight(user.id, todayKey(), plan, planContext(), insight);
+      if (record) {
+        setSavedPlan(record);
+        setCloudPlanAvailable(true);
+        setPlanNotice("AI briefing saved to today’s Daily Plan.");
+      } else {
+        setPlanNotice("AI briefing saved on this device. Run the daily plan AI brief migration to sync it across devices.");
+      }
+    } catch (error) {
+      console.error("Save daily plan AI briefing error:", error);
+      setPlanNotice("AI briefing saved on this device. Cloud sync failed temporarily.");
+    }
+  }
+
   async function acceptPlan() {
     if (!user) return;
     setSavingPlan(true);
@@ -397,6 +485,7 @@ export default function DailyPlanPage() {
       const record = await acceptDailyPlan(user.id, todayKey(), plan, planContext());
       if (record) {
         setSavedPlan(record);
+        setCloudPlanAvailable(true);
         setPlanNotice("Daily plan saved to your ProfitPnL account.");
       } else {
         setPlanNotice("Daily plan accepted locally. Run the daily_plans migration to sync across devices.");
@@ -458,9 +547,18 @@ export default function DailyPlanPage() {
             </div>
           </Card>
 
+          <DailyPlanWorkflowStatus
+            briefGenerated={briefGenerated || Boolean(savedPlan?.aiBrief?.summary)}
+            accepted={accepted}
+            tradesToday={todaysTrades.length}
+            cloudSynced={cloudPlanAvailable || Boolean(savedPlan)}
+          />
+
           <PageInsightPanel
             kind="daily-plan"
             persistenceKey={`daily-plan-${todayKey()}-${accountId || "default"}`}
+            initialInsight={savedPlan?.aiBrief || null}
+            onInsightGenerated={saveGeneratedBrief}
             initialTitle="AI pre-market briefing"
             initialSummary="Generate a deeper AI plan to turn today's guardrails into a clear market permission slip."
             context={{

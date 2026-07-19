@@ -356,6 +356,12 @@ export default function AdminAffiliatesPage() {
                     {broadcasting ? "Sending Broadcast..." : "Send To All Users"}
                   </button>
                   <a
+                    href="/admin/email-ops"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#00D084]/30 bg-[#00D084]/10 px-5 py-3 text-sm font-black text-[#00D084] hover:bg-[#00D084]/15"
+                  >
+                    <Mail size={15} /> Email Ops
+                  </a>
+                  <a
                     href="/whats-new"
                     target="_blank"
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#111124] px-5 py-3 text-sm font-black text-zinc-300 hover:text-white"

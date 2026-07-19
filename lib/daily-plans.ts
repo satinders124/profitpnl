@@ -12,11 +12,21 @@ export type DailyPlanPayload = {
   focus: string;
 };
 
+export type DailyPlanAiBrief = {
+  title: string;
+  summary: string;
+  bullets: string[];
+  action: string;
+  aiGenerated: boolean;
+  generatedAt: string | null;
+};
+
 export type DailyPlanRecord = DailyPlanPayload & {
   id: string;
   userId: string;
   planDate: string;
   sourceContext: Record<string, unknown>;
+  aiBrief: DailyPlanAiBrief | null;
   acceptedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -36,6 +46,11 @@ type DailyPlanRow = {
   stop_rules: unknown;
   focus: string | null;
   source_context: Record<string, unknown> | null;
+  ai_title?: string | null;
+  ai_summary?: string | null;
+  ai_bullets?: unknown;
+  ai_action?: string | null;
+  ai_generated_at?: string | null;
   accepted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -46,7 +61,14 @@ function isMissingDailyPlansTable(error: { message?: string; code?: string } | n
   return (
     error?.code === "42P01" ||
     error?.code === "PGRST205" ||
-    message.includes("daily_plans") && (message.includes("does not exist") || message.includes("schema cache"))
+    error?.code === "PGRST204" ||
+    error?.code === "42703" ||
+    message.includes("daily_plans") && (message.includes("does not exist") || message.includes("schema cache")) ||
+    message.includes("ai_title") ||
+    message.includes("ai_summary") ||
+    message.includes("ai_bullets") ||
+    message.includes("ai_action") ||
+    message.includes("ai_generated_at")
   );
 }
 
@@ -55,6 +77,18 @@ function list(value: unknown) {
 }
 
 function mapRow(row: DailyPlanRow): DailyPlanRecord {
+  const aiSummary = typeof row.ai_summary === "string" ? row.ai_summary.trim() : "";
+  const aiBrief: DailyPlanAiBrief | null = aiSummary
+    ? {
+        title: row.ai_title || "AI pre-market briefing",
+        summary: aiSummary,
+        bullets: list(row.ai_bullets).slice(0, 3),
+        action: row.ai_action || "Follow the locked Daily Plan before taking the next trade.",
+        aiGenerated: true,
+        generatedAt: row.ai_generated_at || row.updated_at || null,
+      }
+    : null;
+
   return {
     id: row.id,
     userId: row.user_id,
@@ -69,6 +103,7 @@ function mapRow(row: DailyPlanRow): DailyPlanRecord {
     stopRules: list(row.stop_rules),
     focus: row.focus || "",
     sourceContext: row.source_context || {},
+    aiBrief,
     acceptedAt: row.accepted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -146,6 +181,38 @@ export async function acceptDailyPlan(
   const { data, error } = await supabase
     .from("daily_plans")
     .upsert(toRow(uid, planDate, plan, sourceContext, acceptedAt), { onConflict: "user_id,plan_date" })
+    .select("*")
+    .single();
+
+  if (error) {
+    if (isMissingDailyPlansTable(error)) return null;
+    throw error;
+  }
+
+  return data ? mapRow(data as DailyPlanRow) : null;
+}
+
+export async function saveDailyPlanInsight(
+  uid: string,
+  planDate: string,
+  plan: DailyPlanPayload,
+  sourceContext: Record<string, unknown> | undefined,
+  insight: Pick<DailyPlanAiBrief, "title" | "summary" | "bullets" | "action" | "aiGenerated">
+): Promise<DailyPlanRecord | null> {
+  const supabase = createClient();
+  const generatedAt = new Date().toISOString();
+  const row = {
+    ...toRow(uid, planDate, plan, sourceContext),
+    ai_title: insight.title || "AI pre-market briefing",
+    ai_summary: insight.summary || "",
+    ai_bullets: Array.isArray(insight.bullets) ? insight.bullets.slice(0, 3) : [],
+    ai_action: insight.action || "Follow the locked Daily Plan before taking the next trade.",
+    ai_generated_at: generatedAt,
+  };
+
+  const { data, error } = await supabase
+    .from("daily_plans")
+    .upsert(row, { onConflict: "user_id,plan_date" })
     .select("*")
     .single();
 
