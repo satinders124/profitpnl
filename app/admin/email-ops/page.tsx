@@ -12,10 +12,36 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  XCircle,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase-client";
+
+type EmailEvent = {
+  id: string;
+  userId: string | null;
+  recipientEmail: string | null;
+  eventType: string;
+  status: "sent" | "skipped" | "failed";
+  reason: string | null;
+  provider: string;
+  providerMessage: string | null;
+  source: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+type EmailEventSummary = {
+  sent24h: number;
+  skipped24h: number;
+  failed24h: number;
+  dailyPlanSent24h: number;
+  weeklyReportSent24h: number;
+  byStatus: Record<string, number>;
+  byType: Record<string, number>;
+  skipReasons: Record<string, number>;
+};
 
 type EmailHealth = {
   ok: boolean;
@@ -35,6 +61,11 @@ type EmailHealth = {
     path: string;
     schedule: string;
     localMeaning: string;
+  };
+  emailEvents: {
+    missingTable: boolean;
+    summary: EmailEventSummary;
+    recent: EmailEvent[];
   };
   testActions: string[];
 };
@@ -59,6 +90,57 @@ function EnvRow({ label, value, ok, hint }: { label: string; value: string; ok: 
       </div>
       <p className="font-mono text-xs text-[#8080A0]">{value}</p>
       <p className="mt-2 text-xs leading-5 text-[#5A5A80]">{hint}</p>
+    </div>
+  );
+}
+
+function OpsMetric({ label, value, tone = "gold" }: { label: string; value: string | number; tone?: "gold" | "green" | "red" | "blue" }) {
+  const color = tone === "green" ? "text-[#00D084]" : tone === "red" ? "text-[#FF4565]" : tone === "blue" ? "text-[#4C82FB]" : "text-[#F0B429]";
+  return (
+    <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">{label}</p>
+      <p className={`mt-2 text-2xl font-black ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+function eventTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    daily_plan_reminder: "Daily Plan",
+    weekly_report: "Weekly Report",
+    test_daily_plan: "Daily Test",
+    test_weekly_report: "Weekly Test",
+    test_broadcast_features: "Broadcast Test",
+    broadcast_features: "Broadcast",
+  };
+  return labels[type] || type.replace(/_/g, " ");
+}
+
+function statusClass(status: EmailEvent["status"]) {
+  if (status === "sent") return "border-[#00D084]/30 bg-[#00D084]/10 text-[#00D084]";
+  if (status === "failed") return "border-[#FF4565]/30 bg-[#FF4565]/10 text-[#FF4565]";
+  return "border-[#F0B429]/30 bg-[#F0B429]/10 text-[#F0B429]";
+}
+
+function EventRow({ event }: { event: EmailEvent }) {
+  const created = event.createdAt ? new Date(event.createdAt).toLocaleString() : "—";
+  return (
+    <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-black text-white">{eventTypeLabel(event.eventType)}</span>
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusClass(event.status)}`}>
+              {event.status === "sent" ? <CheckCircle2 size={11} /> : event.status === "failed" ? <XCircle size={11} /> : <Clock3 size={11} />}
+              {event.status}
+            </span>
+            {event.reason ? <span className="rounded-full border border-[#1E1E38] bg-[#111124] px-2.5 py-1 font-mono text-[10px] text-[#8080A0]">{event.reason}</span> : null}
+          </div>
+          <p className="mt-1 truncate text-xs text-[#8080A0]">{event.recipientEmail || "No recipient"} · {event.source}</p>
+          {event.providerMessage ? <p className="mt-2 rounded-xl border border-[#FF4565]/20 bg-[#FF4565]/10 p-2 text-xs leading-5 text-[#FF8CA0]">{event.providerMessage}</p> : null}
+        </div>
+        <p className="shrink-0 font-mono text-[10px] text-[#5A5A80]">{created}</p>
+      </div>
     </div>
   );
 }
@@ -133,6 +215,8 @@ export default function AdminEmailOpsPage() {
   }
 
   const env = health?.env;
+  const events = health?.emailEvents;
+  const summary = events?.summary;
   const emailReady = Boolean(env?.sendgridApiKeyConfigured && env.sendgridFromEmailConfigured);
   const cronReady = Boolean(env?.cronSecretConfigured);
 
@@ -192,6 +276,51 @@ export default function AdminEmailOpsPage() {
             <EnvRow label="CRON_SECRET" value={env?.cronSecretPreview || "missing"} ok={Boolean(env?.cronSecretConfigured)} hint="Required for Vercel cron and manual curl tests." />
             <EnvRow label="APP URL" value={health?.appUrl || "https://profitpnl.com"} ok={Boolean(env?.appUrlConfigured)} hint="Used inside buttons and report links." />
           </div>
+        </Card>
+
+        <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-5 shadow-lg">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#F0B429]">Delivery Audit Trail</p>
+              <h2 className="mt-1 text-lg font-black text-white">Email events</h2>
+              <p className="mt-1 text-xs text-[#8080A0]">Sent, skipped and failed events from cron and admin test sends.</p>
+            </div>
+            {events?.missingTable ? <StatusPill ok={false} label="Migration needed" /> : <StatusPill ok label="Audit active" />}
+          </div>
+
+          {events?.missingTable ? (
+            <div className="rounded-2xl border border-[#F0B429]/30 bg-[#F0B429]/10 p-4 text-sm leading-6 text-[#F0B429]">
+              Email audit table is not live yet. Run migration <span className="font-mono">20260720000002_create_email_events.sql</span> to enable delivery history.
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <OpsMetric label="Sent 24h" value={summary?.sent24h || 0} tone="green" />
+                <OpsMetric label="Skipped 24h" value={summary?.skipped24h || 0} />
+                <OpsMetric label="Failed 24h" value={summary?.failed24h || 0} tone={summary?.failed24h ? "red" : "green"} />
+                <OpsMetric label="Daily sent" value={summary?.dailyPlanSent24h || 0} tone="blue" />
+                <OpsMetric label="Weekly sent" value={summary?.weeklyReportSent24h || 0} tone="blue" />
+              </div>
+
+              {summary?.skipReasons && Object.keys(summary.skipReasons).length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {Object.entries(summary.skipReasons).slice(0, 8).map(([reason, count]) => (
+                    <span key={reason} className="rounded-full border border-[#1E1E38] bg-[#111124] px-3 py-1.5 font-mono text-[10px] text-[#8080A0]">
+                      {reason}: {count}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="mt-5 space-y-3">
+                {events?.recent?.length ? events.recent.slice(0, 12).map((event) => <EventRow key={event.id} event={event} />) : (
+                  <div className="rounded-2xl border border-dashed border-[#2A2A3C] bg-[#080810] p-8 text-center text-sm text-[#8080A0]">
+                    No email events yet. Send a test email or wait for the daily cron to populate this log.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </Card>
 
         <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-5 shadow-lg">

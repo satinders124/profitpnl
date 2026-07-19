@@ -7,6 +7,7 @@ import {
 } from "@/lib/email-announcement";
 import { requireAdmin } from "@/lib/affiliates";
 import { getAuthenticatedUser } from "@/lib/auth-utils";
+import { logEmailEvent } from "@/lib/email-events";
 import sgMail from "@sendgrid/mail";
 
 export const runtime = "nodejs";
@@ -112,11 +113,22 @@ export async function POST(req: Request) {
     const payload = (await req.json().catch(() => ({}))) as BroadcastPayload;
     const mode: BroadcastMode = payload.mode === "broadcast" ? "broadcast" : "test";
     const testEmail = normalizeEmail(payload.testEmail);
+    const supabase = createServerClient();
 
     const apiKey = process.env.SENDGRID_API_KEY;
     const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
     if (!apiKey || !fromEmail) {
+      await logEmailEvent(supabase, {
+        userId: user.id,
+        recipientEmail: mode === "test" ? testEmail : user.email || null,
+        eventType: mode === "test" ? "test_broadcast_features" : "broadcast_features",
+        status: "failed",
+        reason: "email_not_configured",
+        providerMessage: "Missing SENDGRID_API_KEY or SENDGRID_FROM_EMAIL",
+        source: "admin_broadcast_features",
+        metadata: { mode, sendgridApiKeyConfigured: Boolean(apiKey), sendgridFromEmailConfigured: Boolean(fromEmail) },
+      });
       return NextResponse.json(
         {
           error:
@@ -134,7 +146,30 @@ export async function POST(req: Request) {
       }
 
       const recipient = await getTestRecipient(testEmail);
-      await sendAnnouncementEmail(recipient);
+      try {
+        await sendAnnouncementEmail(recipient);
+        await logEmailEvent(supabase, {
+          userId: user.id,
+          recipientEmail: recipient.email,
+          eventType: "test_broadcast_features",
+          status: "sent",
+          source: "admin_broadcast_features",
+          metadata: { mode, testSend: true },
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await logEmailEvent(supabase, {
+          userId: user.id,
+          recipientEmail: recipient.email,
+          eventType: "test_broadcast_features",
+          status: "failed",
+          reason: "send_failed",
+          providerMessage: message,
+          source: "admin_broadcast_features",
+          metadata: { mode, testSend: true },
+        });
+        throw err;
+      }
 
       return NextResponse.json({
         success: true,
@@ -160,9 +195,25 @@ export async function POST(req: Request) {
     for (const recipient of recipients) {
       try {
         await sendAnnouncementEmail(recipient);
+        await logEmailEvent(supabase, {
+          recipientEmail: recipient.email,
+          eventType: "broadcast_features",
+          status: "sent",
+          source: "admin_broadcast_features",
+          metadata: { mode, title: WHATS_NEW_EMAIL_SUBJECT },
+        });
         emailsSent++;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
+        await logEmailEvent(supabase, {
+          recipientEmail: recipient.email,
+          eventType: "broadcast_features",
+          status: "failed",
+          reason: "send_failed",
+          providerMessage: message,
+          source: "admin_broadcast_features",
+          metadata: { mode, title: WHATS_NEW_EMAIL_SUBJECT },
+        });
         errors.push(`${recipient.email}: ${message}`);
       }
     }
