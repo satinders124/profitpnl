@@ -7,7 +7,18 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 const nextConfig: NextConfig = {
   async redirects() {
-    return [];
+    return [
+      {
+        source: "/daily-plan.",
+        destination: "/daily-plan",
+        permanent: false,
+      },
+      {
+        source: "/weekly-review.",
+        destination: "/weekly-review",
+        permanent: false,
+      },
+    ];
   },
   async headers() {
     return [

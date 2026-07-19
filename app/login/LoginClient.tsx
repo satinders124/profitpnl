@@ -1,16 +1,30 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { Turnstile } from "@/components/Turnstile";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
+function safeNextPath(value: string | null) {
+  if (!value) return "/dashboard";
+  try {
+    const decoded = decodeURIComponent(value);
+    if (!decoded.startsWith("/") || decoded.startsWith("//")) return "/dashboard";
+    if (decoded.startsWith("/login") || decoded.startsWith("/register")) return "/dashboard";
+    return decoded;
+  } catch {
+    return "/dashboard";
+  }
+}
+
 export default function LoginClient() {
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get("next"));
 
   // Shared state
   const [email, setEmail] = useState("");
@@ -61,7 +75,7 @@ export default function LoginClient() {
         : authError.message);
       setCaptchaToken(null);
     } else {
-      router.push("/dashboard");
+      router.push(nextPath);
     }
     setLoading(false);
   }
@@ -112,7 +126,7 @@ export default function LoginClient() {
     if (verifyError) {
       setError(verifyError.message);
     } else {
-      router.push("/dashboard");
+      router.push(nextPath);
     }
     setLoading(false);
   }
