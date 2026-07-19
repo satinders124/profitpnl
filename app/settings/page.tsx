@@ -10,11 +10,13 @@ import { getProfile, updateProfile } from "@/lib/db";
 import {
   User,
   Bell,
+  Mail,
   Globe,
   Lock,
   LogOut,
   Trash2,
   Save,
+  Send,
   CheckCircle2,
   Crown,
   Settings as SettingsIcon,
@@ -93,6 +95,9 @@ export default function SettingsPage() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [managingBilling, setManagingBilling] = useState(false);
   const [startingTrial, setStartingTrial] = useState(false);
+  const [testingEmail, setTestingEmail] = useState<"daily-plan" | "weekly-report" | "">("");
+  const [notificationTestNotice, setNotificationTestNotice] = useState("");
+  const [notificationTestError, setNotificationTestError] = useState("");
   const [comingSoonBroker, setComingSoonBroker] = useState<string | null>(null);
   const [upgradeToast, setUpgradeToast] = useState<string | null>(null);
 
@@ -264,6 +269,33 @@ export default function SettingsPage() {
       alert("Failed to update settings.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function sendNotificationTestEmail(type: "daily-plan" | "weekly-report") {
+    if (testingEmail) return;
+    setTestingEmail(type);
+    setNotificationTestNotice("");
+    setNotificationTestError("");
+    try {
+      const { data: { session } } = await createClient().auth.getSession();
+      const res = await fetch("/api/notifications/test-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ type }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Could not send test email.");
+      setNotificationTestNotice(`${type === "daily-plan" ? "Daily Plan" : "Weekly Report"} test email sent to ${json.sentTo || user?.email || "your inbox"}. Check inbox and spam.`);
+      setTimeout(() => setNotificationTestNotice(""), 7000);
+    } catch (error) {
+      setNotificationTestError(error instanceof Error ? error.message : "Could not send test email.");
+      setTimeout(() => setNotificationTestError(""), 7000);
+    } finally {
+      setTestingEmail("");
     }
   }
 
@@ -890,30 +922,64 @@ export default function SettingsPage() {
           ═══════════════════════════════════════════════════ */}
           {activeTab === "notifications" && (
             <div className="space-y-6">
-              <Card className="relative overflow-hidden border-[#F0B429]/25 bg-[#0D0D1A] p-6">
-                <div className="absolute -right-24 -top-24 h-48 w-48 rounded-full bg-[#F0B429]/10 blur-3xl" />
-                <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <Card className="relative overflow-hidden border-[#F0B429]/25 bg-[#0D0D1A] p-0 shadow-xl shadow-black/20">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(240,180,41,0.18),transparent_34%),radial-gradient(circle_at_90%_0%,rgba(0,208,132,0.10),transparent_30%)]" />
+                <div className="relative grid gap-5 p-6 lg:grid-cols-[1.25fr_0.75fr]">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F0B429]">Reminder System</p>
-                    <h3 className="mt-1 text-xl font-black text-white">Daily trading discipline reminders</h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8080A0]">
-                      Configure the reminders that keep ProfitPnL in your daily trading routine. Email delivery can be connected to the cron reminder system next.
+                    <div className="inline-flex items-center gap-2 rounded-full border border-[#F0B429]/30 bg-[#F0B429]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#F0B429]">
+                      <Mail size={12} /> Notification Control Center
+                    </div>
+                    <h3 className="mt-4 text-2xl font-black tracking-tight text-white">Daily Plan and Weekly Report emails</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-7 text-[#A0A0C0]">
+                      Control the reminders that keep ProfitPnL in your pre-market and weekly review routine. Send yourself a test email any time to verify inbox delivery.
                     </p>
                   </div>
-                  <Bell className="text-[#F0B429]" size={28} />
+                  <div className="rounded-[1.5rem] border border-[#1E1E38] bg-[#080810]/90 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">Current status</p>
+                    <div className="mt-3 space-y-2 text-xs">
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[#1E1E38] bg-[#111124] px-3 py-2">
+                        <span className="text-[#8080A0]">Email Reports</span>
+                        <span className={`font-black ${settings.emailReportsEnabled ? "text-[#00D084]" : "text-[#FF4565]"}`}>{settings.emailReportsEnabled ? "Enabled" : "Paused"}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[#1E1E38] bg-[#111124] px-3 py-2">
+                        <span className="text-[#8080A0]">Daily Plan</span>
+                        <span className="font-black text-white">{settings.dailyPlanRemindersEnabled ? settings.dailyPlanReminderTime : "Off"}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[#1E1E38] bg-[#111124] px-3 py-2">
+                        <span className="text-[#8080A0]">Weekly Report</span>
+                        <span className="font-black text-white">{settings.weeklyReviewRemindersEnabled ? `${settings.weeklyReviewReminderDay} ${settings.weeklyReviewReminderTime}` : "Off"}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </Card>
 
-              <div className="grid gap-5 lg:grid-cols-2">
-                <Card className="p-6 space-y-5 border-[#1E1E38] bg-[#0D0D1A]/95">
+              {!settings.emailReportsEnabled && (
+                <div className="rounded-2xl border border-[#FF4565]/30 bg-[#FF4565]/10 px-4 py-3 text-sm font-bold text-[#FF8CA0]">
+                  Email reports are paused. Daily Plan reminders and Weekly ProfitPnL Reports will not send until Email Reports is enabled again.
+                </div>
+              )}
+              {notificationTestNotice && (
+                <div className="rounded-2xl border border-[#00D084]/30 bg-[#00D084]/10 px-4 py-3 text-sm font-bold text-[#00D084]">
+                  {notificationTestNotice}
+                </div>
+              )}
+              {notificationTestError && (
+                <div className="rounded-2xl border border-[#FF4565]/30 bg-[#FF4565]/10 px-4 py-3 text-sm font-bold text-[#FF8CA0]">
+                  {notificationTestError}
+                </div>
+              )}
+
+              <div className="grid gap-5 xl:grid-cols-2">
+                <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-6 shadow-lg">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-white font-bold text-base flex items-center gap-2">
-                        <Clock size={16} className="text-[#F0B429]" />
+                      <h3 className="flex items-center gap-2 text-base font-black text-white">
+                        <Clock size={17} className="text-[#F0B429]" />
                         Daily Plan Reminder
                       </h3>
-                      <p className="mt-1 text-xs leading-5 text-zinc-500">
-                        Prompt yourself to open your Daily Plan before your trading session.
+                      <p className="mt-2 text-xs leading-6 text-[#8080A0]">
+                        If today’s Daily Plan is not locked yet, ProfitPnL sends a pre-market nudge with recent risk context and a direct link to generate the plan.
                       </p>
                     </div>
                     <Toggle
@@ -922,27 +988,46 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-zinc-300 text-xs font-semibold">Reminder Time</label>
+                  <div className="mt-5 space-y-2">
+                    <label className="text-xs font-semibold text-zinc-300">Reminder Time</label>
                     <input
                       type="time"
                       value={settings.dailyPlanReminderTime}
                       onChange={(e) => setSettings({ ...settings, dailyPlanReminderTime: e.target.value })}
-                      className="w-full rounded-xl border border-[#1E1E38] bg-[#080810] px-4 py-3 text-sm font-black text-white outline-none focus:border-[#F0B429] [color-scheme:dark]"
+                      className="w-full rounded-xl border border-[#1E1E38] bg-[#080810] px-4 py-3 text-sm font-black text-white outline-none transition focus:border-[#F0B429] [color-scheme:dark] disabled:opacity-50"
+                      disabled={!settings.dailyPlanRemindersEnabled}
                     />
-                    <p className="text-[11px] text-zinc-600">Uses your selected timezone: {settings.timezone}.</p>
+                    <p className="text-[11px] text-zinc-600">Timezone: {settings.timezone}. Cron delivery depends on the active production schedule.</p>
                   </div>
+
+                  <div className="mt-5 rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">Email contents</p>
+                    <ul className="mt-3 space-y-2 text-xs leading-5 text-[#A0A0C0]">
+                      <li>• No accepted plan detected for today</li>
+                      <li>• Recent 7-day risk context</li>
+                      <li>• Button to Generate & Lock Daily Plan</li>
+                    </ul>
+                  </div>
+
+                  <button
+                    onClick={() => sendNotificationTestEmail("daily-plan")}
+                    disabled={Boolean(testingEmail)}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#F0B429]/35 bg-[#F0B429]/10 px-5 py-3 text-sm font-black text-[#F0B429] transition hover:bg-[#F0B429]/15 disabled:opacity-60"
+                  >
+                    {testingEmail === "daily-plan" ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+                    Send Me Daily Plan Test
+                  </button>
                 </Card>
 
-                <Card className="p-6 space-y-5 border-[#1E1E38] bg-[#0D0D1A]/95">
+                <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-6 shadow-lg">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-white font-bold text-base flex items-center gap-2">
-                        <Receipt size={16} className="text-[#F0B429]" />
-                        Weekly Review Reminder
+                      <h3 className="flex items-center gap-2 text-base font-black text-white">
+                        <Receipt size={17} className="text-[#F0B429]" />
+                        Weekly ProfitPnL Report
                       </h3>
-                      <p className="mt-1 text-xs leading-5 text-zinc-500">
-                        Get prompted to review the week, find leaks, and set next-week rules.
+                      <p className="mt-2 text-xs leading-6 text-[#8080A0]">
+                        A weekly report with trade count, total R, win rate, best setup, main leak, and review queue so you know what to improve next week.
                       </p>
                     </div>
                     <Toggle
@@ -951,51 +1036,84 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-zinc-300 text-xs font-semibold">Weekly Review Day</label>
+                      <label className="text-xs font-semibold text-zinc-300">Report Day</label>
                       <select
                         value={settings.weeklyReviewReminderDay}
                         onChange={(e) => setSettings({ ...settings, weeklyReviewReminderDay: e.target.value })}
-                        className="w-full rounded-xl border border-[#1E1E38] bg-[#080810] px-4 py-3 text-sm font-black text-white outline-none focus:border-[#F0B429]"
+                        className="w-full rounded-xl border border-[#1E1E38] bg-[#080810] px-4 py-3 text-sm font-black text-white outline-none transition focus:border-[#F0B429] disabled:opacity-50"
+                        disabled={!settings.weeklyReviewRemindersEnabled}
                       >
                         {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((day) => <option key={day} value={day}>{day}</option>)}
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-zinc-300 text-xs font-semibold">Weekly Review Time</label>
+                      <label className="text-xs font-semibold text-zinc-300">Report Time</label>
                       <input
                         type="time"
                         value={settings.weeklyReviewReminderTime}
                         onChange={(e) => setSettings({ ...settings, weeklyReviewReminderTime: e.target.value })}
-                        className="w-full rounded-xl border border-[#1E1E38] bg-[#080810] px-4 py-3 text-sm font-black text-white outline-none focus:border-[#F0B429] [color-scheme:dark]"
+                        className="w-full rounded-xl border border-[#1E1E38] bg-[#080810] px-4 py-3 text-sm font-black text-white outline-none transition focus:border-[#F0B429] [color-scheme:dark] disabled:opacity-50"
+                        disabled={!settings.weeklyReviewRemindersEnabled}
                       />
                     </div>
                   </div>
 
-                  <div className="flex items-start justify-between gap-4 rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+                  <div className="mt-5 rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">Email contents</p>
+                    <ul className="mt-3 space-y-2 text-xs leading-5 text-[#A0A0C0]">
+                      <li>• Weekly closed trade count and total R</li>
+                      <li>• Win rate, best setup, and main leak</li>
+                      <li>• Link to complete Weekly Review</li>
+                    </ul>
+                  </div>
+
+                  <button
+                    onClick={() => sendNotificationTestEmail("weekly-report")}
+                    disabled={Boolean(testingEmail)}
+                    className="gold-gradient mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-[#080810] disabled:opacity-60"
+                  >
+                    {testingEmail === "weekly-report" ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+                    Send Me Weekly Report Test
+                  </button>
+                </Card>
+              </div>
+
+              <Card className="border-[#1E1E38] bg-[#0D0D1A]/95 p-6 shadow-lg">
+                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="flex items-center gap-2 text-base font-black text-white">
+                      <Bell size={17} className="text-[#F0B429]" />
+                      Master notification controls
+                    </h3>
+                    <p className="mt-1 text-xs leading-5 text-[#8080A0]">Use the master email switch to pause all report emails without changing your reminder schedule.</p>
+                  </div>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="inline-flex w-fit items-center justify-center gap-2 rounded-2xl bg-[#F0B429] px-5 py-3 text-sm font-black text-black transition hover:bg-[#d99f1e] disabled:opacity-60"
+                  >
+                    {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                    Save Notification Settings
+                  </button>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <div className="flex items-center justify-between rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
                     <div>
-                      <p className="text-sm font-black text-white">Email AI report summaries</p>
-                      <p className="mt-1 text-xs leading-5 text-zinc-500">Receive saved AI report summaries and review prompts by email.</p>
+                      <p className="text-sm font-black text-white">Email reports</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">Master switch for Daily Plan and Weekly Report emails.</p>
                     </div>
                     <Toggle
                       enabled={settings.emailReportsEnabled}
                       onClick={() => setSettings({ ...settings, emailReportsEnabled: !settings.emailReportsEnabled })}
                     />
                   </div>
-                </Card>
-              </div>
-
-              <Card className="p-6 border-[#1E1E38] bg-[#0D0D1A]/95">
-                <h3 className="text-white font-bold text-base flex items-center gap-2">
-                  <Volume2 size={16} className="text-[#F0B429]" />
-                  In-App Notification Preferences
-                </h3>
-                <div className="mt-5 space-y-4">
                   <div className="flex items-center justify-between rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
                     <div>
                       <p className="text-sm font-black text-white">Daily limit alerts</p>
-                      <p className="mt-1 text-xs text-zinc-500">Alerts when nearing daily max loss or target goals.</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">In-app alerts near daily max loss or target goals.</p>
                     </div>
                     <Toggle
                       enabled={settings.notifications}
@@ -1005,7 +1123,7 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
                     <div>
                       <p className="text-sm font-black text-white">Sound effects</p>
-                      <p className="mt-1 text-xs text-zinc-500">Play audio cues on trade saves, goals, and review moments.</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">Audio cues on saves, goals, and review moments.</p>
                     </div>
                     <Toggle
                       enabled={settings.soundEffects}

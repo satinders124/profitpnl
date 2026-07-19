@@ -111,6 +111,8 @@ function eventTypeLabel(type: string) {
     test_daily_plan: "Daily Test",
     test_weekly_report: "Weekly Test",
     test_broadcast_features: "Broadcast Test",
+    user_test_daily_plan: "User Daily Test",
+    user_test_weekly_report: "User Weekly Test",
     broadcast_features: "Broadcast",
   };
   return labels[type] || type.replace(/_/g, " ");
