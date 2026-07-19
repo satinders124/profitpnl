@@ -23,17 +23,17 @@ export function dailyPlanReminderEmailHtml({
 
   const body = `
     <h1 style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:20px;font-weight:900;color:#080810;letter-spacing:-0.02em;">
-      Your Daily Trading Plan is ready
+      Your Daily Trading Plan isn’t locked yet
     </h1>
     <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.7;color:#5b5b78;">
-      Hi ${safeName}, before you open the market, take 60 seconds to set today’s max trades, risk, avoid list, and stop conditions.
+      Hi ${safeName}, we haven’t found an accepted Daily Plan for today yet. Before you trade, take 60 seconds to generate it, set max trades, confirm risk, and lock stop conditions.
     </p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f7f5ef" style="background-color:#f7f5ef;border:1px solid #e7e7f0;border-radius:14px;margin:0 0 20px;">
       <tr>
         <td style="padding:18px;">
           <p style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#8a8aa3;">
-            Pre-market focus
+            Pre-market risk brief
           </p>
           <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.7;color:#080810;">
             ${safeSummary}
@@ -49,7 +49,7 @@ export function dailyPlanReminderEmailHtml({
       <tr>
         <td bgcolor="#f0b429" style="border-radius:12px;background-color:#f0b429;background-image:linear-gradient(135deg,#f0b429,#c8961e);">
           <a href="${safeUrl}" style="display:inline-block;padding:13px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:900;color:#080810;text-decoration:none;">
-            Open Daily Plan →
+            Generate & Lock Daily Plan →
           </a>
         </td>
       </tr>
@@ -60,7 +60,7 @@ export function dailyPlanReminderEmailHtml({
     </p>`;
 
   return renderEmailLayout({
-    preheader: "Open your ProfitPnL Daily Plan before you trade.",
+    preheader: "Your ProfitPnL Daily Plan is not locked yet.",
     bodyHtml: body,
   });
 }

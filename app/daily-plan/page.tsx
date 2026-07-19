@@ -460,6 +460,7 @@ export default function DailyPlanPage() {
 
           <PageInsightPanel
             kind="daily-plan"
+            persistenceKey={`daily-plan-${todayKey()}-${accountId || "default"}`}
             initialTitle="AI pre-market briefing"
             initialSummary="Generate a deeper AI plan to turn today's guardrails into a clear market permission slip."
             context={{

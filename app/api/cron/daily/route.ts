@@ -240,8 +240,8 @@ async function sendDailyPlanReminder({
   await sgMail.send({
     to: profile.email,
     from: { email: fromEmail!, name: "ProfitPnL Daily Plan" },
-    subject: "Your Daily Trading Plan is ready",
-    text: `Hi ${profile.display_name || "Trader"},\n\n${summary}\n\nOpen your Daily Plan before you trade: ${dailyPlanUrl}\n\n— ProfitPnL`,
+    subject: "Your Daily Trading Plan isn’t locked yet",
+    text: `Hi ${profile.display_name || "Trader"},\n\nWe haven’t found an accepted Daily Plan for today yet. ${summary}\n\nGenerate and lock your Daily Plan before you trade: ${dailyPlanUrl}\n\n— ProfitPnL`,
     html: dailyPlanReminderEmailHtml({ name: profile.display_name || "Trader", dailyPlanUrl, timezone: profile.timezone || timeZone, reminderTime: "08:00", recentSummary: summary }),
   });
 

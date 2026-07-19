@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Lock, Sparkles, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -13,6 +13,10 @@ type Insight = {
   aiGenerated: boolean;
 };
 
+type PersistedInsight = Insight & {
+  savedAt: string;
+};
+
 const fallbackInsight: Insight = {
   title: "ProfitPnL insight",
   summary: "Use this panel to turn the current page data into a clear trading action. The best journal is not just a diary — it creates rules that change the next decision.",
@@ -21,24 +25,81 @@ const fallbackInsight: Insight = {
   aiGenerated: false,
 };
 
+function isInsight(value: unknown): value is Insight {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<Insight>;
+  return (
+    typeof candidate.title === "string" &&
+    typeof candidate.summary === "string" &&
+    Array.isArray(candidate.bullets) &&
+    typeof candidate.action === "string" &&
+    typeof candidate.aiGenerated === "boolean"
+  );
+}
+
+function safeParseInsight(raw: string | null): PersistedInsight | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const savedAt = typeof parsed.savedAt === "string" ? parsed.savedAt : new Date().toISOString();
+    if (!isInsight(parsed)) return null;
+    return { ...parsed, savedAt };
+  } catch {
+    return null;
+  }
+}
+
 export function PageInsightPanel({
   kind,
   context,
   initialTitle = "AI Co-Pilot Insight",
   initialSummary,
   compact = false,
+  persistenceKey,
 }: {
   kind: string;
   context: unknown;
   initialTitle?: string;
   initialSummary?: string;
   compact?: boolean;
+  persistenceKey?: string;
 }) {
-  const { plan } = useAuth();
+  const { plan, user } = useAuth();
   const isFreePlan = plan === "Free Plan";
-  const [insight, setInsight] = useState<Insight>({ ...fallbackInsight, title: initialTitle, summary: initialSummary || fallbackInsight.summary });
+  const defaultInsight = useMemo<Insight>(() => ({ ...fallbackInsight, title: initialTitle, summary: initialSummary || fallbackInsight.summary }), [initialTitle, initialSummary]);
+  const userId = user?.id || "";
+  const insightStorageKey = userId && persistenceKey ? `profitpnl_page_insight_${userId}_${persistenceKey}` : "";
+  const [insight, setInsight] = useState<Insight>(defaultInsight);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!insightStorageKey || typeof window === "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setInsight(defaultInsight);
+      return;
+    }
+
+    const restored = safeParseInsight(window.localStorage.getItem(insightStorageKey));
+    if (restored) {
+      setInsight(restored);
+      setNotice("Restored your last generated insight for this page.");
+      return;
+    }
+
+    setInsight(defaultInsight);
+    setNotice("");
+  }, [defaultInsight, insightStorageKey]);
+
+  function persistInsight(report: Insight) {
+    if (!insightStorageKey || typeof window === "undefined") return;
+    try {
+      const payload: PersistedInsight = { ...report, savedAt: new Date().toISOString() };
+      window.localStorage.setItem(insightStorageKey, JSON.stringify(payload));
+    } catch {
+      // localStorage can fail in private mode; AI report saving still runs below.
+    }
+  }
 
   async function saveAiReport(report: Insight, sessionToken?: string) {
     if (!report.summary) return;
@@ -56,7 +117,7 @@ export function PageInsightPanel({
         summary: report.summary,
         bullets: report.bullets,
         action: report.action,
-        metadata: { aiGenerated: report.aiGenerated },
+        metadata: { aiGenerated: report.aiGenerated, persistenceKey: persistenceKey || null },
       }),
     }).catch(() => null);
   }
@@ -90,6 +151,7 @@ export function PageInsightPanel({
         aiGenerated: Boolean(data.aiGenerated),
       };
       setInsight(nextInsight);
+      persistInsight(nextInsight);
       await saveAiReport(nextInsight, token);
       setNotice(nextInsight.aiGenerated ? "AI insight saved to your report history." : "Showing local intelligence. AI enhancement is available when server AI is enabled.");
     } catch {
