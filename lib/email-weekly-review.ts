@@ -43,17 +43,17 @@ export function weeklyReviewReminderEmailHtml({
 
   const body = `
     <h1 style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:20px;font-weight:900;color:#080810;letter-spacing:-0.02em;">
-      Your Weekly Trading Review is ready
+      Your Weekly ProfitPnL Report is ready
     </h1>
     <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.7;color:#5b5b78;">
-      Hi ${safeName}, your weekly review window is ready. Use it to lock in what worked, remove what leaked, and set next week’s rules.
+      Hi ${safeName}, your weekly performance report is ready. Use it to lock in what worked, remove what leaked, and set next week’s rules.
     </p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f7f5ef" style="background-color:#f7f5ef;border:1px solid #e7e7f0;border-radius:14px;margin:0 0 20px;">
       <tr>
         <td style="padding:18px;">
           <p style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#8a8aa3;">
-            Weekly snapshot · ${safePeriod}
+            Weekly report · ${safePeriod}
           </p>
           <p style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.7;color:#080810;">
             <strong>${totalTrades}</strong> closed trade${totalTrades === 1 ? "" : "s"} · <strong>${formatR(totalR)}</strong> total · <strong>${formatPct(winRate)}</strong> win rate
@@ -74,7 +74,7 @@ export function weeklyReviewReminderEmailHtml({
       <tr>
         <td bgcolor="#f0b429" style="border-radius:12px;background-color:#f0b429;background-image:linear-gradient(135deg,#f0b429,#c8961e);">
           <a href="${safeUrl}" style="display:inline-block;padding:13px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:900;color:#080810;text-decoration:none;">
-            Open Weekly Review →
+            Open Full Weekly Review →
           </a>
         </td>
       </tr>
@@ -85,7 +85,7 @@ export function weeklyReviewReminderEmailHtml({
     </p>`;
 
   return renderEmailLayout({
-    preheader: "Your ProfitPnL Weekly Review is ready.",
+    preheader: "Your ProfitPnL Weekly Report is ready.",
     bodyHtml: body,
   });
 }

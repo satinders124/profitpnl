@@ -17,6 +17,7 @@ type ProfileRow = {
   daily_plan_reminder_sent_on: string | null;
   weekly_review_reminders_enabled: boolean | null;
   weekly_review_reminder_day: string | null;
+  weekly_review_reminder_time: string | null;
   weekly_review_reminder_sent_on: string | null;
 };
 
@@ -31,14 +32,37 @@ type TradeRow = {
   lesson?: string | null;
 };
 
+type SendResult = {
+  sent: boolean;
+  skipped: boolean;
+  reason?: string;
+};
+
 const weekdayMap: Record<string, string> = {
-  Mon: "Mon", Monday: "Mon",
-  Tue: "Tue", Tuesday: "Tue",
-  Wed: "Wed", Wednesday: "Wed",
-  Thu: "Thu", Thursday: "Thu",
-  Fri: "Fri", Friday: "Fri",
-  Sat: "Sat", Saturday: "Sat",
-  Sun: "Sun", Sunday: "Sun",
+  Mon: "Mon",
+  Monday: "Mon",
+  Tue: "Tue",
+  Tuesday: "Tue",
+  Wed: "Wed",
+  Wednesday: "Wed",
+  Thu: "Thu",
+  Thursday: "Thu",
+  Fri: "Fri",
+  Friday: "Fri",
+  Sat: "Sat",
+  Saturday: "Sat",
+  Sun: "Sun",
+  Sunday: "Sun",
+};
+
+const weekdayIndex: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
 };
 
 function appUrl() {
@@ -68,11 +92,26 @@ function localParts(timeZone: string, date = new Date()) {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
     weekday: "short",
   }).formatToParts(date);
   const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
-  return { date: `${get("year")}-${get("month")}-${get("day")}`, weekday: get("weekday") };
+  return {
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    weekday: get("weekday"),
+    hour: Number(get("hour")),
+    minute: Number(get("minute")),
+  };
+}
+
+function parseReminderTime(value?: string | null) {
+  const match = (value || "17:00").match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return { hour: 17, minute: 0, text: "17:00" };
+  const hour = Math.max(0, Math.min(23, Number(match[1])));
+  const minute = Math.max(0, Math.min(59, Number(match[2])));
+  return { hour, minute, text: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}` };
 }
 
 function n(value: unknown) {
@@ -92,6 +131,33 @@ function startOfLocalWeek(localDate: string) {
   const diff = day === 0 ? -6 : 1 - day;
   date.setUTCDate(date.getUTCDate() + diff);
   return date.toISOString().slice(0, 10);
+}
+
+function latestReachedWeeklyTargetDate({
+  local,
+  targetDay,
+  targetTime,
+}: {
+  local: ReturnType<typeof localParts>;
+  targetDay: string;
+  targetTime: ReturnType<typeof parseReminderTime>;
+}) {
+  const todayIndex = weekdayIndex[local.weekday] ?? 0;
+  const targetIndex = weekdayIndex[targetDay] ?? weekdayIndex.Fri;
+  let daysSinceTarget = todayIndex - targetIndex;
+  if (daysSinceTarget < 0) daysSinceTarget += 7;
+
+  const localMinutes = local.hour * 60 + local.minute;
+  const targetMinutes = targetTime.hour * 60 + targetTime.minute;
+
+  // If today's configured report time has not arrived yet, the latest eligible
+  // report period is last week's occurrence. This lets the once-daily Hobby cron
+  // catch up safely instead of sending a Friday 17:00 report on Friday morning.
+  if (daysSinceTarget === 0 && localMinutes < targetMinutes) {
+    daysSinceTarget = 7;
+  }
+
+  return dateMinusDays(local.date, daysSinceTarget);
 }
 
 function recentSummary(trades: TradeRow[]) {
@@ -134,47 +200,91 @@ function reviewQueue(trades: TradeRow[]) {
   return trades.filter((trade) => !trade.reviewed || !trade.emotion || !trade.lesson).length;
 }
 
-async function sendDailyPlanReminder({ profile, supabase, apiKey, fromEmail }: { profile: ProfileRow; supabase: ReturnType<typeof createServerClient>; apiKey?: string; fromEmail?: string }) {
-  if (!profile.email || profile.daily_plan_reminders_enabled === false || profile.email_reports_enabled === false) return { sent: false, skipped: true };
+function emailNotConfigured(apiKey?: string, fromEmail?: string): SendResult | null {
+  if (apiKey && fromEmail) return null;
+  return { sent: false, skipped: true, reason: "email_not_configured" };
+}
+
+async function sendDailyPlanReminder({
+  profile,
+  supabase,
+  apiKey,
+  fromEmail,
+}: {
+  profile: ProfileRow;
+  supabase: ReturnType<typeof createServerClient>;
+  apiKey?: string;
+  fromEmail?: string;
+}): Promise<SendResult> {
+  if (!profile.email) return { sent: false, skipped: true, reason: "missing_email" };
+  if (profile.daily_plan_reminders_enabled === false || profile.email_reports_enabled === false) return { sent: false, skipped: true, reason: "disabled" };
+
   const timeZone = timezoneToIana(profile.timezone);
   const local = localParts(timeZone);
-  if (profile.daily_plan_reminder_sent_on === local.date) return { sent: false, skipped: true };
+  if (profile.daily_plan_reminder_sent_on === local.date) return { sent: false, skipped: true, reason: "already_sent_today" };
 
   const { data: existingPlan } = await supabase.from("daily_plans").select("accepted_at").eq("user_id", profile.id).eq("plan_date", local.date).maybeSingle();
   if (existingPlan?.accepted_at) {
     await supabase.from("profiles").update({ daily_plan_reminder_sent_on: local.date }).eq("id", profile.id);
-    return { sent: false, skipped: true };
+    return { sent: false, skipped: true, reason: "daily_plan_already_accepted" };
   }
+
+  const configProblem = emailNotConfigured(apiKey, fromEmail);
+  if (configProblem) return configProblem;
 
   const sevenDaysAgo = dateMinusDays(local.date, 7);
   const { data: trades } = await supabase.from("trades").select("result, setup, emotion, mistake").eq("user_id", profile.id).gte("date", sevenDaysAgo).order("date", { ascending: false }).limit(20);
   const summary = recentSummary((trades || []) as TradeRow[]);
   const dailyPlanUrl = `${appUrl()}/daily-plan`;
 
-  if (apiKey && fromEmail) {
-    await sgMail.send({
-      to: profile.email,
-      from: { email: fromEmail, name: "ProfitPnL Daily Plan" },
-      subject: "Your Daily Trading Plan is ready",
-      text: `Hi ${profile.display_name || "Trader"},\n\n${summary}\n\nOpen your Daily Plan before you trade: ${dailyPlanUrl}\n\n— ProfitPnL`,
-      html: dailyPlanReminderEmailHtml({ name: profile.display_name || "Trader", dailyPlanUrl, timezone: profile.timezone || timeZone, reminderTime: "08:00", recentSummary: summary }),
-    });
-  }
+  await sgMail.send({
+    to: profile.email,
+    from: { email: fromEmail!, name: "ProfitPnL Daily Plan" },
+    subject: "Your Daily Trading Plan is ready",
+    text: `Hi ${profile.display_name || "Trader"},\n\n${summary}\n\nOpen your Daily Plan before you trade: ${dailyPlanUrl}\n\n— ProfitPnL`,
+    html: dailyPlanReminderEmailHtml({ name: profile.display_name || "Trader", dailyPlanUrl, timezone: profile.timezone || timeZone, reminderTime: "08:00", recentSummary: summary }),
+  });
 
   await supabase.from("profiles").update({ daily_plan_reminder_sent_on: local.date }).eq("id", profile.id);
   return { sent: true, skipped: false };
 }
 
-async function sendWeeklyReviewReminder({ profile, supabase, apiKey, fromEmail }: { profile: ProfileRow; supabase: ReturnType<typeof createServerClient>; apiKey?: string; fromEmail?: string }) {
-  if (!profile.email || profile.weekly_review_reminders_enabled === false || profile.email_reports_enabled === false) return { sent: false, skipped: true };
+async function sendWeeklyReviewReminder({
+  profile,
+  supabase,
+  apiKey,
+  fromEmail,
+}: {
+  profile: ProfileRow;
+  supabase: ReturnType<typeof createServerClient>;
+  apiKey?: string;
+  fromEmail?: string;
+}): Promise<SendResult> {
+  if (!profile.email) return { sent: false, skipped: true, reason: "missing_email" };
+  if (profile.weekly_review_reminders_enabled === false || profile.email_reports_enabled === false) return { sent: false, skipped: true, reason: "disabled" };
+
   const timeZone = timezoneToIana(profile.timezone);
   const local = localParts(timeZone);
   const targetDay = weekdayMap[profile.weekly_review_reminder_day || "Fri"] || "Fri";
-  if (local.weekday !== targetDay) return { sent: false, skipped: true };
-  if (profile.weekly_review_reminder_sent_on === local.date) return { sent: false, skipped: true };
+  const targetTime = parseReminderTime(profile.weekly_review_reminder_time);
+  const reportEndDate = latestReachedWeeklyTargetDate({ local, targetDay, targetTime });
 
-  const weekStart = startOfLocalWeek(local.date);
-  const { data: trades } = await supabase.from("trades").select("id, date, result, setup, emotion, mistake, reviewed, lesson").eq("user_id", profile.id).gte("date", weekStart).lte("date", local.date).order("date", { ascending: false });
+  if (profile.weekly_review_reminder_sent_on === reportEndDate) {
+    return { sent: false, skipped: true, reason: "already_sent_for_period" };
+  }
+
+  const configProblem = emailNotConfigured(apiKey, fromEmail);
+  if (configProblem) return configProblem;
+
+  const weekStart = startOfLocalWeek(reportEndDate);
+  const { data: trades } = await supabase
+    .from("trades")
+    .select("id, date, result, setup, emotion, mistake, reviewed, lesson")
+    .eq("user_id", profile.id)
+    .gte("date", weekStart)
+    .lte("date", reportEndDate)
+    .order("date", { ascending: false });
+
   const rows = (trades || []) as TradeRow[];
   const closed = rows.filter((trade) => trade.result !== null && trade.result !== undefined && trade.result !== "");
   const wins = closed.filter((trade) => n(trade.result) > 0).length;
@@ -182,18 +292,33 @@ async function sendWeeklyReviewReminder({ profile, supabase, apiKey, fromEmail }
   const ranked = setupStats(closed);
   const weeklyReviewUrl = `${appUrl()}/weekly-review`;
 
-  if (apiKey && fromEmail) {
-    await sgMail.send({
-      to: profile.email,
-      from: { email: fromEmail, name: "ProfitPnL Weekly Review" },
-      subject: "Your Weekly Trading Review is ready",
-      text: `Hi ${profile.display_name || "Trader"},\n\nYour weekly review is ready. Closed trades: ${closed.length}. Total result: ${totalR >= 0 ? "+" : ""}${totalR.toFixed(2)}R. Open: ${weeklyReviewUrl}\n\n— ProfitPnL`,
-      html: weeklyReviewReminderEmailHtml({ name: profile.display_name || "Trader", weeklyReviewUrl, timezone: profile.timezone || timeZone, periodLabel: `${weekStart} to ${local.date}`, totalTrades: closed.length, totalR, winRate: closed.length ? wins / closed.length : 0, bestSetup: ranked[0]?.name || "Not enough setup data yet", mainLeak: mainLeak(closed), reviewQueue: reviewQueue(rows) }),
-    });
-  }
+  await sgMail.send({
+    to: profile.email,
+    from: { email: fromEmail!, name: "ProfitPnL Weekly Report" },
+    subject: `Your Weekly ProfitPnL Report is ready (${totalR >= 0 ? "+" : ""}${totalR.toFixed(2)}R)`,
+    text: `Hi ${profile.display_name || "Trader"},\n\nYour weekly ProfitPnL report is ready for ${weekStart} to ${reportEndDate}. Closed trades: ${closed.length}. Total result: ${totalR >= 0 ? "+" : ""}${totalR.toFixed(2)}R. Open: ${weeklyReviewUrl}\n\n— ProfitPnL`,
+    html: weeklyReviewReminderEmailHtml({
+      name: profile.display_name || "Trader",
+      weeklyReviewUrl,
+      timezone: profile.timezone || timeZone,
+      periodLabel: `${weekStart} to ${reportEndDate}`,
+      totalTrades: closed.length,
+      totalR,
+      winRate: closed.length ? wins / closed.length : 0,
+      bestSetup: ranked[0]?.name || "Not enough setup data yet",
+      mainLeak: mainLeak(closed),
+      reviewQueue: reviewQueue(rows),
+    }),
+  });
 
-  await supabase.from("profiles").update({ weekly_review_reminder_sent_on: local.date }).eq("id", profile.id);
+  await supabase.from("profiles").update({ weekly_review_reminder_sent_on: reportEndDate }).eq("id", profile.id);
   return { sent: true, skipped: false };
+}
+
+function countSkipReason(result: SendResult, skipReasons: Record<string, number>) {
+  if (!result.skipped) return;
+  const reason = result.reason || "skipped";
+  skipReasons[reason] = (skipReasons[reason] || 0) + 1;
 }
 
 export async function GET(req: Request) {
@@ -204,8 +329,12 @@ export async function GET(req: Request) {
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
   if (apiKey) sgMail.setApiKey(apiKey);
+
   const supabase = createServerClient();
-  const { data: profiles, error } = await supabase.from("profiles").select("id, email, display_name, timezone, daily_plan_reminders_enabled, email_reports_enabled, daily_plan_reminder_sent_on, weekly_review_reminders_enabled, weekly_review_reminder_day, weekly_review_reminder_sent_on");
+  const { data: profiles, error } = await supabase
+    .from("profiles")
+    .select("id, email, display_name, timezone, daily_plan_reminders_enabled, email_reports_enabled, daily_plan_reminder_sent_on, weekly_review_reminders_enabled, weekly_review_reminder_day, weekly_review_reminder_time, weekly_review_reminder_sent_on");
+
   if (error) {
     console.error("Daily cron profile fetch error:", error);
     return NextResponse.json({ error: "Could not fetch profiles." }, { status: 500 });
@@ -214,14 +343,20 @@ export async function GET(req: Request) {
   let dailySent = 0;
   let weeklySent = 0;
   let skipped = 0;
+  const skipReasons: Record<string, number> = {};
   const errors: string[] = [];
 
   for (const profile of (profiles || []) as ProfileRow[]) {
     try {
       const daily = await sendDailyPlanReminder({ profile, supabase, apiKey, fromEmail });
-      if (daily.sent) dailySent++; else if (daily.skipped) skipped++;
+      if (daily.sent) dailySent++;
+      if (daily.skipped) skipped++;
+      countSkipReason(daily, skipReasons);
+
       const weekly = await sendWeeklyReviewReminder({ profile, supabase, apiKey, fromEmail });
-      if (weekly.sent) weeklySent++; else if (weekly.skipped) skipped++;
+      if (weekly.sent) weeklySent++;
+      if (weekly.skipped) skipped++;
+      countSkipReason(weekly, skipReasons);
     } catch (err) {
       errors.push(`${profile.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -233,5 +368,15 @@ export async function GET(req: Request) {
   });
   const trial = trialRes ? await trialRes.json().catch(() => null) : null;
 
-  return NextResponse.json({ ok: true, checked: profiles?.length || 0, dailySent, weeklySent, skipped, trial, errors });
+  return NextResponse.json({
+    ok: true,
+    checked: profiles?.length || 0,
+    emailConfigured: Boolean(apiKey && fromEmail),
+    dailySent,
+    weeklySent,
+    skipped,
+    skipReasons,
+    trial,
+    errors,
+  });
 }
