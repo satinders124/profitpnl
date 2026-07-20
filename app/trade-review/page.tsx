@@ -186,6 +186,7 @@ function AiSuggestion({ label, value }: { label: string; value: string }) {
 
 export default function TradeReviewPage() {
   const { user } = useAuth();
+  const [requestedTradeId, setRequestedTradeId] = useState("");
   const [trades, setTrades] = useState<Trade[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -195,19 +196,32 @@ export default function TradeReviewPage() {
   const [aiReview, setAiReview] = useState<TradeAiReview | null>(null);
   const [notice, setNotice] = useState("");
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const tradeId = new URLSearchParams(window.location.search).get("trade") || "";
+    if (tradeId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRequestedTradeId(tradeId);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
       const rows = await getTrades(user.id);
       setTrades(rows);
-      const first = rows.find(needsReview) || rows[0];
-      setSelectedId((current) => current || first?.id || "");
-      if (!selectedId) setDraft(first || {});
+      const requested = requestedTradeId ? rows.find((trade) => trade.id === requestedTradeId) : undefined;
+      const first = requested || rows.find(needsReview) || rows[0];
+      setSelectedId((current) => requested?.id || current || first?.id || "");
+      if (requested || !selectedId) {
+        setDraft(first || {});
+        if (requested) setNotice("Trade loaded from your post-save handoff.");
+      }
     } finally {
       setLoading(false);
     }
-  }, [user, selectedId]);
+  }, [user, selectedId, requestedTradeId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

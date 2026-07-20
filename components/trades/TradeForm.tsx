@@ -105,13 +105,19 @@ function loadSavedDraft(draftKey: string, defaults: Partial<Trade>) {
   }
 }
 
+export type TradeSaveResult = {
+  id: string;
+  trade: Partial<Trade>;
+  isNew: boolean;
+};
+
 type TradeFormProps = {
   uid: string;
   existing?: Trade | null;
   accounts: TradingAccount[];
   playbook: PlaybookSetup[];
   strategiesFromTrades: string[];
-  onSaved: () => void;
+  onSaved: (result: TradeSaveResult) => void | Promise<void>;
   onCancel: () => void;
 };
 
@@ -208,7 +214,7 @@ export function TradeForm({
     setSaving(true);
 
     try {
-      await saveTrade(uid, {
+      const cleanedTrade = {
         ...form,
         id: existing?.id,
         entry: cleanNumber(form.entry),
@@ -218,7 +224,8 @@ export function TradeForm({
         result: cleanNumberOrBlank(form.result),
         pnl: cleanNumberOrBlank(form.pnl),
         executionRating: cleanNumberOrBlank(form.executionRating),
-      });
+      };
+      const savedId = await saveTrade(uid, cleanedTrade);
 
       playSuccess();
 
@@ -259,7 +266,7 @@ export function TradeForm({
         }
       }
 
-      onSaved();
+      await onSaved({ id: savedId, trade: { ...cleanedTrade, id: savedId }, isNew: !existing });
     } finally {
       setSaving(false);
     }

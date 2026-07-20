@@ -3,7 +3,7 @@
 import { AppShell } from "@/components/layout/AppShell";
 import Modal from "@/components/ui/Modal";
 import { Card } from "@/components/ui/Card";
-import { TradeForm } from "@/components/trades/TradeForm";
+import { TradeForm, type TradeSaveResult } from "@/components/trades/TradeForm";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useMode } from "@/components/providers/ModeProvider";
 import { useRouter } from "next/navigation";
@@ -35,6 +35,7 @@ import { TradingAccount } from "@/types/account";
 import { PlaybookSetup } from "@/types/playbook";
 import {
   CheckCircle2,
+  ClipboardCheck,
   FileText,
   Maximize2,
   Plus,
@@ -82,6 +83,7 @@ export default function TradesPage() {
 
   const [modalTrade, setModalTrade] = useState<Trade | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [lastSavedTrade, setLastSavedTrade] = useState<TradeSaveResult | null>(null);
   const [selectedChartTrade, setSelectedChartTrade] = useState<Trade | null>(null);
   const [expandedChartTrade, setExpandedChartTrade] = useState<Trade | null>(null);
 
@@ -212,6 +214,27 @@ export default function TradesPage() {
   );
 
   function openNewTrade() {
+    setLastSavedTrade(null);
+    setModalTrade(null);
+    setFormOpen(true);
+  }
+
+  async function handleLiveTradeSaved(result: TradeSaveResult) {
+    setFormOpen(false);
+    setModalTrade(null);
+    await load(false);
+    setLastSavedTrade(result);
+  }
+
+  function reviewSavedTrade() {
+    if (!lastSavedTrade) return;
+    const id = encodeURIComponent(lastSavedTrade.id);
+    setLastSavedTrade(null);
+    router.push(`/trade-review?trade=${id}`);
+  }
+
+  function logAnotherTrade() {
+    setLastSavedTrade(null);
     setModalTrade(null);
     setFormOpen(true);
   }
@@ -227,6 +250,7 @@ export default function TradesPage() {
       }
       return;
     }
+    setLastSavedTrade(null);
     setModalTrade(trade);
     setFormOpen(true);
   }
@@ -615,10 +639,18 @@ export default function TradesPage() {
             playbook={playbook}
             strategiesFromTrades={strategiesFromTrades}
             onCancel={() => setFormOpen(false)}
-            onSaved={async () => {
-              setFormOpen(false);
-              await load();
-            }}
+            onSaved={handleLiveTradeSaved}
+          />
+        </Modal>
+      )}
+
+      {!isBacktest && lastSavedTrade && (
+        <Modal title={lastSavedTrade.isNew ? "Trade Logged" : "Trade Updated"} onClose={() => setLastSavedTrade(null)}>
+          <TradeSavedHandoff
+            result={lastSavedTrade}
+            onReview={reviewSavedTrade}
+            onLogAnother={logAnotherTrade}
+            onClose={() => setLastSavedTrade(null)}
           />
         </Modal>
       )}
@@ -690,6 +722,82 @@ export default function TradesPage() {
         </Modal>
       )}
     </AppShell>
+  );
+}
+
+function TradeSavedHandoff({
+  result,
+  onReview,
+  onLogAnother,
+  onClose,
+}: {
+  result: TradeSaveResult;
+  onReview: () => void;
+  onLogAnother: () => void;
+  onClose: () => void;
+}) {
+  const trade = result.trade;
+  const rValue = trade.result === "" || trade.result === null || trade.result === undefined ? null : Number(trade.result);
+  const pnlValue = trade.pnl === "" || trade.pnl === null || trade.pnl === undefined ? null : Number(trade.pnl);
+  const hasReviewBasics = Boolean(trade.emotion && trade.mistake && trade.lesson && trade.reviewed);
+  const resultLabel = rValue === null || !Number.isFinite(rValue) ? "Open trade" : formatR(rValue);
+  const resultTone = rValue === null || !Number.isFinite(rValue) ? "text-[#4C82FB]" : rValue >= 0 ? "text-[#00D084]" : "text-[#FF4565]";
+
+  return (
+    <div className="space-y-5">
+      <div className="relative overflow-hidden rounded-[2rem] border border-[#00D084]/25 bg-[#00D084]/10 p-5">
+        <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#00D084]/20 blur-3xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#00D084]/30 bg-[#00D084]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#00D084]">
+              <CheckCircle2 size={12} /> Saved to Journal
+            </div>
+            <h3 className="mt-4 text-2xl font-black tracking-tight text-white">
+              {trade.instrument || "Trade"} is logged.
+            </h3>
+            <p className="mt-2 max-w-xl text-sm leading-7 text-[#A0A0C0]">
+              Nice. Now turn the execution into a lesson while the trade context is still fresh.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4 text-right">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">Result</p>
+            <p className={`mt-1 text-2xl font-black ${resultTone}`}>{resultLabel}</p>
+            <p className="mt-1 text-xs text-[#8080A0]">
+              {pnlValue !== null && Number.isFinite(pnlValue) ? `${pnlValue >= 0 ? "+" : "-"}$${Math.abs(pnlValue).toFixed(0)}` : trade.date || "Today"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">Setup</p>
+          <p className="mt-2 truncate text-sm font-black text-white">{trade.setup || "Not tagged"}</p>
+        </div>
+        <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">Emotion</p>
+          <p className="mt-2 truncate text-sm font-black text-white">{trade.emotion || "Missing"}</p>
+        </div>
+        <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">Review Status</p>
+          <p className={`mt-2 truncate text-sm font-black ${hasReviewBasics ? "text-[#00D084]" : "text-[#F0B429]"}`}>
+            {hasReviewBasics ? "Complete" : "Needs review"}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <button onClick={onReview} className="gold-gradient inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-[#080810]">
+          <ClipboardCheck size={16} /> Review This Trade
+        </button>
+        <button onClick={onLogAnother} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#111124] px-5 py-3 text-sm font-black text-zinc-300 hover:text-white">
+          <Plus size={16} /> Log Another
+        </button>
+        <button onClick={onClose} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#1E1E38] bg-[#080810] px-5 py-3 text-sm font-black text-[#8080A0] hover:text-white">
+          Back to Log
+        </button>
+      </div>
+    </div>
   );
 }
 
