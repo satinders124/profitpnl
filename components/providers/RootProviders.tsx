@@ -6,6 +6,7 @@ import { AuthProvider } from "@/components/providers/AuthProvider";
 import { RecoveryLinkHandler } from "@/components/providers/RecoveryLinkHandler";
 import { ModeProvider } from "@/components/providers/ModeProvider";
 import { NotificationProvider } from "@/components/providers/NotificationProvider";
+import { OnboardingGate } from "@/components/providers/OnboardingGate";
 
 const PUBLIC_NO_AUTH_PATHS = new Set([
   "/about",
@@ -73,6 +74,7 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
       <NotificationProvider>
         <ModeProvider>
           <RecoveryLinkHandler />
+          <OnboardingGate />
           {children}
         </ModeProvider>
       </NotificationProvider>

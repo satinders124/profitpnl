@@ -52,7 +52,6 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { ActiveTraderCheckinModal } from "@/components/providers/ActiveTraderCheckinModal";
 import { ActiveShiftTerminal } from "@/components/backtesting/ActiveShiftTerminal";
 import { getActiveShift, TraderShift } from "@/lib/shifts-db";
 import { FeatureAnnouncementBanner } from "@/components/providers/FeatureAnnouncementBanner";
@@ -879,7 +878,6 @@ export default function DashboardPage() {
       }
     >
       {/* Log Trade Modal */}
-      <ActiveTraderCheckinModal />
       <FeatureAnnouncementBanner />
       
       {!isBacktest && tradeModalOpen && user && (

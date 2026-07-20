@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { Turnstile } from "@/components/Turnstile";
+import { userNeedsOnboarding } from "@/lib/onboarding-status";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
@@ -41,6 +42,15 @@ export default function LoginClient() {
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
 
+  async function redirectAfterLogin() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && await userNeedsOnboarding(user.id)) {
+      router.push("/onboarding");
+      return;
+    }
+    router.push(nextPath);
+  }
+
   const handleCaptchaVerify = useCallback((token: string) => {
     setCaptchaToken(token);
     setError("");
@@ -75,7 +85,7 @@ export default function LoginClient() {
         : authError.message);
       setCaptchaToken(null);
     } else {
-      router.push(nextPath);
+      await redirectAfterLogin();
     }
     setLoading(false);
   }
@@ -126,7 +136,7 @@ export default function LoginClient() {
     if (verifyError) {
       setError(verifyError.message);
     } else {
-      router.push(nextPath);
+      await redirectAfterLogin();
     }
     setLoading(false);
   }

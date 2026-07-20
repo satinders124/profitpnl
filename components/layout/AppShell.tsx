@@ -1,9 +1,12 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { ProtectedRoute } from "@/components/providers/ProtectedRoute";
 import { Header } from "@/components/layout/Header";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { ActiveTraderCheckinModal } from "@/components/providers/ActiveTraderCheckinModal";
+import { useMode } from "@/components/providers/ModeProvider";
 
 type AppShellProps = {
   title: string;
@@ -20,9 +23,14 @@ export function AppShell({
   onAction,
   children,
 }: AppShellProps) {
+  const pathname = usePathname();
+  const { mode } = useMode();
+  const showRiskGuardCheckin = mode !== "backtest" && pathname !== "/onboarding" && pathname !== "/psychology/guard";
+
   return (
     <ProtectedRoute>
       <div className="flex h-screen overflow-hidden bg-[#08080C] text-[#F2F2F8] font-sans antialiased selection:bg-[#F0B429]/20 selection:text-[#F0B429]">
+        {showRiskGuardCheckin ? <ActiveTraderCheckinModal /> : null}
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

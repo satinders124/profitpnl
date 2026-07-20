@@ -53,6 +53,7 @@ export default function OnboardingPage() {
         max_drawdown_limit: n(form.maxDrawdown, 6),
         daily_profit_target: n(form.profitTarget, 8),
         psychology_tags: [form.problem],
+        onboarding_completed: true,
       });
 
       await saveAccount(user.id, {

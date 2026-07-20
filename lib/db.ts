@@ -55,6 +55,7 @@ export async function updateProfile(uid: string, updates: Record<string, unknown
     "setup_tags",
     "mistake_tags",
     "psychology_tags",
+    "onboarding_completed",
   ];
 
   const filteredUpdates: Record<string, unknown> = {};

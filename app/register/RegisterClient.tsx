@@ -109,7 +109,7 @@ export default function RegisterClient() {
       const supabase2 = createClient();
       await supabase2
         .from("profiles")
-        .update({ display_name: name.trim() })
+        .update({ display_name: name.trim(), onboarding_completed: false })
         .eq("id", data.user.id);
 
       try {
@@ -148,7 +148,7 @@ export default function RegisterClient() {
       }
     }
 
-    router.push("/dashboard");
+    router.push("/onboarding");
     setLoading(false);
   }
 
