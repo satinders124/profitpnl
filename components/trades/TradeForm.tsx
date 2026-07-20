@@ -164,6 +164,42 @@ function applySign(value: unknown, sign: "positive" | "negative") {
   return sign === "negative" ? `-${cleaned}` : cleaned;
 }
 
+type PlannedRrAnalysis = {
+  rr: number | null;
+  risk: number;
+  reward: number;
+  warning: string;
+  ready: boolean;
+};
+
+function parsePrice(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function calculatePlannedRr(form: Partial<Trade>): PlannedRrAnalysis {
+  const entry = parsePrice(form.entry);
+  const sl = parsePrice(form.sl);
+  const tp = parsePrice(form.tp);
+  const direction = String(form.direction || "LONG").toUpperCase();
+
+  if (entry === null || sl === null || tp === null) {
+    return { rr: null, risk: 0, reward: 0, warning: "Enter entry, stop loss, and take profit to calculate planned R:R.", ready: false };
+  }
+
+  const risk = direction === "SHORT" ? sl - entry : entry - sl;
+  const reward = direction === "SHORT" ? entry - tp : tp - entry;
+
+  if (risk <= 0 || reward <= 0) {
+    const warning = direction === "SHORT"
+      ? "For SHORT trades, stop loss should usually be above entry and take profit below entry."
+      : "For LONG trades, stop loss should usually be below entry and take profit above entry.";
+    return { rr: null, risk, reward, warning, ready: true };
+  }
+
+  return { rr: reward / risk, risk, reward, warning: "", ready: true };
+}
+
 type GuardrailItem = {
   level: "ok" | "info" | "warn" | "danger";
   title: string;
@@ -378,6 +414,7 @@ export function TradeForm({
     todaysTradeCount,
     isEditing: Boolean(existing),
   }), [dailyPlan, dailyPlanChecked, existing, form, todaysTradeCount]);
+  const plannedRr = useMemo(() => calculatePlannedRr(form), [form]);
 
   const isClosingOpenTrade = Boolean(existing && !hasOutcome(existing) && tradeState === "closed");
 
@@ -709,6 +746,12 @@ export function TradeForm({
             />
           </Field>
 
+          <AutoRrCard
+            analysis={plannedRr}
+            currentValue={String(form.rr || "")}
+            onApply={() => plannedRr.rr && update("rr", plannedRr.rr.toFixed(2))}
+          />
+
           <Field label="Result R">
             <SignedNumberInput
               value={String(form.result ?? "")}
@@ -885,6 +928,44 @@ const inputClass =
 
 const selectClass =
   `${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23A0A0C0%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_12px_center] bg-no-repeat pr-10`;
+
+function AutoRrCard({
+  analysis,
+  currentValue,
+  onApply,
+}: {
+  analysis: PlannedRrAnalysis;
+  currentValue: string;
+  onApply: () => void;
+}) {
+  const hasCalculated = analysis.rr !== null && Number.isFinite(analysis.rr);
+  return (
+    <div className={`rounded-xl border p-4 ${hasCalculated ? "border-[#00D084]/25 bg-[#00D084]/10" : analysis.ready ? "border-[#F0B429]/25 bg-[#F0B429]/10" : "border-[#1E1E38] bg-[#0D0D1A]"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">Auto R:R</p>
+          <p className={`mt-1 text-2xl font-black ${hasCalculated ? "text-[#00D084]" : "text-[#F0B429]"}`}>
+            {hasCalculated ? `${analysis.rr!.toFixed(2)}R` : "—"}
+          </p>
+        </div>
+        {hasCalculated && (
+          <button
+            type="button"
+            onClick={onApply}
+            className="rounded-xl border border-[#00D084]/30 bg-[#00D084]/10 px-3 py-2 text-[11px] font-black text-[#00D084]"
+          >
+            {currentValue ? "Update R:R" : "Apply"}
+          </button>
+        )}
+      </div>
+      <p className="mt-2 text-xs leading-5 text-[#8080A0]">
+        {hasCalculated
+          ? `Risk ${Math.abs(analysis.risk).toFixed(2)} points · reward ${Math.abs(analysis.reward).toFixed(2)} points.`
+          : analysis.warning}
+      </p>
+    </div>
+  );
+}
 
 function SignedNumberInput({
   value,
