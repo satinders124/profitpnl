@@ -10,16 +10,18 @@ import { useEffect, useMemo, useState } from "react";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { useNotificationCoPilot } from "@/components/providers/NotificationProvider";
 
-const instruments = [
+const instrumentChips = [
+  "NQ",
+  "MNQ",
+  "ES",
+  "MES",
+  "YM",
+  "GC",
+  "CL",
   "XAUUSD",
   "EURUSD",
-  "GBPUSD",
-  "USDJPY",
   "NAS100",
-  "US30",
-  "BTC",
-  "ETH",
-  "Other",
+  "BTCUSD",
 ];
 
 const sessions = [
@@ -764,18 +766,19 @@ export function TradeForm({
           </Field>
 
           <Field label="Instrument">
-            <select
+            <input
               value={String(form.instrument || "")}
-              onChange={(e) => update("instrument", e.target.value)}
-              className={selectClass}
+              onChange={(e) => update("instrument", e.target.value.toUpperCase())}
+              className={inputClass}
+              placeholder="Type symbol, e.g. NQ, MNQ, ES, XAUUSD"
               required
-            >
-              {instruments.map((x) => (
-                <option key={x} value={x}>
-                  {x}
-                </option>
-              ))}
-            </select>
+            />
+            <p className="mt-1 text-[11px] leading-5 text-[#5A5A80]">Type any broker symbol or use a quick chip below.</p>
+            <QuickChips
+              values={instrumentChips}
+              active={String(form.instrument || "")}
+              onPick={(value) => update("instrument", value)}
+            />
           </Field>
 
           <Field label="Direction">
@@ -864,13 +867,14 @@ export function TradeForm({
             />
           </Field>
 
-          <AutoRrCard
-            analysis={plannedRr}
-            currentValue={String(form.rr || "")}
-            onApply={() => plannedRr.rr && update("rr", plannedRr.rr.toFixed(2))}
-          />
-
-          <FuturesRiskCard estimate={futuresRisk} />
+          <div className="md:col-span-2 grid gap-4 xl:grid-cols-2">
+            <AutoRrCard
+              analysis={plannedRr}
+              currentValue={String(form.rr || "")}
+              onApply={() => plannedRr.rr && update("rr", plannedRr.rr.toFixed(2))}
+            />
+            <FuturesRiskCard estimate={futuresRisk} />
+          </div>
 
           <Field label="Result R">
             <SignedNumberInput
@@ -1060,7 +1064,7 @@ function AutoRrCard({
 }) {
   const hasCalculated = analysis.rr !== null && Number.isFinite(analysis.rr);
   return (
-    <div className={`rounded-xl border p-4 ${hasCalculated ? "border-[#00D084]/25 bg-[#00D084]/10" : analysis.ready ? "border-[#F0B429]/25 bg-[#F0B429]/10" : "border-[#1E1E38] bg-[#0D0D1A]"}`}>
+    <div className={`h-full rounded-xl border p-4 ${hasCalculated ? "border-[#00D084]/25 bg-[#00D084]/10" : analysis.ready ? "border-[#F0B429]/25 bg-[#F0B429]/10" : "border-[#1E1E38] bg-[#0D0D1A]"}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">Auto R:R</p>
@@ -1090,8 +1094,8 @@ function AutoRrCard({
 function FuturesRiskCard({ estimate }: { estimate: FuturesRiskEstimate }) {
   const ready = estimate.estimatedRisk !== null && estimate.estimatedTarget !== null;
   return (
-    <div className={`rounded-xl border p-4 ${ready ? "border-[#F0B429]/25 bg-[#F0B429]/10" : estimate.supported ? "border-[#4C82FB]/25 bg-[#4C82FB]/10" : "border-[#1E1E38] bg-[#0D0D1A]"}`}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className={`h-full rounded-xl border p-4 ${ready ? "border-[#F0B429]/25 bg-[#F0B429]/10" : estimate.supported ? "border-[#4C82FB]/25 bg-[#4C82FB]/10" : "border-[#1E1E38] bg-[#0D0D1A]"}`}>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">Futures Risk Estimate</p>
           <p className="mt-1 text-sm font-black text-white">
@@ -1099,7 +1103,7 @@ function FuturesRiskCard({ estimate }: { estimate: FuturesRiskEstimate }) {
           </p>
           {estimate.label && <p className="mt-1 text-[11px] leading-5 text-[#8080A0]">{estimate.label}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:min-w-[220px]">
+        <div className="grid w-full grid-cols-2 gap-2 xl:max-w-[240px] xl:shrink-0">
           <div className="rounded-2xl border border-[#FF4565]/20 bg-[#FF4565]/10 p-3 text-right">
             <p className="text-[9px] font-black uppercase tracking-wider text-[#FF8CA0]">Risk</p>
             <p className="mt-1 text-base font-black text-[#FF8CA0]">{money(estimate.estimatedRisk)}</p>
