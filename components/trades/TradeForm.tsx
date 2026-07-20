@@ -867,7 +867,7 @@ export function TradeForm({
             />
           </Field>
 
-          <div className="md:col-span-2 grid gap-4 xl:grid-cols-2">
+          <div className="md:col-span-2 grid gap-4">
             <AutoRrCard
               analysis={plannedRr}
               currentValue={String(form.rr || "")}
@@ -1095,7 +1095,7 @@ function FuturesRiskCard({ estimate }: { estimate: FuturesRiskEstimate }) {
   const ready = estimate.estimatedRisk !== null && estimate.estimatedTarget !== null;
   return (
     <div className={`h-full rounded-xl border p-4 ${ready ? "border-[#F0B429]/25 bg-[#F0B429]/10" : estimate.supported ? "border-[#4C82FB]/25 bg-[#4C82FB]/10" : "border-[#1E1E38] bg-[#0D0D1A]"}`}>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <div className="flex flex-col gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">Futures Risk Estimate</p>
           <p className="mt-1 text-sm font-black text-white">
@@ -1103,7 +1103,7 @@ function FuturesRiskCard({ estimate }: { estimate: FuturesRiskEstimate }) {
           </p>
           {estimate.label && <p className="mt-1 text-[11px] leading-5 text-[#8080A0]">{estimate.label}</p>}
         </div>
-        <div className="grid w-full grid-cols-2 gap-2 xl:max-w-[240px] xl:shrink-0">
+        <div className="grid w-full grid-cols-2 gap-2">
           <div className="rounded-2xl border border-[#FF4565]/20 bg-[#FF4565]/10 p-3 text-right">
             <p className="text-[9px] font-black uppercase tracking-wider text-[#FF8CA0]">Risk</p>
             <p className="mt-1 text-base font-black text-[#FF8CA0]">{money(estimate.estimatedRisk)}</p>
