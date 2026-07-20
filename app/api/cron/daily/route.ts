@@ -175,11 +175,13 @@ async function sendDailyPlanReminder({
   supabase,
   apiKey,
   fromEmail,
+  forceDaily = false,
 }: {
   profile: ProfileRow;
   supabase: ReturnType<typeof createServerClient>;
   apiKey?: string;
   fromEmail?: string;
+  forceDaily?: boolean;
 }): Promise<SendResult> {
   if (!profile.email) return { sent: false, skipped: true, reason: "missing_email" };
   if (profile.daily_plan_reminders_enabled === false || profile.email_reports_enabled === false) {
@@ -196,7 +198,7 @@ async function sendDailyPlanReminder({
 
   const timeZone = timezoneToIana(profile.timezone);
   const local = localParts(timeZone);
-  if (profile.daily_plan_reminder_sent_on === local.date) return { sent: false, skipped: true, reason: "already_sent_today", metadata: { localDate: local.date, timeZone } };
+  if (!forceDaily && profile.daily_plan_reminder_sent_on === local.date) return { sent: false, skipped: true, reason: "already_sent_today", metadata: { localDate: local.date, timeZone } };
 
   const { data: existingPlan } = await supabase.from("daily_plans").select("accepted_at").eq("user_id", profile.id).eq("plan_date", local.date).maybeSingle();
   if (existingPlan?.accepted_at) {
@@ -205,7 +207,7 @@ async function sendDailyPlanReminder({
   }
 
   const configProblem = emailNotConfigured(apiKey, fromEmail);
-  if (configProblem) return { ...configProblem, metadata: { localDate: local.date, timeZone } };
+  if (configProblem) return { ...configProblem, metadata: { localDate: local.date, timeZone, forceDaily } };
 
   const sevenDaysAgo = dateMinusDays(local.date, 7);
   const { data: trades } = await supabase.from("trades").select("result, setup, emotion, mistake").eq("user_id", profile.id).gte("date", sevenDaysAgo).order("date", { ascending: false }).limit(20);
@@ -221,7 +223,7 @@ async function sendDailyPlanReminder({
   });
 
   await supabase.from("profiles").update({ daily_plan_reminder_sent_on: local.date }).eq("id", profile.id);
-  return { sent: true, skipped: false, metadata: { localDate: local.date, timeZone, recentTradesChecked: (trades || []).length } };
+  return { sent: true, skipped: false, metadata: { localDate: local.date, timeZone, forceDaily, recentTradesChecked: (trades || []).length } };
 }
 
 async function sendWeeklyReviewReminder({
@@ -395,6 +397,12 @@ export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const url = new URL(req.url);
+  const only = url.searchParams.get("only") || "all";
+  const forceDaily = url.searchParams.get("forceDaily") === "1" || url.searchParams.get("forceDaily") === "true";
+  const runDaily = only === "all" || only === "daily";
+  const runWeekly = only === "all" || only === "weekly";
+
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
   if (apiKey) sgMail.setApiKey(apiKey);
@@ -418,28 +426,32 @@ export async function GET(req: Request) {
   const emailConfigured = Boolean(apiKey && fromEmail);
 
   for (const profile of (profiles || []) as ProfileRow[]) {
-    try {
-      const daily = await sendDailyPlanReminder({ profile, supabase, apiKey, fromEmail });
-      if (daily.sent) dailySent++;
-      if (daily.skipped) skipped++;
-      countSkipReason(daily, skipReasons);
-      await logCronEmailResult({ supabase, profile, eventType: "daily_plan_reminder", result: daily, emailConfigured });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      errors.push(`${profile.id} daily_plan_reminder: ${message}`);
-      await logCronEmailFailure({ supabase, profile, eventType: "daily_plan_reminder", error: err, emailConfigured });
+    if (runDaily) {
+      try {
+        const daily = await sendDailyPlanReminder({ profile, supabase, apiKey, fromEmail, forceDaily });
+        if (daily.sent) dailySent++;
+        if (daily.skipped) skipped++;
+        countSkipReason(daily, skipReasons);
+        await logCronEmailResult({ supabase, profile, eventType: "daily_plan_reminder", result: daily, emailConfigured });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        errors.push(`${profile.id} daily_plan_reminder: ${message}`);
+        await logCronEmailFailure({ supabase, profile, eventType: "daily_plan_reminder", error: err, emailConfigured });
+      }
     }
 
-    try {
-      const weekly = await sendWeeklyReviewReminder({ profile, supabase, apiKey, fromEmail });
-      if (weekly.sent) weeklySent++;
-      if (weekly.skipped) skipped++;
-      countSkipReason(weekly, skipReasons);
-      await logCronEmailResult({ supabase, profile, eventType: "weekly_report", result: weekly, emailConfigured });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      errors.push(`${profile.id} weekly_report: ${message}`);
-      await logCronEmailFailure({ supabase, profile, eventType: "weekly_report", error: err, emailConfigured });
+    if (runWeekly) {
+      try {
+        const weekly = await sendWeeklyReviewReminder({ profile, supabase, apiKey, fromEmail });
+        if (weekly.sent) weeklySent++;
+        if (weekly.skipped) skipped++;
+        countSkipReason(weekly, skipReasons);
+        await logCronEmailResult({ supabase, profile, eventType: "weekly_report", result: weekly, emailConfigured });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        errors.push(`${profile.id} weekly_report: ${message}`);
+        await logCronEmailFailure({ supabase, profile, eventType: "weekly_report", error: err, emailConfigured });
+      }
     }
   }
 
@@ -453,6 +465,8 @@ export async function GET(req: Request) {
     ok: true,
     checked: profiles?.length || 0,
     emailConfigured,
+    only,
+    forceDaily,
     dailySent,
     weeklySent,
     skipped,
