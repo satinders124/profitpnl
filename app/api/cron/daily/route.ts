@@ -57,16 +57,6 @@ const weekdayMap: Record<string, string> = {
   Sunday: "Sun",
 };
 
-const weekdayIndex: Record<string, number> = {
-  Sun: 0,
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-};
-
 function appUrl() {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://profitpnl.com";
 }
@@ -133,33 +123,6 @@ function startOfLocalWeek(localDate: string) {
   const diff = day === 0 ? -6 : 1 - day;
   date.setUTCDate(date.getUTCDate() + diff);
   return date.toISOString().slice(0, 10);
-}
-
-function latestReachedWeeklyTargetDate({
-  local,
-  targetDay,
-  targetTime,
-}: {
-  local: ReturnType<typeof localParts>;
-  targetDay: string;
-  targetTime: ReturnType<typeof parseReminderTime>;
-}) {
-  const todayIndex = weekdayIndex[local.weekday] ?? 0;
-  const targetIndex = weekdayIndex[targetDay] ?? weekdayIndex.Fri;
-  let daysSinceTarget = todayIndex - targetIndex;
-  if (daysSinceTarget < 0) daysSinceTarget += 7;
-
-  const localMinutes = local.hour * 60 + local.minute;
-  const targetMinutes = targetTime.hour * 60 + targetTime.minute;
-
-  // If today's configured report time has not arrived yet, the latest eligible
-  // report period is last week's occurrence. This lets the once-daily Hobby cron
-  // catch up safely instead of sending a Friday 17:00 report on Friday morning.
-  if (daysSinceTarget === 0 && localMinutes < targetMinutes) {
-    daysSinceTarget = 7;
-  }
-
-  return dateMinusDays(local.date, daysSinceTarget);
 }
 
 function recentSummary(trades: TradeRow[]) {
@@ -289,7 +252,20 @@ async function sendWeeklyReviewReminder({
   const local = localParts(timeZone);
   const targetDay = weekdayMap[profile.weekly_review_reminder_day || "Fri"] || "Fri";
   const targetTime = parseReminderTime(profile.weekly_review_reminder_time);
-  const reportEndDate = latestReachedWeeklyTargetDate({ local, targetDay, targetTime });
+
+  // Vercel Hobby runs our unified cron once per day. Weekly reports must not
+  // catch up on later days, otherwise users can receive a Weekly Report when
+  // they expected the Daily Plan reminder. Send only on the configured weekday.
+  if (local.weekday !== targetDay) {
+    return {
+      sent: false,
+      skipped: true,
+      reason: "not_weekly_report_day",
+      metadata: { localDate: local.date, localWeekday: local.weekday, targetDay, targetTime: targetTime.text, timeZone },
+    };
+  }
+
+  const reportEndDate = local.date;
 
   if (profile.weekly_review_reminder_sent_on === reportEndDate) {
     return { sent: false, skipped: true, reason: "already_sent_for_period", metadata: { reportEndDate, targetDay, targetTime: targetTime.text, timeZone } };
