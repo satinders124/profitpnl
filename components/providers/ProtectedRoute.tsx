@@ -45,10 +45,18 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     if (!hasRedirected.current) {
       hasRedirected.current = true;
       const target = loginPathForCurrentPage();
-      const timer = setTimeout(() => {
+      const softTimer = window.setTimeout(() => {
         router.replace(target);
       }, 150);
-      return () => clearTimeout(timer);
+      const hardTimer = window.setTimeout(() => {
+        if (window.location.pathname !== "/login") {
+          window.location.replace(target);
+        }
+      }, 900);
+      return () => {
+        window.clearTimeout(softTimer);
+        window.clearTimeout(hardTimer);
+      };
     }
   }, [loading, user, router]);
 

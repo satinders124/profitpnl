@@ -394,7 +394,7 @@ function DailyPlanWorkflowStatus({
 }
 
 export default function DailyPlanClient() {
-  const { user, displayName } = useAuth();
+  const { user, displayName, loading: authLoading } = useAuth();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [playbook, setPlaybook] = useState<PlaybookSetup[]>([]);
@@ -410,8 +410,10 @@ export default function DailyPlanClient() {
   const [planNotice, setPlanNotice] = useState("");
 
   useEffect(() => {
-    document.getElementById("daily-plan-server-fallback")?.remove();
-  }, []);
+    if (!authLoading) {
+      document.getElementById("daily-plan-server-fallback")?.remove();
+    }
+  }, [authLoading]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -512,8 +514,6 @@ export default function DailyPlanClient() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   }
-
-  if (!user) return null;
 
   return (
     <AppShell title="Daily Trading Plan" subtitle="Generate today&apos;s risk rules before the first trade.">
