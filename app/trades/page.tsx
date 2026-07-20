@@ -575,6 +575,7 @@ export default function TradesPage() {
                         onEdit={() => openEditTrade(trade)}
                         onCloseTrade={() => openCloseTrade(trade)}
                         onDelete={() => handleDelete(trade.id)}
+                        onViewChart={() => setSelectedChartTrade(trade)}
                       />
                     ))}
                   </TradeListSection>
@@ -594,6 +595,7 @@ export default function TradesPage() {
                         onEdit={() => openEditTrade(trade)}
                         onCloseTrade={() => isBacktest ? openEditTrade(trade) : openCloseTrade(trade)}
                         onDelete={() => handleDelete(trade.id)}
+                        onViewChart={() => setSelectedChartTrade(trade)}
                       />
                     ))}
                   </TradeListSection>
@@ -1050,11 +1052,13 @@ function TradeReviewCard({
   onEdit,
   onCloseTrade,
   onDelete,
+  onViewChart,
 }: {
   trade: Trade;
   onEdit: () => void;
   onCloseTrade: () => void;
   onDelete: () => void;
+  onViewChart: () => void;
 }) {
   const open = !hasResult(trade);
   const result = Number(trade.result || 0);
@@ -1098,15 +1102,13 @@ function TradeReviewCard({
                 Reviewed
               </span>
             )}
-            
-            {/* TradingView / Chart button hidden for now */}
-            {/* <button
+            <button
               onClick={onViewChart}
               className="inline-flex items-center gap-1 rounded-full bg-[#F0B429]/10 hover:bg-[#F0B429]/25 px-2 py-0.5 text-[10px] font-black text-[#F0B429] transition-all"
             >
               <TrendingUp size={12} />
               View Chart
-            </button> */}
+            </button>
           </div>
 
           <div className="mt-1 text-xs text-[#5A5A80]">
