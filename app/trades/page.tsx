@@ -48,7 +48,7 @@ import {
   TrendingUp,
   Filter,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { TradeChart } from "@/components/trades/TradeChart";
 
 type ResultFilter = "" | "win" | "loss" | "open" | "needs-review";
@@ -83,6 +83,7 @@ export default function TradesPage() {
 
   const [modalTrade, setModalTrade] = useState<Trade | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [formInitialState, setFormInitialState] = useState<"open" | "closed" | undefined>(undefined);
   const [lastSavedTrade, setLastSavedTrade] = useState<TradeSaveResult | null>(null);
   const [selectedChartTrade, setSelectedChartTrade] = useState<Trade | null>(null);
   const [expandedChartTrade, setExpandedChartTrade] = useState<Trade | null>(null);
@@ -155,7 +156,7 @@ export default function TradesPage() {
         if (resultFilter === "win" && !(Number(trade.result) > 0)) return false;
         if (resultFilter === "loss" && !(Number(trade.result) < 0)) return false;
         if (resultFilter === "open" && hasResult(trade)) return false;
-        if (resultFilter === "needs-review" && trade.reviewed) return false;
+        if (resultFilter === "needs-review" && !needsTradeReview(trade)) return false;
 
         if (search) {
           const haystack = [
@@ -191,13 +192,15 @@ export default function TradesPage() {
   ]);
 
   const stats = useMemo(() => calcStats(filteredTrades), [filteredTrades]);
-  const openTrades = useMemo(
-    () => filteredTrades.filter((t) => !hasResult(t)).length,
-    [filteredTrades]
-  );
+  const filteredOpenTrades = useMemo(() => filteredTrades.filter((trade) => !hasResult(trade)), [filteredTrades]);
+  const filteredClosedTrades = useMemo(() => filteredTrades.filter(hasResult), [filteredTrades]);
+  const visibleClosedTrades = isBacktest ? filteredTrades : filteredClosedTrades;
+  const openTrades = filteredOpenTrades.length;
+  const closedTrades = useMemo(() => trades.filter(hasResult), [trades]);
+  const reviewQueueCount = useMemo(() => trades.filter(needsTradeReview).length, [trades]);
   const reviewedCount = useMemo(
-    () => filteredTrades.filter((t) => t.reviewed).length,
-    [filteredTrades]
+    () => closedTrades.filter((t) => t.reviewed && t.emotion && t.lesson && t.mistake).length,
+    [closedTrades]
   );
   const avgExecution = useMemo(() => {
     const rated = filteredTrades.filter((t) => Number(t.executionRating) > 0);
@@ -216,12 +219,14 @@ export default function TradesPage() {
   function openNewTrade() {
     setLastSavedTrade(null);
     setModalTrade(null);
+    setFormInitialState(undefined);
     setFormOpen(true);
   }
 
   async function handleLiveTradeSaved(result: TradeSaveResult) {
     setFormOpen(false);
     setModalTrade(null);
+    setFormInitialState(undefined);
     await load(false);
     setLastSavedTrade(result);
   }
@@ -236,6 +241,7 @@ export default function TradesPage() {
   function logAnotherTrade() {
     setLastSavedTrade(null);
     setModalTrade(null);
+    setFormInitialState(undefined);
     setFormOpen(true);
   }
 
@@ -252,6 +258,14 @@ export default function TradesPage() {
     }
     setLastSavedTrade(null);
     setModalTrade(trade);
+    setFormInitialState(undefined);
+    setFormOpen(true);
+  }
+
+  function openCloseTrade(trade: Trade) {
+    setLastSavedTrade(null);
+    setModalTrade(trade);
+    setFormInitialState("closed");
     setFormOpen(true);
   }
 
@@ -311,7 +325,7 @@ export default function TradesPage() {
   return (
     <AppShell
       title={isBacktest ? "Backtesting — Trade Review" : "Trade Review Desk"}
-      subtitle={`${trades.length} total trades · ${reviewedCount} reviewed`}
+      subtitle={`${trades.length} total trades · ${openTrades} open · ${reviewedCount}/${closedTrades.length} closed reviewed`}
       actionLabel="Log Trade"
       onAction={isBacktest ? openLogTrade : openNewTrade}
     >
@@ -324,7 +338,7 @@ export default function TradesPage() {
           <ReviewHero
             stats={stats}
             reviewed={reviewedCount}
-            total={filteredTrades.length}
+            total={closedTrades.length}
             avgExecution={avgExecution}
           />
 
@@ -472,7 +486,7 @@ export default function TradesPage() {
                   onClick={() => setResultFilter(resultFilter === "needs-review" ? "" : "needs-review")}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${resultFilter === "needs-review" ? "bg-[#F0B429]/20 border border-[#F0B429] text-[#F0B429]" : "bg-[#18182C] text-zinc-400 hover:text-white border border-[#282840]"}`}
                 >
-                  Needs Review ({trades.filter(t => !t.reviewed).length})
+                  Needs Review ({reviewQueueCount})
                 </button>
               </div>
 
@@ -544,17 +558,47 @@ export default function TradesPage() {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-5">
             {filteredTrades.length ? (
-              filteredTrades.map((trade) => (
-                <TradeReviewCard
-                  key={trade.id}
-                  trade={trade}
-                  onEdit={() => openEditTrade(trade)}
-                  onDelete={() => handleDelete(trade.id)}
-                  onViewChart={() => setSelectedChartTrade(trade)}
-                />
-              ))
+              <>
+                {filteredOpenTrades.length > 0 && !isBacktest && (
+                  <TradeListSection
+                    title="Open Trades"
+                    subtitle="Positions still waiting for final R/P&L. Close them when the outcome is known."
+                    count={filteredOpenTrades.length}
+                    tone="blue"
+                  >
+                    {filteredOpenTrades.map((trade) => (
+                      <TradeReviewCard
+                        key={trade.id}
+                        trade={trade}
+                        onEdit={() => openEditTrade(trade)}
+                        onCloseTrade={() => openCloseTrade(trade)}
+                        onDelete={() => handleDelete(trade.id)}
+                      />
+                    ))}
+                  </TradeListSection>
+                )}
+
+                {visibleClosedTrades.length > 0 && (
+                  <TradeListSection
+                    title={isBacktest ? "Backtest Trade Log" : resultFilter === "needs-review" ? "Review Queue" : "Closed Trade Log"}
+                    subtitle={isBacktest ? "Backtested executions for the selected workspace." : resultFilter === "needs-review" ? "Closed trades missing emotion, mistake, lesson, or reviewed status." : "Completed trades used in performance stats and review analytics."}
+                    count={visibleClosedTrades.length}
+                    tone={resultFilter === "needs-review" ? "gold" : "green"}
+                  >
+                    {visibleClosedTrades.map((trade) => (
+                      <TradeReviewCard
+                        key={trade.id}
+                        trade={trade}
+                        onEdit={() => openEditTrade(trade)}
+                        onCloseTrade={() => isBacktest ? openEditTrade(trade) : openCloseTrade(trade)}
+                        onDelete={() => handleDelete(trade.id)}
+                      />
+                    ))}
+                  </TradeListSection>
+                )}
+              </>
             ) : (
               <Card className="p-10 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0D0D1A] text-[#F0B429]">
@@ -629,8 +673,11 @@ export default function TradesPage() {
 
       {!isBacktest && formOpen && user && (
         <Modal
-          title={modalTrade ? "Edit Trade Review" : "Log New Trade"}
-          onClose={() => setFormOpen(false)}
+          title={modalTrade && formInitialState === "closed" && !hasResult(modalTrade) ? "Close Open Trade" : modalTrade ? "Edit Trade Review" : "Log New Trade"}
+          onClose={() => {
+            setFormOpen(false);
+            setFormInitialState(undefined);
+          }}
         >
           <TradeForm
             uid={user.id}
@@ -638,7 +685,11 @@ export default function TradesPage() {
             accounts={accounts}
             playbook={playbook}
             strategiesFromTrades={strategiesFromTrades}
-            onCancel={() => setFormOpen(false)}
+            initialTradeState={formInitialState}
+            onCancel={() => {
+              setFormOpen(false);
+              setFormInitialState(undefined);
+            }}
             onSaved={handleLiveTradeSaved}
           />
         </Modal>
@@ -964,16 +1015,46 @@ function FilterSelect({
   );
 }
 
+function TradeListSection({
+  title,
+  subtitle,
+  count,
+  tone,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  count: number;
+  tone: "blue" | "green" | "gold";
+  children: ReactNode;
+}) {
+  const toneClass = tone === "blue" ? "border-[#4C82FB]/30 bg-[#4C82FB]/10 text-[#8BB0FF]" : tone === "green" ? "border-[#00D084]/30 bg-[#00D084]/10 text-[#00D084]" : "border-[#F0B429]/30 bg-[#F0B429]/10 text-[#F0B429]";
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 className="text-lg font-black text-white">{title}</h3>
+          <p className="mt-1 text-xs leading-5 text-[#8080A0]">{subtitle}</p>
+        </div>
+        <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider ${toneClass}`}>
+          {count} trade{count === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
+}
+
 function TradeReviewCard({
   trade,
   onEdit,
+  onCloseTrade,
   onDelete,
-  onViewChart,
 }: {
   trade: Trade;
   onEdit: () => void;
+  onCloseTrade: () => void;
   onDelete: () => void;
-  onViewChart: () => void;
 }) {
   const open = !hasResult(trade);
   const result = Number(trade.result || 0);
@@ -1003,14 +1084,18 @@ function TradeReviewCard({
 
             <div className="text-base font-black">{trade.instrument}</div>
 
-            {trade.reviewed ? (
+            {open ? (
+              <span className="rounded-full bg-[#4C82FB]/10 px-2 py-0.5 text-[10px] font-black text-[#8BB0FF]">
+                Open
+              </span>
+            ) : needsTradeReview(trade) ? (
+              <span className="rounded-full bg-[#F0B429]/10 px-2 py-0.5 text-[10px] font-black text-[#F0B429]">
+                Needs Review
+              </span>
+            ) : (
               <span className="inline-flex items-center gap-1 rounded-full bg-[#00D084]/10 px-2 py-0.5 text-[10px] font-black text-[#00D084]">
                 <CheckCircle2 size={12} />
                 Reviewed
-              </span>
-            ) : (
-              <span className="rounded-full bg-[#F0B429]/10 px-2 py-0.5 text-[10px] font-black text-[#F0B429]">
-                Needs Review
               </span>
             )}
             
@@ -1099,7 +1184,23 @@ function TradeReviewCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 border-t border-[#1E1E38] p-4 lg:flex-col lg:justify-center lg:border-l lg:border-t-0">
+        <div className="flex flex-wrap items-center gap-2 border-t border-[#1E1E38] p-4 lg:flex-col lg:justify-center lg:border-l lg:border-t-0">
+          {open && (
+            <button
+              onClick={onCloseTrade}
+              className="gold-gradient flex-1 rounded-xl px-3 py-2 text-xs font-black text-[#080810] lg:flex-none"
+            >
+              Close Trade
+            </button>
+          )}
+          {!open && needsTradeReview(trade) && (
+            <button
+              onClick={onEdit}
+              className="flex-1 rounded-xl border border-[#F0B429]/30 bg-[#F0B429]/10 px-3 py-2 text-xs font-black text-[#F0B429] lg:flex-none"
+            >
+              Review
+            </button>
+          )}
           <button
             onClick={onEdit}
             className="flex-1 rounded-xl border border-[#1E1E38] px-3 py-2 text-xs font-black text-[#A0A0C0] lg:flex-none"
@@ -1149,4 +1250,8 @@ function hasResult(trade: Trade) {
     trade.result !== undefined &&
     Number.isFinite(Number(trade.result))
   );
+}
+
+function needsTradeReview(trade: Trade) {
+  return hasResult(trade) && (!trade.reviewed || !trade.emotion || !trade.lesson || !trade.mistake);
 }

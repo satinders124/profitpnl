@@ -150,7 +150,7 @@ function mainLeak(trades: TradeRow[]) {
 }
 
 function reviewQueue(trades: TradeRow[]) {
-  return trades.filter((trade) => !trade.reviewed || !trade.emotion || !trade.lesson).length;
+  return trades.filter((trade) => trade.result !== null && trade.result !== undefined && trade.result !== "" && (!trade.reviewed || !trade.emotion || !trade.lesson)).length;
 }
 
 export async function GET(req: Request) {

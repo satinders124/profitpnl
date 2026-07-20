@@ -247,7 +247,7 @@ function buildExecutionScore(trades: Trade[], plan: Plan) {
   const nonAllowed = trades.filter((trade) => !tradeIsAllowed(trade, plan.allowedSetups)).length;
   const avoidHits = trades.filter((trade) => tradeTriggersAvoid(trade, plan.avoidList)).length;
   const losses = trades.filter(tradeLoss).length;
-  const unreviewed = trades.filter((trade) => !trade.reviewed || !trade.emotion || !trade.lesson).length;
+  const unreviewed = trades.filter((trade) => hasResult(trade) && (!trade.reviewed || !trade.emotion || !trade.lesson)).length;
   const score = Math.max(0, Math.min(100, 100 - extraTrades * 22 - nonAllowed * 18 - avoidHits * 18 - Math.max(0, losses - 1) * 10 - unreviewed * 5));
   const tone: "green" | "gold" | "red" = score >= 80 ? "green" : score >= 55 ? "gold" : "red";
   const label = score >= 80 ? "On Plan" : score >= 55 ? "Watch" : "Off Plan";

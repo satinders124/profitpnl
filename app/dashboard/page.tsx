@@ -734,7 +734,7 @@ export default function DashboardPage() {
     .slice(0, 6);
 
   const reviewQueueCount = useMemo(
-    () => filteredTrades.filter((trade) => !trade.reviewed || !trade.emotion || !trade.lesson).length,
+    () => filteredTrades.filter((trade) => hasResult(trade) && (!trade.reviewed || !trade.emotion || !trade.lesson)).length,
     [filteredTrades]
   );
 

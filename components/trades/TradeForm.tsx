@@ -108,22 +108,22 @@ function hasOutcome(form: Partial<Trade>) {
   return [form.result, form.pnl].some((value) => value !== "" && value !== null && value !== undefined && Number.isFinite(Number(value)));
 }
 
-function initialTradeState(form: Partial<Trade>, isEditing: boolean): "open" | "closed" {
+function initialTradeStateForForm(form: Partial<Trade>, isEditing: boolean): "open" | "closed" {
   if (hasOutcome(form)) return "closed";
   return isEditing ? "open" : "closed";
 }
 
 function loadSavedDraft(draftKey: string, defaults: Partial<Trade>) {
-  if (typeof window === "undefined") return { form: defaults, restored: false, tradeState: initialTradeState(defaults, false) };
+  if (typeof window === "undefined") return { form: defaults, restored: false, tradeState: initialTradeStateForForm(defaults, false) };
   try {
     const savedDraft = localStorage.getItem(draftKey);
-    if (!savedDraft) return { form: defaults, restored: false, tradeState: initialTradeState(defaults, false) };
+    if (!savedDraft) return { form: defaults, restored: false, tradeState: initialTradeStateForForm(defaults, false) };
     const parsed = JSON.parse(savedDraft) as Partial<Trade> & { __tradeState?: "open" | "closed" };
     const restored = hasMeaningfulDraft(parsed, defaults);
-    const restoredTradeState = parsed.__tradeState === "open" || parsed.__tradeState === "closed" ? parsed.__tradeState : initialTradeState(parsed, false);
+    const restoredTradeState = parsed.__tradeState === "open" || parsed.__tradeState === "closed" ? parsed.__tradeState : initialTradeStateForForm(parsed, false);
     return { form: { ...defaults, ...parsed, date: parsed.date || defaults.date }, restored, tradeState: restoredTradeState };
   } catch {
-    return { form: defaults, restored: false, tradeState: initialTradeState(defaults, false) };
+    return { form: defaults, restored: false, tradeState: initialTradeStateForForm(defaults, false) };
   }
 }
 
@@ -228,6 +228,7 @@ type TradeFormProps = {
   accounts: TradingAccount[];
   playbook: PlaybookSetup[];
   strategiesFromTrades: string[];
+  initialTradeState?: "open" | "closed";
   onSaved: (result: TradeSaveResult) => void | Promise<void>;
   onCancel: () => void;
 };
@@ -238,6 +239,7 @@ export function TradeForm({
   accounts,
   playbook,
   strategiesFromTrades,
+  initialTradeState,
   onSaved,
   onCancel,
 }: TradeFormProps) {
@@ -276,8 +278,8 @@ export function TradeForm({
   }), [existing, today]);
 
   const initialDraft = useMemo(
-    () => (existing ? { form: defaultForm, restored: false, tradeState: initialTradeState(defaultForm, true) } : loadSavedDraft(draftKey, defaultForm)),
-    [draftKey, existing, defaultForm]
+    () => (existing ? { form: defaultForm, restored: false, tradeState: initialTradeState || initialTradeStateForForm(defaultForm, true) } : loadSavedDraft(draftKey, defaultForm)),
+    [draftKey, existing, defaultForm, initialTradeState]
   );
 
   const [form, setForm] = useState<Partial<Trade>>(initialDraft.form);
@@ -336,7 +338,7 @@ export function TradeForm({
       // ignore unavailable storage
     }
     setForm(defaultForm);
-    setTradeState(initialTradeState(defaultForm, Boolean(existing)));
+    setTradeState(initialTradeStateForForm(defaultForm, Boolean(existing)));
     setDraftRestored(false);
     setDraftCleared(true);
   }
@@ -367,6 +369,8 @@ export function TradeForm({
     todaysTradeCount,
     isEditing: Boolean(existing),
   }), [dailyPlan, dailyPlanChecked, existing, form, todaysTradeCount]);
+
+  const isClosingOpenTrade = Boolean(existing && !hasOutcome(existing) && tradeState === "closed");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -843,11 +847,13 @@ export function TradeForm({
         >
           {saving
             ? "Saving..."
-            : existing
-              ? "Save Changes"
-              : tradeState === "open"
-                ? "Save Open Trade"
-                : "Log Closed Trade"}
+            : isClosingOpenTrade
+              ? "Close Trade"
+              : existing
+                ? "Save Changes"
+                : tradeState === "open"
+                  ? "Save Open Trade"
+                  : "Log Closed Trade"}
         </button>
       </div>
     </form>

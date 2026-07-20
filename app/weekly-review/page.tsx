@@ -322,11 +322,12 @@ export default function WeeklyReviewPage() {
   const worstLeak = leakRows[0];
   const money = useMemo(() => moneyFromTrades(weekTrades), [weekTrades]);
 
+  const closedWeekTrades = useMemo(() => weekTrades.filter(hasResult), [weekTrades]);
   const reviewQueue = useMemo(
-    () => weekTrades.filter((trade) => !trade.reviewed || !trade.emotion || !trade.lesson),
-    [weekTrades]
+    () => closedWeekTrades.filter((trade) => !trade.reviewed || !trade.emotion || !trade.lesson),
+    [closedWeekTrades]
   );
-  const reviewCompletion = weekTrades.length ? Math.max(0, 1 - reviewQueue.length / weekTrades.length) : 0;
+  const reviewCompletion = closedWeekTrades.length ? Math.max(0, 1 - reviewQueue.length / closedWeekTrades.length) : 0;
   const score = weeklyScore({ stats, shifts: weekShifts, reviewCompletion });
   const grade = gradeFor(score);
   const paragraph = reportParagraph({ stats, previousStats, bestSetup, worstLeak, reviewCompletion });

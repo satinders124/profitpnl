@@ -35,8 +35,12 @@ type TradeAiReview = {
   aiGenerated: boolean;
 };
 
+function hasResult(trade: Trade) {
+  return trade.result !== "" && trade.result !== null && trade.result !== undefined && Number.isFinite(Number(trade.result));
+}
+
 function needsReview(trade: Trade) {
-  return !trade.reviewed || !trade.emotion || !trade.lesson || !trade.mistake;
+  return hasResult(trade) && (!trade.reviewed || !trade.emotion || !trade.lesson || !trade.mistake);
 }
 
 function formatR(value: unknown) {
@@ -342,7 +346,7 @@ export default function TradeReviewPage() {
       const rows = await getTrades(user.id);
       setTrades(rows);
       const requested = requestedTradeId ? rows.find((trade) => trade.id === requestedTradeId) : undefined;
-      const first = requested || rows.find(needsReview) || rows[0];
+      const first = requested || rows.find(needsReview) || rows.find(hasResult) || rows[0];
       setSelectedId((current) => requested?.id || current || first?.id || "");
       if (requested || !selectedId) {
         setDraft(first || {});
@@ -359,11 +363,12 @@ export default function TradeReviewPage() {
   }, [loadData]);
 
   const queue = useMemo(() => trades.filter(needsReview), [trades]);
+  const closedTrades = useMemo(() => trades.filter(hasResult), [trades]);
   const selected = trades.find((trade) => trade.id === selectedId);
   const reviewItems = useMemo(() => reviewChecklist(draft), [draft]);
   const reviewReadyScore = useMemo(() => checklistScore(reviewItems), [reviewItems]);
-  const reviewedCount = trades.length - queue.length;
-  const completion = trades.length ? Math.round((reviewedCount / trades.length) * 100) : 0;
+  const reviewedCount = closedTrades.length - queue.length;
+  const completion = closedTrades.length ? Math.round((reviewedCount / closedTrades.length) * 100) : 0;
 
   function selectTrade(trade: Trade) {
     setSelectedId(trade.id);
@@ -486,7 +491,7 @@ export default function TradeReviewPage() {
               <h2 className="mb-5 text-lg font-black text-white">Queue</h2>
               {queue.length === 0 ? (
                 <p className="rounded-2xl border border-[#00D084]/25 bg-[#00D084]/10 p-5 text-sm font-bold text-[#00D084]">
-                  All trades are reviewed.
+                  All closed trades are reviewed.
                 </p>
               ) : (
                 <div className="max-h-[720px] space-y-3 overflow-y-auto pr-1 no-scrollbar">

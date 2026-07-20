@@ -22,7 +22,7 @@ function setupBreakdown(trades: Trade[]) {
 }
 
 function reviewNeeds(trades: Trade[]) {
-  return trades.filter((trade) => !trade.reviewed || !trade.emotion || !trade.lesson);
+  return trades.filter((trade) => hasResult(trade) && (!trade.reviewed || !trade.emotion || !trade.lesson));
 }
 
 export default function MentorModePage() {
