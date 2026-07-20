@@ -47,6 +47,7 @@ const fields = [
   "time",
   "instrument",
   "direction",
+  "positionSize",
   "entry",
   "sl",
   "tp",
@@ -63,6 +64,7 @@ const labels: Record<FieldKey, string> = {
   time: "Time",
   instrument: "Instrument",
   direction: "Direction",
+  positionSize: "Position Size",
   entry: "Entry",
   sl: "Stop Loss",
   tp: "Take Profit",
@@ -90,6 +92,7 @@ const presets: BrokerPreset[] = [
       time: ["Open Time", "Close Time", "Time"],
       instrument: ["Symbol", "Item"],
       direction: ["Type", "Order Type"],
+      positionSize: ["Size", "Volume", "Lots"],
       entry: ["Price", "Open Price"],
       sl: ["S / L", "S/L", "SL"],
       tp: ["T / P", "T/P", "TP"],
@@ -106,6 +109,7 @@ const presets: BrokerPreset[] = [
       time: ["Time", "Open Time", "Close Time"],
       instrument: ["Symbol"],
       direction: ["Type", "Direction"],
+      positionSize: ["Volume", "Size", "Lots"],
       entry: ["Price", "Open Price"],
       sl: ["S / L", "S/L", "Stop Loss"],
       tp: ["T / P", "T/P", "Take Profit"],
@@ -255,6 +259,7 @@ function autoMapping(headers: string[]) {
     time: ["time", "openhour", "entryhour", "opentime", "closetime", "datetime", "timestamp"],
     instrument: ["symbol", "instrument", "ticker", "market", "pair", "contract", "product"],
     direction: ["side", "direction", "type", "buysell", "action", "marketposition", "trade side"],
+    positionSize: ["position_size", "positionsize", "size", "quantity", "qty", "contracts", "contractsize", "lots", "lot", "volume", "units"],
     entry: ["entry", "entryprice", "openprice", "priceopen", "avgprice", "averageprice"],
     sl: ["sl", "stoploss", "stop", "stopprice", "s/l"],
     tp: ["tp", "takeprofit", "target", "targetprice", "t/p"],
@@ -325,6 +330,7 @@ function buildTrade(row: CsvRow, mapping: Mapping): Partial<Trade> {
     time: extractTime(get("time")),
     instrument: get("instrument"),
     direction: cleanDirection(get("direction")),
+    positionSize: get("positionSize"),
     entry: get("entry"),
     sl: get("sl"),
     tp: get("tp"),
@@ -592,13 +598,13 @@ export default function ImportTradesPage() {
             <div className="rounded-2xl border border-dashed border-[#2A2A3C] bg-[#080810] p-8 text-center text-sm text-zinc-500"><AlertTriangle className="mx-auto mb-2 text-[#F0B429]" /> No preview rows yet. Upload a CSV to start.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-left text-sm">
-                <thead className="text-xs uppercase tracking-widest text-zinc-500"><tr><th className="py-3">Status</th><th>Date</th><th>Instrument</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th><th>P&L</th><th>Setup</th><th>Issues</th></tr></thead>
+              <table className="w-full min-w-[1150px] text-left text-sm">
+                <thead className="text-xs uppercase tracking-widest text-zinc-500"><tr><th className="py-3">Status</th><th>Date</th><th>Instrument</th><th>Dir</th><th>Size</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th><th>P&L</th><th>Setup</th><th>Issues</th></tr></thead>
                 <tbody>
                   {previewRows.slice(0, 50).map((row) => (
                     <tr key={`${row.signature}-${row.index}`} className="border-t border-[#1E1E38]">
                       <td className="py-3"><span className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-wider ${statusBadge(row.status)}`}>{statusLabel(row.status)}</span></td>
-                      <td className="text-zinc-300">{row.trade.date}</td><td className="font-bold text-white">{row.trade.instrument}</td><td className="text-[#F0B429]">{row.trade.direction}</td><td>{row.trade.entry}</td><td>{row.trade.sl}</td><td>{row.trade.tp}</td><td>{row.trade.result}</td><td>{row.trade.pnl}</td><td>{row.trade.setup}</td><td className="text-xs text-[#8080A0]">{row.issues.join(", ") || "—"}</td>
+                      <td className="text-zinc-300">{row.trade.date}</td><td className="font-bold text-white">{row.trade.instrument}</td><td className="text-[#F0B429]">{row.trade.direction}</td><td>{row.trade.positionSize || "—"}</td><td>{row.trade.entry}</td><td>{row.trade.sl}</td><td>{row.trade.tp}</td><td>{row.trade.result}</td><td>{row.trade.pnl}</td><td>{row.trade.setup}</td><td className="text-xs text-[#8080A0]">{row.issues.join(", ") || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

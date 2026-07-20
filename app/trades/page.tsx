@@ -822,10 +822,14 @@ function TradeSavedHandoff({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-4">
         <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">Setup</p>
           <p className="mt-2 truncate text-sm font-black text-white">{trade.setup || "Not tagged"}</p>
+        </div>
+        <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">Size</p>
+          <p className="mt-2 truncate text-sm font-black text-white">{trade.positionSize || "—"}</p>
         </div>
         <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5A5A80]">Emotion</p>
@@ -1120,6 +1124,12 @@ function TradeReviewCard({
             {trade.setup && (
               <span className="rounded-lg border border-[#F0B429]/15 bg-[#F0B429]/10 px-2 py-1 text-[11px] font-bold text-[#F0B429]">
                 {trade.setup}
+              </span>
+            )}
+
+            {trade.positionSize && (
+              <span className="rounded-lg border border-[#4C82FB]/15 bg-[#4C82FB]/10 px-2 py-1 text-[11px] font-bold text-[#8BB0FF]">
+                Size: {trade.positionSize}
               </span>
             )}
 

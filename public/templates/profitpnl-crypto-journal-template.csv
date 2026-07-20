@@ -1,3 +1,3 @@
-date,time,instrument,direction,setup,session,timeframe,emotion,entry,sl,tp,rr,result,pnl,account,notes,tags,reviewed,execution_rating,mistake,lesson
-2026-07-01,16:00,BTCUSD,LONG,Range Breakout,New York,1h,Patient,64200,63200,66200,2,1.5,300,Crypto Account,"Waited for close above range high","crypto,BTC",true,4,,"Higher timeframe confirmation reduced noise"
-2026-07-04,02:30,ETHUSD,SHORT,Support Breakdown,Asia,15m,Tired,3420,3460,3340,2,-1,-120,Crypto Account,"Traded outside normal routine","crypto,ETH",true,1,Poor sleep,"No trades when tired"
+date,time,instrument,direction,setup,session,timeframe,emotion,entry,sl,tp,rr,result,pnl,account,position_size,notes,tags,reviewed,execution_rating,mistake,lesson
+2026-07-01,16:00,BTCUSD,LONG,Range Breakout,New York,1h,Patient,64200,63200,66200,2,1.5,300,Crypto Account,0.25 BTC,"Waited for close above range high","crypto,BTC",true,4,,"Higher timeframe confirmation reduced noise"
+2026-07-04,02:30,ETHUSD,SHORT,Support Breakdown,Asia,15m,Tired,3420,3460,3340,2,-1,-120,Crypto Account,0.25 BTC,"Traded outside normal routine","crypto,ETH",true,1,Poor sleep,"No trades when tired"

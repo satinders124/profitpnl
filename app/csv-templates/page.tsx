@@ -67,6 +67,7 @@ const columns = [
   ["result", "Trade result in R-multiple, e.g. 2.5 or -1."],
   ["pnl", "Profit/loss in account currency if tracked."],
   ["account", "Trading account or prop-firm account name."],
+  ["position_size", "Contracts, lots, units, or quantity, e.g. 2 contracts or 0.50 lots."],
   ["notes", "Trade context, execution notes, and screenshots/links if needed."],
   ["tags", "Comma-separated tags like A+, FOMO, discipline."],
   ["reviewed", "true or false."],

@@ -76,6 +76,7 @@ const quickMistakes = ["None", "FOMO Entry", "Late Entry", "Moved Stop", "Reveng
 
 const draftMeaningfulKeys: Array<keyof Trade> = [
   "account",
+  "positionSize",
   "instrument",
   "direction",
   "setup",
@@ -262,6 +263,7 @@ export function TradeForm({
   const defaultForm: Partial<Trade> = useMemo(() => ({
     date: existing?.date || today,
     account: existing?.account || "",
+    positionSize: existing?.positionSize || "",
     instrument: existing?.instrument || "XAUUSD",
     direction: existing?.direction || "LONG",
     setup: existing?.setup || "",
@@ -574,6 +576,21 @@ export function TradeForm({
                 </option>
               ))}
             </select>
+          </Field>
+
+          <Field label="Position Size / Contracts">
+            <input
+              value={String(form.positionSize || "")}
+              onChange={(e) => update("positionSize", e.target.value)}
+              className={inputClass}
+              placeholder="2 contracts, 0.50 lots, 25k units"
+            />
+            <p className="mt-1 text-[11px] leading-5 text-[#5A5A80]">For futures, forex, crypto or CFDs — contracts, lots, units, or quantity.</p>
+            <QuickChips
+              values={["1 contract", "2 contracts", "4 micros", "0.50 lots", "1.00 lot"]}
+              active={String(form.positionSize || "")}
+              onPick={(value) => update("positionSize", value)}
+            />
           </Field>
 
           <Field label="Strategy">

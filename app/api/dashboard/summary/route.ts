@@ -50,6 +50,7 @@ function mapTrade(row: Row): Trade {
     result: row.result == null ? null : numOrString(row.result),
     pnl: row.pnl == null ? null : numOrString(row.pnl),
     account: str(row.account),
+    positionSize: str(row.position_size),
     notes: str(row.notes),
     tags: str(row.tags),
     chartUrl: str(row.chart_url),

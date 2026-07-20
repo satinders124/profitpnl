@@ -1,3 +1,3 @@
-date,time,instrument,direction,setup,session,timeframe,emotion,entry,sl,tp,rr,result,pnl,account,notes,tags,reviewed,execution_rating,mistake,lesson
-2026-07-01,08:10,EURUSD,LONG,London Breakout,London,15m,Calm,1.08320,1.08120,1.08720,2,1.8,180,Forex Account,"Clean break and retest of London range","forex,london",true,4,,"Best entries came after retest"
-2026-07-02,14:30,XAUUSD,SHORT,Liquidity Sweep,New York,5m,Anxious,2365.50,2372.50,2351.50,2,-1,-100,Forex Account,"Moved stop too tight after entry","gold,psychology",true,2,Moved stop,"Let setup breathe if invalidation is unchanged"
+date,time,instrument,direction,setup,session,timeframe,emotion,entry,sl,tp,rr,result,pnl,account,position_size,notes,tags,reviewed,execution_rating,mistake,lesson
+2026-07-01,08:10,EURUSD,LONG,London Breakout,London,15m,Calm,1.08320,1.08120,1.08720,2,1.8,180,Forex Account,0.50 lots,"Clean break and retest of London range","forex,london",true,4,,"Best entries came after retest"
+2026-07-02,14:30,XAUUSD,SHORT,Liquidity Sweep,New York,5m,Anxious,2365.50,2372.50,2351.50,2,-1,-100,Forex Account,0.50 lots,"Moved stop too tight after entry","gold,psychology",true,2,Moved stop,"Let setup breathe if invalidation is unchanged"

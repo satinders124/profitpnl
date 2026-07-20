@@ -20,6 +20,7 @@ export type Trade = {
   pnl?: number | string | null;
 
   account?: string;
+  positionSize?: string;
   notes?: string;
   tags?: string;
   chartUrl?: string;

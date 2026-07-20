@@ -103,6 +103,7 @@ export async function getTrades(uid: string, customClient?: any): Promise<Trade[
     result: row.result ?? null,
     pnl: row.pnl ?? null,
     account: row.account || "",
+    positionSize: row.position_size || "",
     notes: row.notes || "",
     tags: row.tags || "",
     chartUrl: row.chart_url || "",
@@ -112,6 +113,17 @@ export async function getTrades(uid: string, customClient?: any): Promise<Trade[
     lesson: row.lesson || "",
     createdAt: row.created_at,
   }));
+}
+
+function isMissingPositionSizeColumn(error: { code?: string; message?: string } | null | undefined) {
+  const message = error?.message?.toLowerCase() || "";
+  return error?.code === "42703" || error?.code === "PGRST204" || message.includes("position_size");
+}
+
+function withoutPositionSize(row: Record<string, unknown>) {
+  const fallback = { ...row };
+  delete fallback.position_size;
+  return fallback;
 }
 
 export async function saveTrade(uid: string, trade: Partial<Trade>) {
@@ -134,6 +146,7 @@ export async function saveTrade(uid: string, trade: Partial<Trade>) {
     result: trade.result !== undefined && trade.result !== "" && trade.result !== null ? Number(trade.result) : null,
     pnl: trade.pnl !== undefined && trade.pnl !== "" && trade.pnl !== null ? Number(trade.pnl) : null,
     account: trade.account || "",
+    position_size: trade.positionSize || "",
     notes: trade.notes || "",
     tags: trade.tags || "",
     chart_url: trade.chartUrl || "",
@@ -145,21 +158,39 @@ export async function saveTrade(uid: string, trade: Partial<Trade>) {
 
   if (trade.id) {
     // Update existing trade
-    const { error } = await supabase
+    let { error } = await supabase
       .from("trades")
       .update(row)
       .eq("id", trade.id)
       .eq("user_id", uid);
+    if (error && isMissingPositionSizeColumn(error)) {
+      const retry = await supabase
+        .from("trades")
+        .update(withoutPositionSize(row))
+        .eq("id", trade.id)
+        .eq("user_id", uid);
+      error = retry.error;
+    }
     if (error) throw error;
     return trade.id;
   } else {
     // Insert new trade
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("trades")
       .insert(row)
       .select("id")
       .single();
+    if (error && isMissingPositionSizeColumn(error)) {
+      const retry = await supabase
+        .from("trades")
+        .insert(withoutPositionSize(row))
+        .select("id")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
     if (error) throw error;
+    if (!data?.id) throw new Error("Trade could not be saved.");
     return data.id;
   }
 }
@@ -238,6 +269,7 @@ export async function saveAccount(uid: string, account: Partial<TradingAccount>)
       .select("id")
       .single();
     if (error) throw error;
+    if (!data?.id) throw new Error("Trade could not be saved.");
     return data.id;
   }
 }
@@ -320,6 +352,7 @@ export async function savePlaybookSetup(uid: string, setup: Partial<PlaybookSetu
       .select("id")
       .single();
     if (error) throw error;
+    if (!data?.id) throw new Error("Trade could not be saved.");
     return data.id;
   }
 }
@@ -387,6 +420,7 @@ export async function saveJournal(uid: string, journal: Partial<JournalEntry>) {
       .select("id")
       .single();
     if (error) throw error;
+    if (!data?.id) throw new Error("Trade could not be saved.");
     return data.id;
   }
 }

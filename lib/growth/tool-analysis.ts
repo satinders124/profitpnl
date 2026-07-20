@@ -192,7 +192,7 @@ export function analyzeTrades(trades: ParsedTrade[]) {
 
 export function normalizeBrokerCsv(input: string) {
   const trades = parseTradesCsv(input);
-  const headers = ["date", "time", "instrument", "direction", "setup", "session", "timeframe", "emotion", "entry", "sl", "tp", "rr", "result", "pnl", "account", "notes", "tags", "reviewed", "execution_rating", "mistake", "lesson"];
+  const headers = ["date", "time", "instrument", "direction", "setup", "session", "timeframe", "emotion", "entry", "sl", "tp", "rr", "result", "pnl", "account", "position_size", "notes", "tags", "reviewed", "execution_rating", "mistake", "lesson"];
   const rows = trades.map((trade) => [
     trade.date || "",
     "",
@@ -209,6 +209,7 @@ export function normalizeBrokerCsv(input: string) {
     String(trade.result),
     trade.pnl ?? "",
     "Imported Account",
+    "",
     "Converted with ProfitPnL CSV converter",
     "imported",
     "false",

@@ -519,7 +519,7 @@ export default function TradeReviewPage() {
                   <div className="flex flex-col gap-3 border-b border-[#1E1E38] pb-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h2 className="text-xl font-black text-white">{selected.instrument}</h2>
-                      <p className="mt-1 text-xs text-[#8080A0]">{selected.date} · {selected.setup || "No setup"} · {formatR(selected.result)}</p>
+                      <p className="mt-1 text-xs text-[#8080A0]">{selected.date} · {selected.setup || "No setup"} · {selected.positionSize ? `${selected.positionSize} · ` : ""}{formatR(selected.result)}</p>
                       <span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider ${reviewReadyScore >= 80 ? "border-[#00D084]/30 bg-[#00D084]/10 text-[#00D084]" : "border-[#F0B429]/30 bg-[#F0B429]/10 text-[#F0B429]"}`}>
                         Review readiness {reviewReadyScore}%
                       </span>

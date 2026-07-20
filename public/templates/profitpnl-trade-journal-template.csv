@@ -1,3 +1,3 @@
-date,time,instrument,direction,setup,session,timeframe,emotion,entry,sl,tp,rr,result,pnl,account,notes,tags,reviewed,execution_rating,mistake,lesson
-2026-07-01,09:35,NQ,LONG,Opening Range Breakout,New York,5m,Focused,20000,19980,20060,3,2.5,500,Funded 100K,"Followed plan, waited for confirmation","A+,discipline",true,5,,"Patience improved entry quality"
-2026-07-02,10:15,ES,SHORT,FVG Retest,New York,15m,FOMO,5600,5610,5575,2.5,-1,-250,Funded 100K,"Entered late after first rejection","late entry",true,2,Chased price,"Skip trade if entry trigger is missed"
+date,time,instrument,direction,setup,session,timeframe,emotion,entry,sl,tp,rr,result,pnl,account,position_size,notes,tags,reviewed,execution_rating,mistake,lesson
+2026-07-01,09:35,NQ,LONG,Opening Range Breakout,New York,5m,Focused,20000,19980,20060,3,2.5,500,Funded 100K,2 contracts,"Followed plan, waited for confirmation","A+,discipline",true,5,,"Patience improved entry quality"
+2026-07-02,10:15,ES,SHORT,FVG Retest,New York,15m,FOMO,5600,5610,5575,2.5,-1,-250,Funded 100K,2 contracts,"Entered late after first rejection","late entry",true,2,Chased price,"Skip trade if entry trigger is missed"
