@@ -156,6 +156,13 @@ function avoidHitsForTrade(form: Partial<Trade>, avoidList: string[]) {
   });
 }
 
+function applySign(value: unknown, sign: "positive" | "negative") {
+  const raw = String(value ?? "").trim();
+  const cleaned = raw.replace(/^[-+]/, "");
+  if (!cleaned) return sign === "negative" ? "-" : "";
+  return sign === "negative" ? `-${cleaned}` : cleaned;
+}
+
 type GuardrailItem = {
   level: "ok" | "info" | "warn" | "danger";
   title: string;
@@ -686,30 +693,26 @@ export function TradeForm({
           </Field>
 
           <Field label="Result R">
-            <input
+            <SignedNumberInput
               value={String(form.result ?? "")}
-              onChange={(e) => {
-                setTradeState("closed");
-                update("result", e.target.value);
-              }}
-              inputMode="decimal"
-              className={inputClass}
-              placeholder={tradeState === "open" ? "Open trade" : "2 or -1"}
               disabled={tradeState === "open"}
+              placeholder={tradeState === "open" ? "Open trade" : "2 or -1"}
+              onChange={(value) => {
+                setTradeState("closed");
+                update("result", value);
+              }}
             />
           </Field>
 
           <Field label="Profit / Loss $">
-            <input
+            <SignedNumberInput
               value={String(form.pnl ?? "")}
-              onChange={(e) => {
-                setTradeState("closed");
-                update("pnl", e.target.value);
-              }}
-              inputMode="decimal"
-              className={inputClass}
-              placeholder={tradeState === "open" ? "Open trade" : "250 or -100"}
               disabled={tradeState === "open"}
+              placeholder={tradeState === "open" ? "Open trade" : "250 or -100"}
+              onChange={(value) => {
+                setTradeState("closed");
+                update("pnl", value);
+              }}
             />
           </Field>
         </div>
@@ -865,6 +868,49 @@ const inputClass =
 
 const selectClass =
   `${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23A0A0C0%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_12px_center] bg-no-repeat pr-10`;
+
+function SignedNumberInput({
+  value,
+  placeholder,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex gap-2">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode="decimal"
+        className={`${inputClass} min-w-0 flex-1`}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(applySign(value, "negative"))}
+        className="w-11 rounded-xl border border-[#FF4565]/25 bg-[#FF4565]/10 text-sm font-black text-[#FF8CA0] disabled:cursor-not-allowed disabled:opacity-40"
+        title="Make negative"
+      >
+        −
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(applySign(value, "positive"))}
+        className="w-11 rounded-xl border border-[#00D084]/25 bg-[#00D084]/10 text-sm font-black text-[#00D084] disabled:cursor-not-allowed disabled:opacity-40"
+        title="Make positive"
+      >
+        +
+      </button>
+    </div>
+  );
+}
 
 function QuickChips({
   values,

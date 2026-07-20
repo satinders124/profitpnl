@@ -109,7 +109,7 @@ function reviewChecklist(draft: Partial<Trade>): ReviewChecklistItem[] {
     {
       key: "lesson",
       label: "Lesson written",
-      done: String(draft.lesson || "").trim().length >= 8,
+      done: String(draft.lesson || "").trim().length >= 3,
       required: true,
       helper: "One reusable rule from this trade.",
     },
@@ -118,21 +118,15 @@ function reviewChecklist(draft: Partial<Trade>): ReviewChecklistItem[] {
       label: "Context captured",
       done: String(draft.notes || "").trim().length >= 12,
       required: false,
-      helper: "Chart context, trigger, or execution detail.",
-    },
-    {
-      key: "reviewed",
-      label: "Marked reviewed",
-      done: draft.reviewed === true,
-      required: true,
-      helper: "Locks the trade as reviewed in analytics.",
+      helper: "Optional chart context, trigger, or execution detail.",
     },
   ];
 }
 
 function checklistScore(items: ReviewChecklistItem[]) {
-  if (!items.length) return 0;
-  return Math.round((items.filter((item) => item.done).length / items.length) * 100);
+  const required = items.filter((item) => item.required);
+  if (!required.length) return 0;
+  return Math.round((required.filter((item) => item.done).length / required.length) * 100);
 }
 
 function missingRequiredLabels(draft: Partial<Trade>) {
@@ -159,7 +153,7 @@ function ReviewCompletenessCard({ items }: { items: ReviewChecklistItem[] }) {
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F0B429]">Review Completeness</p>
           <p className="mt-1 text-xs leading-5 text-[#8080A0]">
-            Complete these fields before marking the trade reviewed.
+            Required score uses emotion, mistake, and lesson. Notes are optional context.
           </p>
         </div>
         <div className="rounded-2xl border border-[#1E1E38] bg-[#111124] px-4 py-3 text-right">
@@ -379,20 +373,23 @@ export default function TradeReviewPage() {
 
   async function saveReview(patch?: Partial<Trade>) {
     if (!user || !selected) return;
-    const nextDraft = { ...draft, ...patch, reviewed: true };
+    const nextDraft = {
+      ...draft,
+      ...patch,
+      mistake: String((patch?.mistake ?? draft.mistake) || "").trim() || "None",
+      reviewed: true,
+    };
     const missing = missingRequiredLabels(nextDraft);
     if (missing.length > 0) {
-      const ok = window.confirm(`This review is still missing: ${missing.join(", ")}. Save as reviewed anyway?`);
-      if (!ok) {
-        setNotice(`Complete missing fields before saving: ${missing.join(", ")}.`);
-        return;
-      }
+      setNotice(`Complete missing fields before saving: ${missing.join(", ")}.`);
+      return;
     }
     setSaving(true);
     setNotice("");
     try {
       await saveTrade(user.id, { ...selected, ...nextDraft, reviewed: true });
-      setNotice("Trade review saved.");
+      setDraft((current) => ({ ...current, ...nextDraft }));
+      setNotice("Trade review saved. It now counts as reviewed.");
       await loadData();
     } finally {
       setSaving(false);
