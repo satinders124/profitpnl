@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase-client";
 import { getTrades, saveTrade } from "@/lib/db";
 import { Trade } from "@/types/trade";
 import {
+  AlertTriangle,
   CheckCircle2,
   ClipboardCheck,
   Loader2,
@@ -73,8 +74,116 @@ function buildAiPatch(aiReview: TradeAiReview, currentDraft: Partial<Trade>): Pa
   };
 }
 
+type ReviewChecklistItem = {
+  key: string;
+  label: string;
+  done: boolean;
+  required: boolean;
+  helper: string;
+};
+
+function filled(value: unknown) {
+  return String(value ?? "").trim().length > 0;
+}
+
+function reviewChecklist(draft: Partial<Trade>): ReviewChecklistItem[] {
+  return [
+    {
+      key: "emotion",
+      label: "Emotion tagged",
+      done: filled(draft.emotion),
+      required: true,
+      helper: "Add the state you were in when executing.",
+    },
+    {
+      key: "mistake",
+      label: "Mistake classified",
+      done: filled(draft.mistake),
+      required: true,
+      helper: "Use None if the trade followed the rules.",
+    },
+    {
+      key: "lesson",
+      label: "Lesson written",
+      done: String(draft.lesson || "").trim().length >= 8,
+      required: true,
+      helper: "One reusable rule from this trade.",
+    },
+    {
+      key: "notes",
+      label: "Context captured",
+      done: String(draft.notes || "").trim().length >= 12,
+      required: false,
+      helper: "Chart context, trigger, or execution detail.",
+    },
+    {
+      key: "reviewed",
+      label: "Marked reviewed",
+      done: draft.reviewed === true,
+      required: true,
+      helper: "Locks the trade as reviewed in analytics.",
+    },
+  ];
+}
+
+function checklistScore(items: ReviewChecklistItem[]) {
+  if (!items.length) return 0;
+  return Math.round((items.filter((item) => item.done).length / items.length) * 100);
+}
+
+function missingRequiredLabels(draft: Partial<Trade>) {
+  return reviewChecklist(draft).filter((item) => item.required && !item.done).map((item) => item.label);
+}
+
+function aiOverwriteFields(aiReview: TradeAiReview, draft: Partial<Trade>) {
+  const patch = buildAiPatch(aiReview, draft);
+  return (["emotion", "mistake", "lesson"] as const).filter((key) => {
+    const current = String(draft[key] || "").trim();
+    const next = String(patch[key] || "").trim();
+    return current && next && current.toLowerCase() !== next.toLowerCase();
+  });
+}
+
+function ReviewCompletenessCard({ items }: { items: ReviewChecklistItem[] }) {
+  const score = checklistScore(items);
+  const requiredMissing = items.filter((item) => item.required && !item.done).length;
+  const tone = requiredMissing === 0 ? "text-[#00D084]" : score >= 60 ? "text-[#F0B429]" : "text-[#FF4565]";
+
+  return (
+    <div className="rounded-[1.5rem] border border-[#1E1E38] bg-[#080810] p-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F0B429]">Review Completeness</p>
+          <p className="mt-1 text-xs leading-5 text-[#8080A0]">
+            Complete these fields before marking the trade reviewed.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#1E1E38] bg-[#111124] px-4 py-3 text-right">
+          <p className={`text-2xl font-black ${tone}`}>{score}%</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-[#5A5A80]">Ready</p>
+        </div>
+      </div>
+      <div className="grid gap-2 md:grid-cols-5">
+        {items.map((item) => (
+          <div key={item.key} className={`rounded-2xl border p-3 ${item.done ? "border-[#00D084]/25 bg-[#00D084]/10" : item.required ? "border-[#F0B429]/25 bg-[#F0B429]/10" : "border-[#1E1E38] bg-[#111124]"}`}>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className={item.done ? "text-[#00D084]" : item.required ? "text-[#F0B429]" : "text-[#8080A0]"}>
+                {item.done ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+              </span>
+              {item.required ? <span className="text-[9px] font-black uppercase text-[#5A5A80]">Required</span> : null}
+            </div>
+            <p className="text-xs font-black text-white">{item.label}</p>
+            <p className="mt-1 text-[11px] leading-4 text-[#8080A0]">{item.helper}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AiReviewPanel({
   selected,
+  draft,
   aiReview,
   generating,
   saving,
@@ -83,6 +192,7 @@ function AiReviewPanel({
   onApplyAndSave,
 }: {
   selected: Trade;
+  draft: Partial<Trade>;
   aiReview: TradeAiReview | null;
   generating: boolean;
   saving: boolean;
@@ -90,6 +200,8 @@ function AiReviewPanel({
   onApply: () => void;
   onApplyAndSave: () => void;
 }) {
+  const overwriteFields = aiReview ? aiOverwriteFields(aiReview, draft) : [];
+
   return (
     <div className="relative overflow-hidden rounded-[1.5rem] border border-[#F0B429]/20 bg-[#101020] p-5 shadow-[0_0_45px_-24px_#F0B429]">
       <div className="absolute inset-0 bg-gradient-to-r from-[#F0B429]/8 to-transparent pointer-events-none" />
@@ -100,7 +212,7 @@ function AiReviewPanel({
           </p>
           <h3 className="text-lg font-black text-white">AI execution diagnosis</h3>
           <p className="mt-1 text-xs leading-5 text-[#8080A0]">
-            AI reviews the selected trade and can auto-fill emotion, mistake, lesson, notes, and reviewed status.
+            AI reviews the selected trade, explains the issue, previews what it will fill, and can save the completed review safely.
           </p>
         </div>
         <button
@@ -114,8 +226,14 @@ function AiReviewPanel({
       </div>
 
       {!aiReview ? (
-        <div className="relative mt-4 rounded-2xl border border-dashed border-[#2A2A3C] bg-[#080810] p-4 text-sm leading-6 text-[#A0A0C0]">
-          Ready to review {selected.instrument || "this trade"}. Add any notes you remember, then run AI Review for a stronger diagnosis.
+        <div className="relative mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center rounded-2xl border border-dashed border-[#2A2A3C] bg-[#080810] p-4 text-sm leading-6 text-[#A0A0C0]">
+          <div>
+            <p className="font-bold text-zinc-200">Ready to review {selected.instrument || "this trade"}.</p>
+            <p className="mt-1 text-xs leading-5 text-[#8080A0]">Add any notes you remember, then run AI Review for a stronger diagnosis. AI will never save changes until you approve.</p>
+          </div>
+          <span className="rounded-full border border-[#F0B429]/25 bg-[#F0B429]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-[#F0B429]">
+            Safe draft mode
+          </span>
         </div>
       ) : (
         <div className="relative mt-5 space-y-4">
@@ -130,6 +248,18 @@ function AiReviewPanel({
               {aiReview.aiGenerated ? "AI" : "Local"}
             </span>
           </div>
+
+          {overwriteFields.length > 0 && (
+            <div className="rounded-2xl border border-[#F0B429]/30 bg-[#F0B429]/10 p-4 text-sm leading-6 text-[#F0B429]">
+              <div className="flex gap-2">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-black">AI will replace existing draft fields.</p>
+                  <p className="mt-1 text-xs opacity-85">Fields: {overwriteFields.join(", ")}. You’ll be asked to confirm before applying.</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-4">
             <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#F0B429]">Diagnosis</p>
@@ -230,6 +360,8 @@ export default function TradeReviewPage() {
 
   const queue = useMemo(() => trades.filter(needsReview), [trades]);
   const selected = trades.find((trade) => trade.id === selectedId);
+  const reviewItems = useMemo(() => reviewChecklist(draft), [draft]);
+  const reviewReadyScore = useMemo(() => checklistScore(reviewItems), [reviewItems]);
   const reviewedCount = trades.length - queue.length;
   const completion = trades.length ? Math.round((reviewedCount / trades.length) * 100) : 0;
 
@@ -242,10 +374,19 @@ export default function TradeReviewPage() {
 
   async function saveReview(patch?: Partial<Trade>) {
     if (!user || !selected) return;
+    const nextDraft = { ...draft, ...patch, reviewed: true };
+    const missing = missingRequiredLabels(nextDraft);
+    if (missing.length > 0) {
+      const ok = window.confirm(`This review is still missing: ${missing.join(", ")}. Save as reviewed anyway?`);
+      if (!ok) {
+        setNotice(`Complete missing fields before saving: ${missing.join(", ")}.`);
+        return;
+      }
+    }
     setSaving(true);
     setNotice("");
     try {
-      await saveTrade(user.id, { ...selected, ...draft, ...patch, reviewed: true });
+      await saveTrade(user.id, { ...selected, ...nextDraft, reviewed: true });
       setNotice("Trade review saved.");
       await loadData();
     } finally {
@@ -279,14 +420,23 @@ export default function TradeReviewPage() {
     }
   }
 
+  function confirmAiOverwrite() {
+    if (!aiReview) return false;
+    const fields = aiOverwriteFields(aiReview, draft);
+    if (!fields.length) return true;
+    return window.confirm(`AI will replace your current ${fields.join(", ")} field${fields.length === 1 ? "" : "s"}. Continue?`);
+  }
+
   function applyAiReview() {
     if (!aiReview) return;
+    if (!confirmAiOverwrite()) return;
     setDraft((current) => ({ ...current, ...buildAiPatch(aiReview, current) }));
     setNotice("AI review applied to draft. Save when ready.");
   }
 
   async function applyAndSaveAiReview() {
     if (!aiReview) return;
+    if (!confirmAiOverwrite()) return;
     const patch = buildAiPatch(aiReview, draft);
     setDraft((current) => ({ ...current, ...patch }));
     await saveReview(patch);
@@ -368,6 +518,9 @@ export default function TradeReviewPage() {
                     <div>
                       <h2 className="text-xl font-black text-white">{selected.instrument}</h2>
                       <p className="mt-1 text-xs text-[#8080A0]">{selected.date} · {selected.setup || "No setup"} · {formatR(selected.result)}</p>
+                      <span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider ${reviewReadyScore >= 80 ? "border-[#00D084]/30 bg-[#00D084]/10 text-[#00D084]" : "border-[#F0B429]/30 bg-[#F0B429]/10 text-[#F0B429]"}`}>
+                        Review readiness {reviewReadyScore}%
+                      </span>
                     </div>
                     <button
                       onClick={() => saveReview()}
@@ -378,8 +531,11 @@ export default function TradeReviewPage() {
                     </button>
                   </div>
 
+                  <ReviewCompletenessCard items={reviewItems} />
+
                   <AiReviewPanel
                     selected={selected}
+                    draft={draft}
                     aiReview={aiReview}
                     generating={generatingAi}
                     saving={saving}
