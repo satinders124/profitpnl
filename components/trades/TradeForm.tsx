@@ -63,6 +63,17 @@ const mistakes = [
   "None",
 ];
 
+const quickResults = [
+  { label: "-1R", value: "-1" },
+  { label: "BE", value: "0" },
+  { label: "+1R", value: "1" },
+  { label: "+2R", value: "2" },
+  { label: "+3R", value: "3" },
+];
+
+const quickEmotions = ["Disciplined", "Calm", "Patient", "FOMO", "Anxious", "Revenge"];
+const quickMistakes = ["None", "FOMO Entry", "Late Entry", "Moved Stop", "Revenge Trade", "Overtrading"];
+
 const draftMeaningfulKeys: Array<keyof Trade> = [
   "account",
   "instrument",
@@ -93,16 +104,26 @@ function hasMeaningfulDraft(form: Partial<Trade>, defaults: Partial<Trade>) {
   });
 }
 
+function hasOutcome(form: Partial<Trade>) {
+  return [form.result, form.pnl].some((value) => value !== "" && value !== null && value !== undefined && Number.isFinite(Number(value)));
+}
+
+function initialTradeState(form: Partial<Trade>, isEditing: boolean): "open" | "closed" {
+  if (hasOutcome(form)) return "closed";
+  return isEditing ? "open" : "closed";
+}
+
 function loadSavedDraft(draftKey: string, defaults: Partial<Trade>) {
-  if (typeof window === "undefined") return { form: defaults, restored: false };
+  if (typeof window === "undefined") return { form: defaults, restored: false, tradeState: initialTradeState(defaults, false) };
   try {
     const savedDraft = localStorage.getItem(draftKey);
-    if (!savedDraft) return { form: defaults, restored: false };
-    const parsed = JSON.parse(savedDraft) as Partial<Trade>;
+    if (!savedDraft) return { form: defaults, restored: false, tradeState: initialTradeState(defaults, false) };
+    const parsed = JSON.parse(savedDraft) as Partial<Trade> & { __tradeState?: "open" | "closed" };
     const restored = hasMeaningfulDraft(parsed, defaults);
-    return { form: { ...defaults, ...parsed, date: parsed.date || defaults.date }, restored };
+    const restoredTradeState = parsed.__tradeState === "open" || parsed.__tradeState === "closed" ? parsed.__tradeState : initialTradeState(parsed, false);
+    return { form: { ...defaults, ...parsed, date: parsed.date || defaults.date }, restored, tradeState: restoredTradeState };
   } catch {
-    return { form: defaults, restored: false };
+    return { form: defaults, restored: false, tradeState: initialTradeState(defaults, false) };
   }
 }
 
@@ -255,11 +276,12 @@ export function TradeForm({
   }), [existing, today]);
 
   const initialDraft = useMemo(
-    () => (existing ? { form: defaultForm, restored: false } : loadSavedDraft(draftKey, defaultForm)),
+    () => (existing ? { form: defaultForm, restored: false, tradeState: initialTradeState(defaultForm, true) } : loadSavedDraft(draftKey, defaultForm)),
     [draftKey, existing, defaultForm]
   );
 
   const [form, setForm] = useState<Partial<Trade>>(initialDraft.form);
+  const [tradeState, setTradeState] = useState<"open" | "closed">(() => initialDraft.tradeState);
   const [draftRestored, setDraftRestored] = useState(initialDraft.restored);
   const [draftCleared, setDraftCleared] = useState(false);
 
@@ -298,14 +320,14 @@ export function TradeForm({
     if (existing || typeof window === "undefined") return;
     try {
       if (hasMeaningfulDraft(form, defaultForm)) {
-        localStorage.setItem(draftKey, JSON.stringify(form));
+        localStorage.setItem(draftKey, JSON.stringify({ ...form, __tradeState: tradeState }));
       } else if (!draftRestored) {
         localStorage.removeItem(draftKey);
       }
     } catch {
       // ignore unavailable storage
     }
-  }, [defaultForm, draftKey, draftRestored, existing, form]);
+  }, [defaultForm, draftKey, draftRestored, existing, form, tradeState]);
 
   function clearDraft() {
     try {
@@ -314,6 +336,7 @@ export function TradeForm({
       // ignore unavailable storage
     }
     setForm(defaultForm);
+    setTradeState(initialTradeState(defaultForm, Boolean(existing)));
     setDraftRestored(false);
     setDraftCleared(true);
   }
@@ -321,6 +344,20 @@ export function TradeForm({
   function update<K extends keyof Trade>(key: K, value: Trade[K]) {
     setDraftCleared(false);
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function setTicketState(nextState: "open" | "closed") {
+    setTradeState(nextState);
+    setDraftCleared(false);
+    if (nextState === "open") {
+      setForm((prev) => ({ ...prev, result: "", pnl: "", reviewed: false }));
+    }
+  }
+
+  function applyQuickResult(value: string) {
+    setTradeState("closed");
+    setDraftCleared(false);
+    setForm((prev) => ({ ...prev, result: value }));
   }
 
   const guardrails = useMemo(() => buildGuardrails({
@@ -352,8 +389,9 @@ export function TradeForm({
         sl: cleanNumber(form.sl),
         tp: cleanNumber(form.tp),
         rr: cleanNumber(form.rr),
-        result: cleanNumberOrBlank(form.result),
-        pnl: cleanNumberOrBlank(form.pnl),
+        result: tradeState === "open" ? "" : cleanNumberOrBlank(form.result),
+        pnl: tradeState === "open" ? "" : cleanNumberOrBlank(form.pnl),
+        reviewed: tradeState === "open" ? false : form.reviewed,
         executionRating: cleanNumberOrBlank(form.executionRating),
       };
       const savedId = await saveTrade(uid, cleanedTrade);
@@ -439,6 +477,54 @@ export function TradeForm({
         todaysTradeCount={todaysTradeCount}
         isEditing={Boolean(existing)}
       />
+
+      <section className="rounded-2xl border border-[#1E1E38] bg-[#111120] p-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-black">Trade Ticket Speed Mode</h3>
+            <p className="mt-1 text-xs leading-5 text-[#5A5A80]">Choose whether this is an open position or a closed trade, then use quick buttons to reduce mobile typing.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#1E1E38] bg-[#080810] p-1">
+            {(["open", "closed"] as const).map((state) => (
+              <button
+                key={state}
+                type="button"
+                onClick={() => setTicketState(state)}
+                className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider transition ${tradeState === state ? "bg-[#F0B429] text-[#080810]" : "text-[#8080A0] hover:text-white"}`}
+              >
+                {state === "open" ? "Open" : "Closed"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {tradeState === "closed" ? (
+          <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-3">
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">Quick Result</p>
+            <div className="grid grid-cols-5 gap-2">
+              {quickResults.map((item) => {
+                const active = String(form.result ?? "") === item.value;
+                const positive = Number(item.value) > 0;
+                const negative = Number(item.value) < 0;
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => applyQuickResult(item.value)}
+                    className={`rounded-xl border px-2 py-2 text-xs font-black transition ${active ? "border-[#F0B429] bg-[#F0B429]/20 text-[#F0B429]" : negative ? "border-[#FF4565]/20 bg-[#FF4565]/10 text-[#FF8CA0]" : positive ? "border-[#00D084]/20 bg-[#00D084]/10 text-[#00D084]" : "border-[#1E1E38] bg-[#111124] text-zinc-300"}`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-[#4C82FB]/25 bg-[#4C82FB]/10 p-4 text-sm leading-6 text-[#8BB0FF]">
+            Open trade mode clears Result R and P&L, and keeps the trade out of completed-performance calculations until you update it later.
+          </div>
+        )}
+      </section>
 
       <Section
         title="Trade Setup"
@@ -559,6 +645,7 @@ export function TradeForm({
             <input
               value={String(form.entry || "")}
               onChange={(e) => update("entry", e.target.value)}
+              inputMode="decimal"
               className={inputClass}
               placeholder="2350.50"
             />
@@ -568,6 +655,7 @@ export function TradeForm({
             <input
               value={String(form.sl || "")}
               onChange={(e) => update("sl", e.target.value)}
+              inputMode="decimal"
               className={inputClass}
               placeholder="2345.00"
             />
@@ -577,6 +665,7 @@ export function TradeForm({
             <input
               value={String(form.tp || "")}
               onChange={(e) => update("tp", e.target.value)}
+              inputMode="decimal"
               className={inputClass}
               placeholder="2365.00"
             />
@@ -586,6 +675,7 @@ export function TradeForm({
             <input
               value={String(form.rr || "")}
               onChange={(e) => update("rr", e.target.value)}
+              inputMode="decimal"
               className={inputClass}
               placeholder="2"
             />
@@ -594,18 +684,28 @@ export function TradeForm({
           <Field label="Result R">
             <input
               value={String(form.result ?? "")}
-              onChange={(e) => update("result", e.target.value)}
+              onChange={(e) => {
+                setTradeState("closed");
+                update("result", e.target.value);
+              }}
+              inputMode="decimal"
               className={inputClass}
-              placeholder="2 or -1, blank if open"
+              placeholder={tradeState === "open" ? "Open trade" : "2 or -1"}
+              disabled={tradeState === "open"}
             />
           </Field>
 
           <Field label="Profit / Loss $">
             <input
               value={String(form.pnl ?? "")}
-              onChange={(e) => update("pnl", e.target.value)}
+              onChange={(e) => {
+                setTradeState("closed");
+                update("pnl", e.target.value);
+              }}
+              inputMode="decimal"
               className={inputClass}
-              placeholder="250 or -100"
+              placeholder={tradeState === "open" ? "Open trade" : "250 or -100"}
+              disabled={tradeState === "open"}
             />
           </Field>
         </div>
@@ -628,6 +728,11 @@ export function TradeForm({
                 </option>
               ))}
             </select>
+            <QuickChips
+              values={quickEmotions}
+              active={String(form.emotion || "")}
+              onPick={(value) => update("emotion", value)}
+            />
           </Field>
 
           <Field label="Execution Rating">
@@ -657,6 +762,11 @@ export function TradeForm({
                 </option>
               ))}
             </select>
+            <QuickChips
+              values={quickMistakes}
+              active={String(form.mistake || "")}
+              onPick={(value) => update("mistake", value)}
+            />
           </Field>
 
           <Field label="Chart Link">
@@ -735,7 +845,9 @@ export function TradeForm({
             ? "Saving..."
             : existing
               ? "Save Changes"
-              : "Log Trade"}
+              : tradeState === "open"
+                ? "Save Open Trade"
+                : "Log Closed Trade"}
         </button>
       </div>
     </form>
@@ -743,10 +855,38 @@ export function TradeForm({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-4 py-3 text-sm font-bold text-[#F0F0FF] outline-none focus:border-[#F0B429] [color-scheme:dark]";
+  "w-full rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-4 py-3 text-sm font-bold text-[#F0F0FF] outline-none focus:border-[#F0B429] disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:dark]";
 
 const selectClass =
   `${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23A0A0C0%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_12px_center] bg-no-repeat pr-10`;
+
+function QuickChips({
+  values,
+  active,
+  onPick,
+}: {
+  values: string[];
+  active: string;
+  onPick: (value: string) => void;
+}) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {values.map((value) => {
+        const isActive = cleanText(active) === cleanText(value);
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onPick(value)}
+            className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${isActive ? "border-[#F0B429]/40 bg-[#F0B429]/15 text-[#F0B429]" : "border-[#1E1E38] bg-[#080810] text-[#8080A0] hover:text-white"}`}
+          >
+            {value}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function DailyPlanGuardrailPanel({
   items,
