@@ -74,6 +74,21 @@ const quickResults = [
 const quickEmotions = ["Disciplined", "Calm", "Patient", "FOMO", "Anxious", "Revenge"];
 const quickMistakes = ["None", "FOMO Entry", "Late Entry", "Moved Stop", "Revenge Trade", "Overtrading"];
 
+const futuresPointValues: Record<string, { label: string; pointValue: number; note: string }> = {
+  NQ: { label: "Nasdaq 100 E-mini", pointValue: 20, note: "$20/point" },
+  MNQ: { label: "Nasdaq 100 Micro", pointValue: 2, note: "$2/point" },
+  ES: { label: "S&P 500 E-mini", pointValue: 50, note: "$50/point" },
+  MES: { label: "S&P 500 Micro", pointValue: 5, note: "$5/point" },
+  YM: { label: "Dow E-mini", pointValue: 5, note: "$5/point" },
+  MYM: { label: "Dow Micro", pointValue: 0.5, note: "$0.50/point" },
+  GC: { label: "Gold Futures", pointValue: 100, note: "$100/point" },
+  MGC: { label: "Micro Gold", pointValue: 10, note: "$10/point" },
+  CL: { label: "Crude Oil Futures", pointValue: 1000, note: "$1,000/point" },
+  MCL: { label: "Micro Crude Oil", pointValue: 100, note: "$100/point" },
+  RTY: { label: "Russell 2000 E-mini", pointValue: 50, note: "$50/point" },
+  M2K: { label: "Russell 2000 Micro", pointValue: 5, note: "$5/point" },
+};
+
 const draftMeaningfulKeys: Array<keyof Trade> = [
   "account",
   "positionSize",
@@ -198,6 +213,108 @@ function calculatePlannedRr(form: Partial<Trade>): PlannedRrAnalysis {
   }
 
   return { rr: reward / risk, risk, reward, warning: "", ready: true };
+}
+
+type FuturesRiskEstimate = {
+  supported: boolean;
+  symbol: string;
+  label: string;
+  note: string;
+  quantity: number | null;
+  riskPoints: number;
+  rewardPoints: number;
+  estimatedRisk: number | null;
+  estimatedTarget: number | null;
+  warning: string;
+};
+
+function normalizeFuturesSymbol(value: unknown) {
+  const clean = String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const roots = Object.keys(futuresPointValues).sort((a, b) => b.length - a.length);
+  return roots.find((root) => clean === root || clean.startsWith(root)) || "";
+}
+
+function parsePositionQuantity(value: unknown) {
+  const text = String(value || "").replace(/,/g, "");
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function calculateFuturesRiskEstimate(form: Partial<Trade>, rrAnalysis: PlannedRrAnalysis): FuturesRiskEstimate {
+  const symbol = normalizeFuturesSymbol(form.instrument);
+  if (!symbol) {
+    return {
+      supported: false,
+      symbol: "",
+      label: "",
+      note: "",
+      quantity: null,
+      riskPoints: 0,
+      rewardPoints: 0,
+      estimatedRisk: null,
+      estimatedTarget: null,
+      warning: "Futures estimate supports common contracts like NQ, MNQ, ES, MES, YM, MYM, GC, MGC, CL, MCL, RTY, and M2K.",
+    };
+  }
+
+  const contract = futuresPointValues[symbol];
+  const quantity = parsePositionQuantity(form.positionSize);
+  if (!quantity) {
+    return {
+      supported: true,
+      symbol,
+      label: contract.label,
+      note: contract.note,
+      quantity: null,
+      riskPoints: Math.abs(rrAnalysis.risk || 0),
+      rewardPoints: Math.abs(rrAnalysis.reward || 0),
+      estimatedRisk: null,
+      estimatedTarget: null,
+      warning: "Enter position size, e.g. 2 contracts or 4 micros, to estimate futures risk.",
+    };
+  }
+
+  if (!rrAnalysis.rr) {
+    return {
+      supported: true,
+      symbol,
+      label: contract.label,
+      note: contract.note,
+      quantity,
+      riskPoints: Math.abs(rrAnalysis.risk || 0),
+      rewardPoints: Math.abs(rrAnalysis.reward || 0),
+      estimatedRisk: null,
+      estimatedTarget: null,
+      warning: rrAnalysis.warning || "Enter valid entry, stop loss, and take profit to estimate risk.",
+    };
+  }
+
+  const riskPoints = Math.abs(rrAnalysis.risk);
+  const rewardPoints = Math.abs(rrAnalysis.reward);
+  const sizeText = cleanText(form.positionSize);
+  const microWarning = ["NQ", "ES", "YM", "GC", "CL", "RTY"].includes(symbol) && (sizeText.includes("micro") || sizeText.includes("micros"))
+    ? " If you are trading micros, use the micro symbol like MNQ, MES, MYM, MGC, MCL, or M2K for accurate estimates."
+    : "";
+
+  return {
+    supported: true,
+    symbol,
+    label: contract.label,
+    note: contract.note,
+    quantity,
+    riskPoints,
+    rewardPoints,
+    estimatedRisk: riskPoints * contract.pointValue * quantity,
+    estimatedTarget: rewardPoints * contract.pointValue * quantity,
+    warning: microWarning,
+  };
+}
+
+function money(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return "—";
+  return `${value >= 0 ? "" : "-"}$${Math.abs(value).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
 type GuardrailItem = {
@@ -415,6 +532,7 @@ export function TradeForm({
     isEditing: Boolean(existing),
   }), [dailyPlan, dailyPlanChecked, existing, form, todaysTradeCount]);
   const plannedRr = useMemo(() => calculatePlannedRr(form), [form]);
+  const futuresRisk = useMemo(() => calculateFuturesRiskEstimate(form, plannedRr), [form, plannedRr]);
 
   const isClosingOpenTrade = Boolean(existing && !hasOutcome(existing) && tradeState === "closed");
 
@@ -752,6 +870,8 @@ export function TradeForm({
             onApply={() => plannedRr.rr && update("rr", plannedRr.rr.toFixed(2))}
           />
 
+          <FuturesRiskCard estimate={futuresRisk} />
+
           <Field label="Result R">
             <SignedNumberInput
               value={String(form.result ?? "")}
@@ -962,6 +1082,38 @@ function AutoRrCard({
         {hasCalculated
           ? `Risk ${Math.abs(analysis.risk).toFixed(2)} points · reward ${Math.abs(analysis.reward).toFixed(2)} points.`
           : analysis.warning}
+      </p>
+    </div>
+  );
+}
+
+function FuturesRiskCard({ estimate }: { estimate: FuturesRiskEstimate }) {
+  const ready = estimate.estimatedRisk !== null && estimate.estimatedTarget !== null;
+  return (
+    <div className={`rounded-xl border p-4 ${ready ? "border-[#F0B429]/25 bg-[#F0B429]/10" : estimate.supported ? "border-[#4C82FB]/25 bg-[#4C82FB]/10" : "border-[#1E1E38] bg-[#0D0D1A]"}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#5A5A80]">Futures Risk Estimate</p>
+          <p className="mt-1 text-sm font-black text-white">
+            {estimate.supported ? `${estimate.symbol} · ${estimate.note}${estimate.quantity ? ` · ${estimate.quantity}x` : ""}` : "Unsupported instrument"}
+          </p>
+          {estimate.label && <p className="mt-1 text-[11px] leading-5 text-[#8080A0]">{estimate.label}</p>}
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:min-w-[220px]">
+          <div className="rounded-2xl border border-[#FF4565]/20 bg-[#FF4565]/10 p-3 text-right">
+            <p className="text-[9px] font-black uppercase tracking-wider text-[#FF8CA0]">Risk</p>
+            <p className="mt-1 text-base font-black text-[#FF8CA0]">{money(estimate.estimatedRisk)}</p>
+          </div>
+          <div className="rounded-2xl border border-[#00D084]/20 bg-[#00D084]/10 p-3 text-right">
+            <p className="text-[9px] font-black uppercase tracking-wider text-[#00D084]">Target</p>
+            <p className="mt-1 text-base font-black text-[#00D084]">{money(estimate.estimatedTarget)}</p>
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-[#8080A0]">
+        {ready
+          ? `Risk ${estimate.riskPoints.toFixed(2)} points · reward ${estimate.rewardPoints.toFixed(2)} points. Estimate only — verify broker contract specs.`
+          : estimate.warning}
       </p>
     </div>
   );
