@@ -91,8 +91,9 @@ export function ActiveShiftTerminal({
 
   // Close Trade modal state
   const [closingTrade, setClosingTrade] = useState<RunningTrade | null>(null);
-  const [exitPrice, setExitPrice] = useState(0);
-  const [realizedPnl, setRealizedPnl] = useState(0);
+  const [exitPrice, setExitPrice] = useState("");
+  const [realizedPnl, setRealizedPnl] = useState("");
+  const [closeOutcome, setCloseOutcome] = useState<"target" | "sl" | "be" | "manual">("manual");
 
   // Clock Out variables
   const [postDiscipline, setPostDiscipline] = useState(5);
@@ -177,21 +178,57 @@ export function ActiveShiftTerminal({
     }
   };
 
+  function openCloseModal(trade: RunningTrade) {
+    setClosingTrade(trade);
+    setExitPrice(String(trade.entryPrice || ""));
+    setRealizedPnl("0");
+    setCloseOutcome("manual");
+  }
+
+  function applyCloseOutcome(outcome: "target" | "sl" | "be") {
+    if (!closingTrade) return;
+    setCloseOutcome(outcome);
+    if (outcome === "target") {
+      setExitPrice(String(closingTrade.tpPrice || ""));
+      setRealizedPnl(String(Math.abs(Number(closingTrade.potentialProfit || 0))));
+      return;
+    }
+    if (outcome === "sl") {
+      setExitPrice(String(closingTrade.slPrice || ""));
+      setRealizedPnl(String(-Math.abs(Number(closingTrade.riskAmount || 0))));
+      return;
+    }
+    setExitPrice(String(closingTrade.entryPrice || ""));
+    setRealizedPnl("0");
+  }
+
+  function setPnlSign(sign: "positive" | "negative") {
+    const cleaned = String(realizedPnl || "").trim().replace(/^[-+]/, "");
+    setRealizedPnl(sign === "negative" ? `-${cleaned || ""}` : cleaned);
+    setCloseOutcome("manual");
+  }
+
   const handleCloseRunningTrade = async () => {
     if (!user || !closingTrade) return;
+    const exit = Number(exitPrice);
+    const pnl = Number(realizedPnl);
+    if (!Number.isFinite(exit) || !Number.isFinite(pnl)) return;
     try {
       await closeRunningTrade(user.id, closingTrade.id, {
-        exitPrice,
-        pnlRealized: realizedPnl
+        exitPrice: exit,
+        pnlRealized: pnl
       });
       showCelebrate(
-        realizedPnl >= 0 ? "Profit Banked! 🏆" : "Risk Handled. ❤️",
-        realizedPnl >= 0 
-          ? `Closed out ${closingTrade.strategyName} for a clean realized profit of $${realizedPnl}!`
-          : `Handled close of ${closingTrade.strategyName} with a loss of $${Math.abs(realizedPnl)}. Move on to the next opportunity.`,
-        realizedPnl >= 0 ? "celebrate" : "motivation"
+        pnl >= 0 ? "Profit Banked! 🏆" : "Risk Handled. ❤️",
+        pnl >= 0 
+          ? `Closed out ${closingTrade.strategyName} for a clean realized profit of $${pnl}!`
+          : `Handled close of ${closingTrade.strategyName} with a loss of $${Math.abs(pnl)}. Move on to the next opportunity.`,
+        pnl >= 0 ? "celebrate" : "motivation"
       );
       setClosingTrade(null);
+      setExitPrice("");
+      setRealizedPnl("");
+      setCloseOutcome("manual");
       loadData();
     } catch (e) {
       console.error(e);
@@ -480,10 +517,7 @@ export function ActiveShiftTerminal({
                         <p className="text-xs font-black text-[#FF4565]">${t.riskAmount}</p>
                       </div>
                       <button 
-                        onClick={() => {
-                          setClosingTrade(t);
-                          setExitPrice(t.entryPrice);
-                        }}
+                        onClick={() => openCloseModal(t)}
                         className="bg-[#FF4565] hover:bg-red-600 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white transition-colors"
                       >
                         Close Position
@@ -594,21 +628,88 @@ export function ActiveShiftTerminal({
             <p className="text-xs text-[#5A5A80] mb-6">Log the realized outputs for {closingTrade.strategyName} to sync stats.</p>
 
             <div className="space-y-4">
+              <div className="rounded-2xl border border-[#1E1E38] bg-[#080810] p-3">
+                <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-[#5A5A80]">Close Outcome</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    ["target", "TARGET", "Take-profit hit"],
+                    ["sl", "SL", "Stop-loss hit"],
+                    ["be", "BE", "Break-even close"],
+                  ] as const).map(([key, label, helper]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => applyCloseOutcome(key)}
+                      className={`rounded-xl border px-3 py-2 text-xs font-black transition ${closeOutcome === key ? "border-[#F0B429] bg-[#F0B429]/20 text-[#F0B429]" : "border-[#1E1E38] bg-[#111124] text-zinc-300 hover:text-white"}`}
+                      title={helper}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] leading-5 text-[#8080A0]">
+                  Target fills TP and planned reward, SL fills stop and planned risk, BE fills entry and $0.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1.5">Exit Price reached</label>
                 <input 
-                  type="number" value={exitPrice} onChange={e => setExitPrice(Number(e.target.value))}
+                  value={exitPrice}
+                  inputMode="decimal"
+                  onChange={e => {
+                    setExitPrice(e.target.value);
+                    setCloseOutcome("manual");
+                  }}
                   className="w-full bg-[#111120] border border-[#1E1E38] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-[#5A5A80] mb-1.5">Realized Profit / Loss ($)</label>
-                <input 
-                  type="number" value={realizedPnl} onChange={e => setRealizedPnl(Number(e.target.value))}
-                  className="w-full bg-[#111120] border border-[#1E1E38] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
-                  placeholder="e.g. 500 or -250"
-                />
+                <div className="flex gap-2">
+                  <input 
+                    value={realizedPnl}
+                    inputMode="decimal"
+                    onChange={e => {
+                      setRealizedPnl(e.target.value);
+                      setCloseOutcome("manual");
+                    }}
+                    className="min-w-0 flex-1 bg-[#111120] border border-[#1E1E38] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F0B429] font-bold"
+                    placeholder="e.g. 500 or -250"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPnlSign("negative")}
+                    className="w-11 rounded-xl border border-[#FF4565]/25 bg-[#FF4565]/10 text-sm font-black text-[#FF8CA0]"
+                    title="Make negative"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPnlSign("positive")}
+                    className="w-11 rounded-xl border border-[#00D084]/25 bg-[#00D084]/10 text-sm font-black text-[#00D084]"
+                    title="Make positive"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 rounded-2xl border border-[#1E1E38] bg-[#080810] p-3 text-center text-[10px]">
+                <div>
+                  <p className="font-black uppercase tracking-wider text-[#5A5A80]">Entry</p>
+                  <p className="mt-1 font-black text-white">{closingTrade.entryPrice}</p>
+                </div>
+                <div>
+                  <p className="font-black uppercase tracking-wider text-[#FF8CA0]">SL</p>
+                  <p className="mt-1 font-black text-white">{closingTrade.slPrice}</p>
+                </div>
+                <div>
+                  <p className="font-black uppercase tracking-wider text-[#00D084]">Target</p>
+                  <p className="mt-1 font-black text-white">{closingTrade.tpPrice}</p>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-3">
