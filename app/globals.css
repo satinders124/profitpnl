@@ -299,3 +299,56 @@ html[data-theme="light"] .gold-gradient {
 
 html[data-theme="light"] ::-webkit-scrollbar-track { background: #f7f5ef; }
 html[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.18); }
+
+/* Risk Guard must stay dark and stable even when the rest of the app is in light mode. */
+.force-dark {
+  color: #f8fafc !important;
+  touch-action: pan-y;
+}
+
+html[data-theme="light"] .force-dark,
+html[data-theme="light"] .force-dark * {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] .force-dark .text-white,
+html[data-theme="light"] .force-dark .text-zinc-200,
+html[data-theme="light"] .force-dark .text-zinc-300,
+html[data-theme="light"] .force-dark [class*="text-[#F2F2F8"],
+html[data-theme="light"] .force-dark [class*="text-[#F0F0FF"] {
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] .force-dark .text-zinc-400,
+html[data-theme="light"] .force-dark .text-zinc-500,
+html[data-theme="light"] .force-dark [class*="text-[#A0A0C0"],
+html[data-theme="light"] .force-dark [class*="text-[#8080A0"],
+html[data-theme="light"] .force-dark [class*="text-[#5A5A80"] {
+  color: #9ca3af !important;
+}
+
+html[data-theme="light"] .force-dark [class*="bg-[#080810"],
+html[data-theme="light"] .force-dark [class*="bg-[#0D0D1A"],
+html[data-theme="light"] .force-dark [class*="bg-[#0F0F1E"],
+html[data-theme="light"] .force-dark [class*="bg-[#111124"],
+html[data-theme="light"] .force-dark [class*="bg-[#111120"] {
+  background-color: #080810 !important;
+}
+
+html[data-theme="light"] .force-dark input,
+html[data-theme="light"] .force-dark textarea,
+html[data-theme="light"] .force-dark select {
+  background-color: #080810 !important;
+  color: #f8fafc !important;
+  border-color: #1e1e38 !important;
+}
+
+html[data-theme="light"] .force-dark input::placeholder,
+html[data-theme="light"] .force-dark textarea::placeholder {
+  color: #5a5a80 !important;
+}
+
+.risk-guard-shell {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useRouter } from "next/navigation";
 import { getActiveShift, clockIn } from "@/lib/shifts-db";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, CheckCircle2, Clock, ShieldAlert, Target, TimerReset, X } from "lucide-react";
@@ -121,6 +122,7 @@ const focusTemplates = [
 
 export function ActiveTraderCheckinModal() {
   const { user } = useAuth();
+  const router = useRouter();
   const { showCelebrate } = useNotificationCoPilot();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -156,6 +158,18 @@ export function ActiveTraderCheckinModal() {
     checkActiveSession();
   }, [user]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflowX = document.documentElement.style.overflowX;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflowX = "hidden";
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflowX = previousHtmlOverflowX;
+    };
+  }, [isOpen]);
+
   const handleClockIn = async () => {
     if (!user || !canClockIn) return;
     setActionLoading(true);
@@ -175,7 +189,7 @@ export function ActiveTraderCheckinModal() {
         "success"
       );
       setIsOpen(false);
-      window.location.reload();
+      router.push("/psychology/guard");
     } catch (e) {
       console.error(e);
     } finally {
@@ -192,40 +206,40 @@ export function ActiveTraderCheckinModal() {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+      <div className="force-dark fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto overflow-x-hidden overscroll-contain bg-black/90 px-3 py-[max(12px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-md sm:items-center sm:p-4">
         <div className="absolute inset-0" onClick={dismissToday} />
 
         <motion.div
-          initial={{ opacity: 0, y: 42, scale: 0.96 }}
+          initial={{ opacity: 0, y: 28, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 42, scale: 0.96 }}
-          transition={{ type: "spring", damping: 24, stiffness: 280 }}
-          className="relative z-10 max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-[#24243C] bg-[#0F0F1E] shadow-2xl"
+          exit={{ opacity: 0, y: 28, scale: 0.98 }}
+          transition={{ type: "spring", damping: 26, stiffness: 260 }}
+          className="risk-guard-shell relative z-10 my-2 w-full max-w-[calc(100vw-24px)] overflow-x-hidden rounded-[1.75rem] border border-[#24243C] bg-[#0F0F1E] shadow-2xl sm:max-h-[92vh] sm:max-w-3xl sm:overflow-y-auto sm:rounded-[2rem]"
         >
           <div className="absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#F0B429]/10 blur-3xl pointer-events-none" />
           <div className="absolute -left-32 bottom-0 h-72 w-72 rounded-full bg-[#00D084]/5 blur-3xl pointer-events-none" />
 
-          <div className="relative border-b border-[#1E1E38] p-5 sm:p-7">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#F0B429]/25 bg-[#F0B429]/10 text-[#F0B429] shadow-[0_0_30px_-15px_#F0B429]">
-                  <Brain size={24} className="animate-pulse" />
+          <div className="relative border-b border-[#1E1E38] p-4 sm:p-7">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 gap-3 sm:gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#F0B429]/25 bg-[#F0B429]/10 text-[#F0B429] shadow-[0_0_30px_-15px_#F0B429] sm:h-12 sm:w-12">
+                  <Brain size={22} className="animate-pulse sm:size-6" />
                 </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.26em] text-[#F0B429]">Pre-Session Clearance</p>
-                  <h3 className="mt-1 text-2xl font-black tracking-tight text-white">AI Risk-Guard Check-In</h3>
-                  <p className="mt-1 text-sm text-[#8080A0]">Set your risk budget, mental state, and stop rules before the first trade.</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F0B429]">Pre-Session Clearance</p>
+                  <h3 className="mt-1 text-xl font-black tracking-tight text-white sm:text-2xl">AI Risk-Guard Check-In</h3>
+                  <p className="mt-1 text-sm leading-6 text-[#8080A0]">Set your risk budget, mental state, and stop rules before the first trade.</p>
                 </div>
               </div>
-              <button onClick={dismissToday} className="rounded-xl bg-[#111124] p-2 text-[#8080A0] hover:text-white" aria-label="Close check-in">
+              <button onClick={dismissToday} className="shrink-0 rounded-xl bg-[#111124] p-2 text-[#8080A0] hover:text-white" aria-label="Close check-in">
                 <X size={16} />
               </button>
             </div>
           </div>
 
-          <div className="relative grid gap-5 p-5 sm:p-7 lg:grid-cols-[1fr_0.85fr]">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 items-end gap-4">
+          <div className="relative grid min-w-0 gap-4 p-4 sm:gap-5 sm:p-7 lg:grid-cols-[1fr_0.85fr]">
+            <div className="min-w-0 space-y-4">
+              <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 sm:gap-4">
                 <CurrencyField label="Today's Profit Target" value={targetProfit} onChange={setTargetProfit} accent="#F0B429" />
                 <CurrencyField label="Daily Loss Limit" value={maxDrawdownLimit} onChange={setMaxDrawdownLimit} accent="#FF4565" />
               </div>
@@ -256,7 +270,7 @@ export function ActiveTraderCheckinModal() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <ReadinessBadge sleep={sleep} stress={stress} discipline={discipline} />
 
               <div className="rounded-[1.5rem] border border-[#1E1E38] bg-[#080810] p-4">
