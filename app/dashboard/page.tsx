@@ -47,6 +47,7 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
+  Maximize2,
   Wallet,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -565,6 +566,7 @@ export default function DashboardPage() {
   const [strategyFilter, setStrategyFilter] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [calendarView, setCalendarView] = useState<PnlViewMode>("r");
+  const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [dailyPlanAccepted, setDailyPlanAccepted] = useState(false);
 
   useEffect(() => {
@@ -1072,6 +1074,7 @@ export default function DashboardPage() {
               trades={filteredTrades}
               viewMode={calendarView}
               onViewModeChange={setCalendarView}
+              onExpand={() => setCalendarExpanded(true)}
             />
 
             <RedesignedEdgeScoreCard
@@ -1160,6 +1163,17 @@ export default function DashboardPage() {
             </Card>
           </section>
         </motion.div>
+      )}
+
+      {calendarExpanded && (
+        <Modal title="Expanded Daily P&L Calendar" size="xl" onClose={() => setCalendarExpanded(false)}>
+          <ExactMonthlyCalendarHeatmap
+            trades={filteredTrades}
+            viewMode={calendarView}
+            onViewModeChange={setCalendarView}
+            expanded
+          />
+        </Modal>
       )}
     </AppShell>
   );
@@ -1268,10 +1282,14 @@ function ExactMonthlyCalendarHeatmap({
   trades,
   viewMode,
   onViewModeChange,
+  onExpand,
+  expanded = false,
 }: {
   trades: Trade[];
   viewMode: PnlViewMode;
   onViewModeChange: (mode: PnlViewMode) => void;
+  onExpand?: () => void;
+  expanded?: boolean;
 }) {
   // State for current displayed month
   const [displayDate, setDisplayDate] = useState(() => new Date());
@@ -1385,7 +1403,7 @@ function ExactMonthlyCalendarHeatmap({
   };
 
   return (
-    <Card className="flex min-w-0 flex-col justify-between border-[#1E1E38] bg-[#111124] p-3 shadow-lg sm:p-6">
+    <Card className={`flex min-w-0 flex-col justify-between border-[#1E1E38] bg-[#111124] shadow-lg ${expanded ? "p-4 sm:p-7" : "p-3 sm:p-6"}`}>
       <div>
         {/* Calendar Header with Exact Month Switcher */}
         <div className="mb-5 flex flex-col justify-between gap-3 border-b border-[#1E1E38] pb-4 sm:flex-row sm:items-center">
@@ -1401,6 +1419,15 @@ function ExactMonthlyCalendarHeatmap({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
+            {onExpand && (
+              <button
+                onClick={onExpand}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#1E1E38] bg-[#0D0D1A] px-3 py-2 text-xs font-black text-[#A0A0C0] transition hover:border-[#F0B429]/40 hover:text-[#F0B429]"
+                title="Expand calendar view"
+              >
+                <Maximize2 size={14} /> Expand
+              </button>
+            )}
             {/* R / $ View Toggle */}
             <div className="flex items-center gap-0.5 rounded-xl border border-[#1E1E38] bg-[#0D0D1A] p-1">
               <button
@@ -1474,7 +1501,7 @@ function ExactMonthlyCalendarHeatmap({
               return (
                 <div
                   key={cell.key}
-                  className="h-12 rounded-lg border border-transparent bg-white/[0.01] sm:h-16 sm:rounded-xl"
+                  className={expanded ? "h-16 rounded-xl border border-transparent bg-white/[0.01] sm:h-24" : "h-12 rounded-lg border border-transparent bg-white/[0.01] sm:h-16 sm:rounded-xl"}
                 />
               );
             }
@@ -1503,7 +1530,9 @@ function ExactMonthlyCalendarHeatmap({
               <div
                 key={cell.key}
                 className={[
-                  "relative flex h-12 min-w-0 flex-col items-center justify-between overflow-hidden rounded-lg border p-0.5 transition-all hover:border-white/40 sm:h-16 sm:rounded-xl sm:p-1.5",
+                  expanded
+                    ? "relative flex h-16 min-w-0 flex-col items-center justify-between overflow-hidden rounded-xl border p-2 transition-all hover:border-white/40 sm:h-24 sm:p-3"
+                    : "relative flex h-12 min-w-0 flex-col items-center justify-between overflow-hidden rounded-lg border p-0.5 transition-all hover:border-white/40 sm:h-16 sm:rounded-xl sm:p-1.5",
                   isWin
                     ? "border-[#00D084]/40 bg-[#00D084]/15 text-[#00D084]"
                     : isLoss
@@ -1522,15 +1551,15 @@ function ExactMonthlyCalendarHeatmap({
                     : `${cell.dateStr}: No trades`
                 }
               >
-                <span className="self-start text-[9px] font-medium opacity-70 sm:text-[11px]">
+                <span className={expanded ? "self-start text-xs font-black opacity-80 sm:text-sm" : "self-start text-[9px] font-medium opacity-70 sm:text-[11px]"}>
                   {cell.day}
                 </span>
                 {cell.count > 0 ? (
                   <div className="w-full pb-0.5 text-center">
-                    <div className="truncate text-[9px] font-bold tracking-tight tabular-nums sm:text-sm sm:tracking-normal">
+                    <div className={expanded ? "truncate text-sm font-black tracking-tight tabular-nums sm:text-xl" : "truncate text-[9px] font-bold tracking-tight tabular-nums sm:text-sm sm:tracking-normal"}>
                       {cellLabel}
                     </div>
-                    <div className="hidden truncate text-[9px] font-normal opacity-75 sm:block">
+                    <div className={expanded ? "truncate text-[10px] font-semibold opacity-75 sm:text-xs" : "hidden truncate text-[9px] font-normal opacity-75 sm:block"}>
                       {cell.count} {cell.count === 1 ? "trade" : "trades"}
                     </div>
                   </div>

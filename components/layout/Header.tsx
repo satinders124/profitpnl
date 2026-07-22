@@ -5,7 +5,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useMode } from "@/components/providers/ModeProvider";
 import { getActiveShift, type TraderShift } from "@/lib/shifts-db";
 import { useRouter } from "next/navigation";
-import { Clock3, FlaskConical, Plus } from "lucide-react";
+import { Clock3, FlaskConical, Moon, Plus, Sun } from "lucide-react";
 
 type HeaderProps = {
   title: string;
@@ -36,6 +36,22 @@ export function Header({
   const cleanActionLabel = actionLabel?.replace(/^\+\s*/, "");
   const [activeShift, setActiveShift] = useState<TraderShift | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem("profitpnl_theme");
+    const nextTheme = savedTheme === "light" ? "light" : "dark";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTheme(nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+  }, []);
+
+  function toggleTheme() {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    setTheme(nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+    window.localStorage.setItem("profitpnl_theme", nextTheme);
+  }
 
   const refreshActiveShift = useCallback(async () => {
     if (!user || isBacktest) {
@@ -109,6 +125,16 @@ export function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="inline-flex items-center gap-2 rounded-full border border-[#1E1E38] bg-[#111124] px-3 py-2 text-xs font-black text-[#A0A0C0] transition hover:border-[#F0B429]/40 hover:text-[#F0B429]"
+          title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+        >
+          {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+          <span className="hidden md:inline">{theme === "light" ? "Dark" : "Light"}</span>
+        </button>
+
         {activeShift && !isBacktest && (
           <button
             onClick={() => router.push("/psychology/guard")}
